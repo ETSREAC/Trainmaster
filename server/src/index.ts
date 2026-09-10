@@ -175,9 +175,17 @@ blockManager = new BlockManager(data.blocks, {
     broadcast({ type: 'BLOCK_UPDATED', payload: block });
   },
   onEnterTriggered: (block, loco) => {
+    locoManager.setLocoBlock(loco.id, block.id);
+    data.locos = locoManager.getAllLocos();
+    data.blocks = blockManager.getAllBlocks();
+    saveAllData();
     bbtEngine.startBraking(loco, block.id, block.direction);
   },
   onInTriggered: (block, loco) => {
+    locoManager.setLocoBlock(loco.id, block.id);
+    data.locos = locoManager.getAllLocos();
+    data.blocks = blockManager.getAllBlocks();
+    saveAllData();
     bbtEngine.handleInEvent(loco, block.id, block.direction);
     routeEngine.releaseRoute(block.id);
     routeEngine.notifyTrainArrival(block.id, loco.id);
@@ -189,6 +197,7 @@ blockManager = new BlockManager(data.blocks, {
       addLog('Geisterzug erkannt, Not-Halt jedoch in den Einstellungen deaktiviert.', 'warn');
     }
   },
+  isAutomaticMode: () => (routeEngine ? routeEngine.isAutomaticMode() : false),
   onLog: addLog
 });
 
@@ -247,34 +256,44 @@ routeEngine = new RouteEngine(
 );
 
 // Virtuelle Züge simulieren: automatisches Weiterfahren bei aktiver Fahrstraße
+const activeSimulations = new Set<string>();
+
 setInterval(() => {
   if (status.emergencyStop || !status.trackPower) return;
   // Nur im Virtual-Modus simulieren wir die Sensoren automatisch
   if (status.commandStationType !== 'VIRTUAL') return;
 
   for (const route of routeEngine.getAllRoutes()) {
-    if (route.active) {
-      const fromBlock = blockManager.getBlock(route.fromBlockId);
+    if (route.active && !activeSimulations.has(route.id)) {
       const toBlock = blockManager.getBlock(route.toBlockId);
-      if (!fromBlock || !toBlock) continue;
+      if (!toBlock) continue;
 
-      const loco = fromBlock.currentLocoId ? locoManager.getLoco(fromBlock.currentLocoId) : null;
-      if (loco && loco.speed > 0) {
-        if (toBlock.state === 'RESERVED') {
-          setTimeout(() => {
-            const enterSensorId = toBlock.direction === '+' ? toBlock.sensorsPlus.enter : toBlock.sensorsMinus.enter;
-            triggerSensor(enterSensorId, true);
-          }, 3500);
-        } else if (toBlock.state === 'OCCUPIED' && loco.speed > 0) {
-          setTimeout(() => {
-            const inSensorId = toBlock.direction === '+' ? toBlock.sensorsPlus.in : toBlock.sensorsMinus.in;
-            triggerSensor(inSensorId, true);
-          }, 4500);
+      activeSimulations.add(route.id);
+
+      // Simuliere ENTER nach 2.5s
+      setTimeout(() => {
+        if (!route.active) {
+          activeSimulations.delete(route.id);
+          return;
         }
-      }
+        const enterSensorId = toBlock.direction === '+' ? toBlock.sensorsPlus.enter : toBlock.sensorsMinus.enter;
+        if (enterSensorId) {
+          triggerSensor(enterSensorId, true, true);
+        }
+
+        // Simuliere IN nach weiteren 3.0s
+        setTimeout(() => {
+          activeSimulations.delete(route.id);
+          if (!route.active) return;
+          const inSensorId = toBlock.direction === '+' ? toBlock.sensorsPlus.in : toBlock.sensorsMinus.in;
+          if (inSensorId) {
+            triggerSensor(inSensorId, true, true);
+          }
+        }, 3000);
+      }, 2500);
     }
   }
-}, 1000);
+}, 500);
 
 function triggerSensor(sensorId: string, state: boolean, autoReset = false, fromHal = false): void {
   const sensor = data.sensors.find((s) => s.id === sensorId);

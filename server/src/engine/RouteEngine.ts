@@ -293,26 +293,49 @@ export class RouteEngine {
   private startAutoLoop(): void {
     if (this.autoLoopTimer) clearInterval(this.autoLoopTimer);
 
+    // Sofortige Prüfung beim Einschalten
+    setTimeout(() => {
+      if (this.automaticModeActive) {
+        const blocks = this.blockManager.getAllBlocks();
+        const occupiedWithTrain = blocks.filter((b) => b.state === 'OCCUPIED' && b.currentLocoId);
+        if (occupiedWithTrain.length === 0) {
+          this.events.onLog('[Automatik] Keine Züge in Blöcken aufgestellt! Bitte zuerst über das Gleis-Kontextmenü oder Depot einen Zug in einen Block setzen.', 'warn');
+        } else {
+          this.events.onLog(`[Automatik] Überwache ${occupiedWithTrain.length} aufgestellte(n) Zug/Züge auf der Anlage.`, 'info');
+          this.checkAndDispatchAll();
+        }
+      }
+    }, 200);
+
     // Prüfe alle 3 Sekunden nach abfahrbereiten Zügen, die nicht bereits in einem Abfahrtstimer hängen
     this.autoLoopTimer = setInterval(() => {
       if (!this.automaticModeActive) return;
+      this.checkAndDispatchAll();
+    }, 3000);
+  }
 
-      const blocks = this.blockManager.getAllBlocks();
-      for (const block of blocks) {
-        if (block.state === 'OCCUPIED' && block.currentLocoId) {
-          const loco = this.locoManager.getLoco(block.currentLocoId);
-          // Wenn der Zug steht und kein aktiver Timer läuft, suche Route
-          if (loco && loco.speed === 0 && !this.departureTimers.has(block.id)) {
-            this.tryDispatchNext(block.id);
-          }
+  private checkAndDispatchAll(): void {
+    const blocks = this.blockManager.getAllBlocks();
+    for (const block of blocks) {
+      if (block.state === 'OCCUPIED' && block.currentLocoId) {
+        const loco = this.locoManager.getLoco(block.currentLocoId);
+        const isRouteActive = Array.from(this.routes.values()).some((r) => r.fromBlockId === block.id && r.active);
+        // Wenn der Zug steht und kein aktiver Timer oder aktive Route läuft, suche Route
+        if (loco && loco.speed === 0 && !this.departureTimers.has(block.id) && !isRouteActive) {
+          this.tryDispatchNext(block.id);
         }
       }
-    }, 3000);
+    }
   }
 
   private tryDispatchNext(fromBlockId: string): boolean {
     const fromBlock = this.blockManager.getBlock(fromBlockId);
     if (!fromBlock || !fromBlock.currentLocoId) return false;
+
+    // Keine neue Route anfordern wenn von diesem Block bereits eine Fahrstraße aktiv ist
+    for (const r of this.routes.values()) {
+      if (r.fromBlockId === fromBlockId && r.active) return false;
+    }
 
     const loco = this.locoManager.getLoco(fromBlock.currentLocoId);
     if (!loco) return false;

@@ -10,6 +10,29 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.2.1] - 2026-09-10
+
+### 🛠️ Highlights (Patch / Bugfix)
+- **Sensor-Zuordnung & Geisterzug-Schutz im Handbetrieb**:
+  - Rückmelder-Events auf unreservierten Blöcken lösen im Handbetrieb / Einrichtbetrieb keinen Geisterzug-Nothalt mehr aus. Stattdessen wird der Block als belegt (`OCCUPIED`) markiert, sodass Züge ungestört manuell rangiert und Sensoren getestet werden können.
+  - Echte Geisterzug-Erkennung (`GHOST` mit Nothalt) greift nun zielgerichtet bei aktiviertem Automatikmodus, wenn ein Zug unerwartet in ein nicht reserviertes Gleis einfährt.
+- **Schnelle Zugzuweisung im Gleis-Kontextmenü**:
+  - Die "Zug aus Depot aufsetzen" Schnellwahltasten stehen nun für alle Block-Zustände (`FREE`, `OCCUPIED`, `GHOST`) zur Verfügung. Loks können mit einem Klick belegten Blöcken zugeordnet oder getauscht werden.
+- **Sensor-Multimapping für Zweirichtungs-Gleise**:
+  - `BlockManager` unterstützt mehrere Block-/Rollen-Zuordnungen pro Rückmelder (`sensorToBlockMap`), wodurch Überschreibungen bei gemeinsam genutzten ENTER/IN-Meldern in Gegenrichtung verhindert werden.
+- **Automatik Dispatcher & Lok-Synchronisation**:
+  - Beim Erreichen eines Blocks (`ENTER` und `IN`) wird `currentBlockId` der Lokomotive sofort im `LocoManager` synchronisiert und persistiert.
+  - Der Automatikmodus prüft nun direkt beim Einschalten auf abfahrbereite Züge und gibt eine informative Rückmeldung, falls noch keine Züge aufgestellt sind.
+  - Automatische Rücksetz-Impulse (`autoReset: true`) für simulierte Sensoren verhindern dauerhaft hängende Besetztmelder.
+
+### Fixed
+- `server/src/engine/BlockManager.ts`: Array-basiertes Sensor-Mapping zur Auflösung von Richtungskonflikten und differenzierte Geisterzug-Prüfung (`isAutomaticMode`).
+- `server/src/engine/RouteEngine.ts`: Sofortige Routenprüfung (`checkAndDispatchAll()`) beim Aktivieren des Automatikmodus.
+- `server/src/index.ts`: Lok-Block-Synchronisation bei `onEnterTriggered` und `onInTriggered` sowie Entprellung und Auto-Reset für virtuelle Sensor-Simulation.
+- `client/src/components/TrackCanvas.ts`: Schnelle Zugzuweisung und Lok-Tausch im Kontextmenü auch für belegte und gestörte Blöcke verfügbar gemacht.
+
+---
+
 ## [1.2.0] - 2026-09-10
 
 ### 🚀 Highlights (Minor / Sub-Version)

@@ -2225,8 +2225,10 @@ export class TrackCanvas {
           </div>
         </div>
       `;
+    }
 
-      // Quick-Zuweisung wenn freie Loks im Depot existieren
+    // Quick-Zuweisung wenn kein Zug auf dem Block steht
+    if (!currentLoco) {
       const unassignedLocos = wsClient.locos.filter((l) => !l.currentBlockId);
       if (unassignedLocos.length > 0) {
         actionButtons += `
@@ -2236,6 +2238,23 @@ export class TrackCanvas {
               ${unassignedLocos.map((l) => `
                 <button class="ctx-btn-quick-assign" data-loco-id="${l.id}" title="${l.name}">
                   🚂 ${l.name} (#${l.dccAddress})
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      // Wenn bereits eine Lok da ist: Zug tauschen anbieten
+      const otherLocos = wsClient.locos.filter((l) => !l.currentBlockId && l.id !== currentLoco.id);
+      if (otherLocos.length > 0) {
+        actionButtons += `
+          <div class="ctx-menu-group">
+            <div class="ctx-group-title">Zug tauschen:</div>
+            <div class="ctx-quick-locos">
+              ${otherLocos.map((l) => `
+                <button class="ctx-btn-quick-assign" data-loco-id="${l.id}" title="${l.name}">
+                  🔄 ${l.name} (#${l.dccAddress})
                 </button>
               `).join('')}
             </div>
