@@ -1,7 +1,9 @@
 # 🚂 TrainMaster
 
-> **Moderne, hardwarebeschleunigte Modellbahnsteuerung & digitales Gleisbildstellwerk.**  
-> Entwickelt mit Node.js, TypeScript, modernem SVG-Canvas und maßgeschneiderter ESP32-Firmware (WIO / UDP).
+> **Modern, hardware-accelerated model railway automation & digital dispatcher.**  
+> Built with Node.js, TypeScript, reactive SVG canvas, and dedicated ESP32 firmware (WIO / UDP).
+
+[🇬🇧 **English Version**](README.md) • [🇩🇪 **Deutsche Version**](README_de.md)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
@@ -13,97 +15,105 @@
 
 ## 🌟 Highlights & Features
 
-### 🖥️ Hardwarebeschleunigter Gleisplan & Stellwerk
-- **Dynamisches 80x80 Raster**: Stufenloses Zoomen (40%–250%), 1-Finger Drag-to-Pan und 2-Finger Pinch-to-Zoom.
-- **Multi-Layer Z-Order**: Block-Badges, Zuginformationen und Statusanzeigen liegen garantiert immer auf einer obersten SVG-Ebene über Gleisen, Schotterbetten und Weichenzungen.
-- **Blickdichte Trägerplatte**: Schienenstränge schneiden niemals durch Belegtanzeigen oder Lokomotivbezeichnungen.
-- **Click & Drive**: Lok auf Startblock wählen, Zielblock antippen – TrainMaster stellt und verriegelt alle Weichen und Signale vollautomatisch.
-- **Signal-Visualisierung**: Reale Signalbilder (Hp0, Hp1, Hp2, Sh0, Sh1) inklusive rot-weißer und weiß-blau-weißer DB-Mastschilder mit 180°-Gegenrichtungsdrehung.
+### 🌐 Dual-Language Support (English & German)
+- Fully localized Web UI: switch seamlessly between **English** and **German** with the **`🇬🇧 EN / 🇩🇪 DE`** toggle in the top header.
+- Automatic persistence of language preference in the browser (`localStorage`).
+- Dual-language documentation (`README.md` in English, `README_de.md` in German).
 
-### 📱 Touchscreen- & Tablet-Optimierung
-- **Gestensteuerung**: 1-Finger Panning mit intelligenter Richtungssperre, stufenloses 2-Finger Pinch-to-Zoom.
-- **Long-Press-Aktionen**: 
-  - **500 ms** auf Blöcke öffnet das Kontextmenü (Rechtsklick-Ersatz auf iPads/Smartphones) mit haptischem Feedback.
-  - **450 ms** auf Rückmelder schaltet Dauerbelegung um (Shift-Klick-Ersatz).
-- **Zugdepot-Drawer**: Bequemes Aufgleisen via *Tap-to-Place* oder Touch-Drag mit Schwebeminiatur (`touch-drag-ghost`).
-- **Ergonomischer Handregler**: Großer 36px Fahrstufen-Slider mit `touch-action: none` gegen unbeabsichtigtes Scrollen.
+### 🖥️ Hardware-Accelerated Track Plan & Dispatcher
+- **Dynamic 80x80 Grid**: Smooth zooming (40%–250%), 1-finger drag-to-pan, and 2-finger pinch-to-zoom.
+- **Multi-Layer Z-Order**: Block badges, train labels, and status badges are rendered on a dedicated top SVG layer (`layer-blocks`), strictly above all rails, ballast, sleepers, and turnouts.
+- **Opaque Base Plate**: Solid backing plate (`#0d1117`) guarantees track lines never cut through train labels or block status badges.
+- **Click & Drive**: Tap a train's source block, then tap a destination block — TrainMaster automatically aligns and locks all turnouts and sets signals.
+- **Realistic Signals**: Prototype signal aspects (Hp0, Hp1, Hp2, Sh0, Sh1) with DB mast shields and 180° rotation support (labels always stay right-side up).
 
-### 🧭 Intelligente Stellwerkslogik & Fahrstraßen-Automatik
-- **Graphentheoretisches Topologie-Modell (`TrackTopology.ts`)**: Erkennt Anschlusstore, Weichenverzweigungen und offene Gleisenden.
-- **Fahrstraßen-Automatik (`RouteGenerator.ts`)**: Automatische Pfadsuche (BFS/DFS) mit Weichenflankenschutz, Weichenverriegelung und automatischer Signalstellung (Hp2 bei Abzweigen, Hp1 bei gerader Fahrt).
-- **Millimetergenaues Anhalten mit BBT (Block Brake Timer)**: Berechnet und adaptiert dynamische Bremsrampen zwischen `enter`- und `in`-Meldern.
-- **Geisterzug-Erkennung**: Erkennt unangekündigte Belegungen und löst sofortigen Nothalt aus.
+### 📱 Touchscreen & Tablet Optimization
+- **Gesture Navigation**: 1-finger panning with directional lock, smooth 2-finger pinch-to-zoom.
+- **Long-Press Actions**: 
+  - **500 ms** on track blocks opens the block context menu (right-click replacement on iPads & phones) with tactile haptic vibration.
+  - **450 ms** on feedback sensors toggles latched occupied state (Shift+Click replacement).
+- **Train Depot Drawer**: Easily place trains using *Tap-to-Place* or touch-drag with floating ghost miniature (`touch-drag-ghost`).
+- **Ergonomic Throttle**: 36px speed slider thumb with `touch-action: none` to prevent accidental page scrolling.
 
-### 🔌 Multi-Zentralen & ESP32 TrainMasterNode Firmware
-- **Z21 / DR5000 / YD9001**: Schnelle UDP-Kommunikation mit Roco Z21-kompatiblen Zentralen.
-- **DCC-EX**: Serielle Steuerung über USB/COM-Port.
-- **ESP32 TrainMasterNode**: Eigene Open-Source Firmware für dezentrale Knoten:
-  - Steuerung von Weichen über PCA9685 16-Kanal Servotreiber mit sanfter Stellkurve.
-  - Einlesen von Gleisbelegtmeldern über MCP23017 I2C Porterweiterung.
-  - Vorbildgetreue Ansteuerung von WS2812B NeoPixel Signal-LEDs.
-  - Integrierter WiFiManager mit Web-Dashboard und mDNS-Erkennung (`trainmasternode.local`).
+### 🧭 Intelligent Interlocking & Route Automation
+- **Graph-Theoretic Topology Model (`TrackTopology.ts`)**: Detects port connections, turnout branches, and open track ends.
+- **Route Generator (`RouteGenerator.ts`)**: Automatic pathfinding (BFS/DFS) with flank protection, turnout interlocking, and signal aspect selection (Hp2 for divergent branches, Hp1 for straight tracks).
+- **Precision Braking with BBT (Block Brake Timer)**: Calculates and adapts dynamic deceleration curves between `enter` and `in` feedback sensors.
+- **Ghost Train Detection**: Detects unauthorized occupancy on unreserved blocks and triggers an immediate emergency stop.
+
+### 🔌 Multi-Command Station & ESP32 TrainMasterNode Firmware
+- **Z21 / DR5000 / YD9001**: High-speed UDP communication with Roco Z21-compatible command stations.
+- **DCC-EX**: Serial communication over USB/COM port.
+- **ESP32 TrainMasterNode**: Open-source firmware for decentralized nodes:
+  - Turnout control via PCA9685 16-channel servo drivers with smooth easing curves.
+  - Track occupancy detection via MCP23017 I2C port expanders.
+  - Prototype-accurate control of WS2812B NeoPixel signal LEDs.
+  - Integrated WiFiManager with web dashboard and mDNS discovery (`trainmasternode.local`).
 
 ---
 
-## 🏗️ Projektstruktur
+## 🏗️ Project Architecture
 
 ```text
 TrainMaster/
-├── client/                     # WebUI (Vite, TypeScript, SVG Canvas, Responsive CSS)
+├── client/                     # Web UI (Vite, TypeScript, SVG Canvas, Responsive CSS)
 │   ├── src/
-│   │   ├── components/         # Stellwerk, Handregler, Depot, Monitore, Inspektor
-│   │   ├── main.ts             # Anwendungs-Initialisierung
-│   │   └── style.css           # Modernes Dark-Mode & Touchscreen Theme
+│   │   ├── components/         # Dispatcher, Throttle, Depot, Monitors, Inspector
+│   │   ├── i18n.ts             # Bilingual i18n translation system (DE/EN)
+│   │   ├── main.ts             # Application bootstrap & lifecycle
+│   │   └── style.css           # Modern dark-mode & touchscreen theme
 │   └── index.html
-├── server/                     # Stellwerks-Backend (Node.js, WebSocket, REST)
+├── server/                     # Dispatcher backend (Node.js, WebSocket, REST)
 │   ├── src/
-│   │   ├── engine/             # Topologie, Fahrstraßen, BBT, Blöcke, Weichen
+│   │   ├── engine/             # Topology, Routes, BBT, Blocks, Turnouts
 │   │   ├── hal/                # Z21, DCC-EX, WIO/UDP, Virtual Simulator
-│   │   └── storage/            # JSON-Persistenz für Gleispläne, Loks & Routen
-│   └── data/                   # Gleisplan- und Fahrzeug-Datenbank
-├── firmware/                   # ESP32 TrainMasterNode Firmware
-│   └── TrainMasterNode/        # PlatformIO / Arduino IDE Quellcode & Doku
-├── docs/                       # Vertiefende Anleitungen & Hardware-Verdrahtung
-├── CHANGELOG.md                # Chronologische Versionshistorie
-└── SPECIFICATION.md            # Architektur-Spezifikation
+│   │   └── storage/            # JSON persistence for track plans, locos & routes
+│   └── data/                   # Track plan & fleet database
+├── firmware/                   # ESP32 TrainMasterNode firmware
+│   └── TrainMasterNode/        # PlatformIO / Arduino IDE source & docs
+├── docs/                       # In-depth wiring & hardware guides
+├── STEERING.md                 # Project release & versioning policy
+├── CHANGELOG.md                # Chronological change log
+└── SPECIFICATION.md            # Technical specification
 ```
 
 ---
 
-## 🚀 Schnellstart
+## 🚀 Quick Start
 
-### Voraussetzungen
-- [Node.js](https://nodejs.org/) (Version 18 oder neuer)
-- npm (im Node.js-Installer enthalten)
+### Prerequisites
+- [Node.js](https://nodejs.org/) (Version 18 or newer)
+- npm (bundled with Node.js)
 
-### 1. Repository klonen
+### 1. Clone the repository
 ```bash
 git clone https://github.com/ETSREAC/Trainmaster.git
 cd Trainmaster
 ```
 
-### 2. Abhängigkeiten installieren
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### 3. Server & WebUI starten
+### 3. Start server & client
 ```bash
-# Startet Backend (Port 3001) und Client (Port 5173/5174) parallel:
+# Starts backend (port 3001) and web client (port 5173/5174) in parallel:
 npm run dev
 ```
 
-Öffne anschließend im Browser deiner Wahl:
-👉 **`http://localhost:5173`** *(oder auf deinem Tablet: `http://<PC-IP>:5173`)*
+Open in your browser:
+👉 **`http://localhost:5173`** *(or on your tablet: `http://<PC-IP>:5173`)*
 
 ---
 
-## 📝 Versionsverlauf
+## 📝 Version History
 
-Details zu allen Releases und Neuerungen findest du in der [**CHANGELOG.md**](CHANGELOG.md).
+For release details and changes, see [**CHANGELOG.md**](CHANGELOG.md).
+Release classification and steering rules are defined in [**STEERING.md**](STEERING.md).
 
 ---
 
-## 📄 Lizenz
+## 📄 License
 
-Dieses Projekt ist unter der [MIT-Lizenz](LICENSE) lizenziert.
+This project is licensed under the [MIT License](LICENSE).

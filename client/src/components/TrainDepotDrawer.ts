@@ -1,5 +1,6 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import { onLanguageChange, t } from '../i18n.js';
 
 export class TrainDepotDrawer {
   private container: HTMLElement;
@@ -50,6 +51,10 @@ export class TrainDepotDrawer {
       this.render();
     });
 
+    onLanguageChange(() => {
+      this.render();
+    });
+
     this.render();
   }
 
@@ -76,9 +81,9 @@ export class TrainDepotDrawer {
     if (!this.isOpen) {
       // Collapsed tab
       this.container.innerHTML = `
-        <button id="btn-depot-expand" class="depot-collapsed-tab" title="Zugdepot öffnen">
+        <button id="btn-depot-expand" class="depot-collapsed-tab" title="${t('depot.title')}">
           <span class="tab-icon">🚂</span>
-          <span class="tab-label">Züge (${locos.length})</span>
+          <span class="tab-label">${t('depot.collapsed_label')} (${locos.length})</span>
           <span class="tab-arrow">▶</span>
         </button>
       `;
@@ -91,7 +96,7 @@ export class TrainDepotDrawer {
     if (locos.length === 0) {
       cardsHtml = `
         <div class="depot-empty">
-          <p>Keine Loks angelegt.</p>
+          <p>${t('depot.empty')}</p>
         </div>
       `;
     } else {
@@ -102,15 +107,14 @@ export class TrainDepotDrawer {
       ? `
         <div class="depot-instruction active-selection">
           <div class="instruction-content">
-            <span class="instruction-title">🎯 Lok <strong>${selectedLoco.name}</strong> gewählt!</span>
-            <span class="instruction-subtitle">Tippe jetzt auf ein <strong>Block-Gleis</strong></span>
+            <span class="instruction-title">🎯 ${t('depot.instruction_selected')} (<strong>${selectedLoco.name}</strong>)</span>
           </div>
-          <button id="btn-depot-cancel-select" class="btn-cancel-placement" title="Auswahl aufheben">✕</button>
+          <button id="btn-depot-cancel-select" class="btn-cancel-placement" title="${t('depot.btn_cancel')}">✕</button>
         </div>
       `
       : `
         <div class="depot-instruction">
-          💡 Lok <strong>antippen</strong> zum Aufgleisen oder per Drag & Drop ziehen
+          ${t('depot.instruction_default')}
         </div>
       `;
 
@@ -118,10 +122,10 @@ export class TrainDepotDrawer {
       <div class="depot-header">
         <div class="depot-title">
           <span class="depot-icon">🚂</span>
-          <span class="depot-heading">Zugdepot</span>
+          <span class="depot-heading">${t('depot.title')}</span>
           <span class="depot-count-badge">${locos.length}</span>
         </div>
-        <button id="btn-depot-collapse" class="btn-depot-toggle" title="Zugdepot einklappen">
+        <button id="btn-depot-collapse" class="btn-depot-toggle" title="${t('depot.title')}">
           ◀
         </button>
       </div>
@@ -136,8 +140,8 @@ export class TrainDepotDrawer {
       <div class="depot-unassign-zone" id="depot-unassign-zone">
         <span class="unassign-icon">📥</span>
         <div class="unassign-text">
-          <strong>Zug hierher ziehen</strong>
-          <small>zum Abstellen & Block freigeben</small>
+          <strong>${t('depot.unassign_title')}</strong>
+          <small>${t('depot.unassign_subtitle')}</small>
         </div>
       </div>
     `;

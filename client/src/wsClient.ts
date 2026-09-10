@@ -76,7 +76,7 @@ export class WSClient {
     };
   }
 
-  private notify(): void {
+  public notify(): void {
     for (const l of this.listeners) {
       l();
     }

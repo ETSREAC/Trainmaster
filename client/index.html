@@ -17,14 +17,17 @@
         <span class="logo-icon">🚂</span>
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.0-alpha • Modern Dispatcher</span>
+          <span class="version-tag">v1.1.0 • Modern Dispatcher</span>
         </div>
       </div>
 
       <div class="quick-status">
+        <button id="btn-lang-toggle" class="btn btn-lang" title="Sprache wechseln / Switch language" style="background:#21262d;border:1px solid #30363d;padding:6px 12px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;color:#f0f6fc;">
+          <span class="lang-flag">🇬🇧</span> <span class="lang-text">EN</span>
+        </button>
         <div class="status-badge" id="badge-connection">
           <span class="indicator red"></span>
-          <span class="text">Verbinde...</span>
+          <span class="text" data-i18n="status.connecting">Verbinde...</span>
         </div>
         <div class="status-badge" id="badge-cs">
           <span class="icon">🔌</span>
@@ -32,37 +35,37 @@
         </div>
         <button id="btn-power" class="btn btn-power on" title="Gleisspannung ein/ausschalten">
           <span class="icon">⚡</span>
-          <span class="text">Gleisstrom EIN</span>
+          <span class="text" data-i18n="status.power_on">Gleisstrom EIN</span>
         </button>
         <button id="btn-auto" class="btn btn-auto" title="Aquarium / Automatikmodus starten">
           <span class="icon">🔄</span>
-          <span class="text">Automatik: AUS</span>
+          <span class="text" data-i18n="status.auto_off">Automatik: AUS</span>
         </button>
         <button id="btn-estop" class="btn btn-estop" title="NOT-HALT für alle Züge (Leertaste)">
           <span class="icon">🛑</span>
-          <span class="text">NOT-HALT [Space]</span>
+          <span class="text" data-i18n="status.estop">NOT-HALT [Space]</span>
         </button>
       </div>
     </header>
 
     <!-- Main Navigation Bar -->
     <nav class="main-nav">
-      <button class="nav-tab active" data-tab="layout">
+      <button class="nav-tab active" data-tab="layout" data-i18n="nav.layout">
         <span class="icon">🗺️</span> Gleisplan & Stellwerk
       </button>
-      <button class="nav-tab" data-tab="throttle">
+      <button class="nav-tab" data-tab="throttle" data-i18n="nav.throttle">
         <span class="icon">🎛️</span> Handregler
       </button>
-      <button class="nav-tab" data-tab="bbt">
+      <button class="nav-tab" data-tab="bbt" data-i18n="nav.bbt">
         <span class="icon">⏱️</span> BBT Bremsrechner
       </button>
-      <button class="nav-tab" data-tab="sensors">
+      <button class="nav-tab" data-tab="sensors" data-i18n="nav.sensors">
         <span class="icon">🚦</span> Signale & Rückmelder
       </button>
-      <button class="nav-tab" data-tab="logs">
+      <button class="nav-tab" data-tab="logs" data-i18n="nav.logs">
         <span class="icon">📜</span> System-Log
       </button>
-      <button class="nav-tab" data-tab="settings">
+      <button class="nav-tab" data-tab="settings" data-i18n="nav.settings">
         <span class="icon">⚙️</span> Einstellungen
       </button>
     </nav>
@@ -74,14 +77,14 @@
         <div class="panel-toolbar">
           <div class="toolbar-group">
             <span class="mode-label">Modus:</span>
-            <button id="btn-mode-run" class="tool-btn active">🚦 Betriebs-Modus (Klick zum Fahren)</button>
-            <button id="btn-mode-edit" class="tool-btn">✏️ Editor-Modus</button>
+            <button id="btn-mode-run" class="tool-btn active" data-i18n="canvas.mode_run">🕹️ Fahrbetrieb</button>
+            <button id="btn-mode-edit" class="tool-btn" data-i18n="canvas.mode_edit">✏️ Gleisplan-Editor</button>
           </div>
           <div class="toolbar-group">
-            <button id="btn-inspect-layout" class="btn btn-save" title="Gleisplan prüfen und Sensoren/Signale Blöcken zuordnen">
+            <button id="btn-inspect-layout" class="btn btn-save" title="Gleisplan prüfen und Sensoren/Signale Blöcken zuordnen" data-i18n="canvas.inspect">
               <span class="icon">⚡</span> Plan prüfen & Blöcke zuordnen
             </button>
-            <button id="btn-auto-routes" class="btn btn-save" style="background:#1f6feb26;color:#58a6ff;border-color:rgba(88,166,255,0.4);" title="Alle möglichen Fahrstraßen automatisch generieren">
+            <button id="btn-auto-routes" class="btn btn-save" style="background:#1f6feb26;color:#58a6ff;border-color:rgba(88,166,255,0.4);" title="Alle möglichen Fahrstraßen automatisch generieren" data-i18n="canvas.routes_auto">
               <span class="icon">🧭</span> Fahrstraßen-Automatik
             </button>
           </div>

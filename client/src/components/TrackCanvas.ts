@@ -1,6 +1,7 @@
 import { Block, Sensor, Signal, TrackElement, Turnout, getSignalSupportedAspects } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { TrainDepotDrawer } from './TrainDepotDrawer.js';
+import { t } from '../i18n.js';
 
 export type EditorTool =
   | 'STRAIGHT'
@@ -798,16 +799,16 @@ export class TrackCanvas {
       });
     } else if (TrainDepotDrawer.selectedLocoId) {
       const loco = wsClient.locos.find((l) => l.id === TrainDepotDrawer.selectedLocoId);
-      textEl.innerHTML = `🚂 <strong>Lok "${loco?.name || ''}" gewählt</strong>: Tippe auf ein Block-Gleis zum Aufgleisen! <button id="btn-cancel-assign" style="margin-left:8px;padding:2px 8px;cursor:pointer;">Abbrechen</button>`;
+      textEl.innerHTML = `🚂 <strong>${t('depot.instruction_selected')} (${loco?.name || ''})</strong> <button id="btn-cancel-assign" style="margin-left:8px;padding:2px 8px;cursor:pointer;">${t('depot.btn_cancel')}</button>`;
       document.getElementById('btn-cancel-assign')?.addEventListener('click', (e) => {
         e.stopPropagation();
         TrainDepotDrawer.clearSelection();
       });
     } else {
       const testModeNote = wsClient.settings?.manualSensorTriggerInRunMode !== false
-        ? ' • ⚡ <strong>Testbetrieb aktiv</strong>: Rückmelder antippen (oder lang drücken für Dauerbelegung)'
+        ? t('canvas.helper_testmode')
         : '';
-      textEl.innerHTML = `💡 <em>Click & Drive: Startblock mit Lok antippen, dann Zielblock. Weichen zum Schalten antippen.${testModeNote}</em>`;
+      textEl.innerHTML = `${t('canvas.helper_run')}${testModeNote}`;
     }
   }
 

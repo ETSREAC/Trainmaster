@@ -8,8 +8,30 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-09-10
+
+### 🌐 Highlights
+- **Dual-Language System (DE / EN)**: Vollständige Zweisprachigkeit in der gesamten Benutzeroberfläche mit 1-Klick-Sprachumschalter (`🇩🇪 DE` / `🇬🇧 EN`) im Header.
+- **Zweisprachige Dokumentation**: Vollständiges englisches `README.md` und deutsches `README_de.md` mit Schnellwechsel-Links.
+- **Steering-Richtlinie für Versionierung**: Verbindliches Regelwerk (`STEERING.md` & `.agents/rules/versioning.md`) zur semantischen Einstufung jeder Änderung in Major (`X.0.0`), Minor/Sub (`1.X.0`) oder Patch/Sub-Sub (`1.0.X`).
+
 ### Added
-- **Git-Repository-Initialisierung**: `.gitignore` und `CHANGELOG.md` für strukturierte Versionsverwaltung und Nachverfolgbarkeit hinzugefügt.
+- **i18n Sprachmodul (`client/src/i18n.ts`)**:
+  - Dynamische Übersetzung für Tabs, Toolbar-Buttons, Header-Stati, Handregler und Zugdepot.
+  - Speicherung der bevorzugten Sprache im Browser (`localStorage`).
+  - Reaktive Aktualisierung aller DOM-Elemente mit `data-i18n` und `data-i18n-title`.
+- **Zweisprachige Dokumentation**:
+  - `README.md`: Vollständige englische Dokumentation für internationale Community auf GitHub.
+  - `README_de.md`: Vollständige deutsche Original-Dokumentation.
+- **Release- & Versionierungs-Steering**:
+  - `STEERING.md`: Detaillierter Entscheidungsbaum und Workflow für Major-, Minor- und Patch-Releases.
+  - `.agents/rules/versioning.md`: System-Regel für KI-Assistenten zur automatischen Durchsetzung der Richtlinie.
+
+### Changed
+- `wsClient.notify()` ist nun öffentlich zugänglich, um UI-Re-Rendering bei Sprachwechseln sofort auszulösen.
+- Versions-Tag im Web-Header auf `v1.1.0 • Modern Dispatcher` aktualisiert.
 
 ---
 

@@ -7,6 +7,7 @@ import { SettingsTab } from './components/SettingsTab.js';
 import { SignalMonitor } from './components/SignalMonitor.js';
 import { LayoutInspectorModal } from './components/LayoutInspectorModal.js';
 import { TrainDepotDrawer } from './components/TrainDepotDrawer.js';
+import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Elements
@@ -48,6 +49,16 @@ document.addEventListener('DOMContentLoaded', () => {
   if (bbtTbody) new BBTMonitor(bbtTbody);
 
   new SettingsTab();
+
+  // Language Switcher & i18n
+  applyTranslationsToDOM();
+  document.getElementById('btn-lang-toggle')?.addEventListener('click', () => {
+    toggleLanguage();
+    wsClient.notify();
+  });
+  onLanguageChange(() => {
+    wsClient.notify();
+  });
 
   // Tab Switching
   const tabs = document.querySelectorAll<HTMLButtonElement>('.nav-tab');
@@ -175,9 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Connection Badge
     if (badgeConnection) {
       if (wsClient.status.connected) {
-        badgeConnection.innerHTML = '<span class="indicator green"></span> <span class="text">Verbunden</span>';
+        badgeConnection.innerHTML = `<span class="indicator green"></span> <span class="text">${t('status.connected')}</span>`;
       } else {
-        badgeConnection.innerHTML = '<span class="indicator red"></span> <span class="text">Getrennt</span>';
+        badgeConnection.innerHTML = `<span class="indicator red"></span> <span class="text">${t('status.disconnected')}</span>`;
       }
     }
 
@@ -195,10 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnPower) {
       if (wsClient.status.trackPower) {
         btnPower.className = 'btn btn-power on';
-        btnPower.innerHTML = '<span class="icon">⚡</span> <span class="text">Gleisstrom EIN</span>';
+        btnPower.innerHTML = `<span class="icon">⚡</span> <span class="text">${t('status.power_on')}</span>`;
       } else {
         btnPower.className = 'btn btn-power';
-        btnPower.innerHTML = '<span class="icon">🔌</span> <span class="text">Gleisstrom AUS</span>';
+        btnPower.innerHTML = `<span class="icon">🔌</span> <span class="text">${t('status.power_off')}</span>`;
       }
     }
 
@@ -206,10 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAuto) {
       if (wsClient.status.automaticMode) {
         btnAuto.className = 'btn btn-auto active';
-        btnAuto.innerHTML = '<span class="icon">🔄</span> <span class="text">Automatik: AKTIV</span>';
+        btnAuto.innerHTML = `<span class="icon">🔄</span> <span class="text">${t('status.auto_on')}</span>`;
       } else {
         btnAuto.className = 'btn btn-auto';
-        btnAuto.innerHTML = '<span class="icon">🔄</span> <span class="text">Automatik: AUS</span>';
+        btnAuto.innerHTML = `<span class="icon">🔄</span> <span class="text">${t('status.auto_off')}</span>`;
       }
     }
 
@@ -217,10 +228,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnEstop) {
       if (wsClient.status.emergencyStop) {
         btnEstop.className = 'btn btn-estop active';
-        btnEstop.innerHTML = '<span class="icon">⚠️</span> <span class="text">NOT-HALT AKTIV! [Space]</span>';
+        btnEstop.innerHTML = `<span class="icon">⚠️</span> <span class="text">${t('status.estop')}</span>`;
       } else {
         btnEstop.className = 'btn btn-estop';
-        btnEstop.innerHTML = '<span class="icon">🛑</span> <span class="text">NOT-HALT [Space]</span>';
+        btnEstop.innerHTML = `<span class="icon">🛑</span> <span class="text">${t('status.estop')}</span>`;
       }
     }
 
