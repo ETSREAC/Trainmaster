@@ -95,9 +95,27 @@ export interface BlockSensors {
   in: string;    // Sensor ID for IN event (stop)
 }
 
+export type BlockType =
+  | 'STATION'        // Hauptbahnhof / Bahnhof (planmäßiger Halt mit Wartezeit & Sounds)
+  | 'LOCAL_STATION'  // Regionalbahnhof / Haltepunkt (Halt für Regional, Durchfahrt für ICE & Güter)
+  | 'SHADOW_STATION' // Schattenbahnhof (Parken, Zugspeicher, Rotation)
+  | 'MAINLINE'       // Freie Strecke (Durchfahrtsblock, kein planmäßiger Halt)
+  | 'SIDING';        // Abstellgleis / Rangiergleis
+
+export interface BlockSoundConfig {
+  departureFKey?: number;           // DCC F-Taste vor Abfahrt (z. B. 3 für Pfiff)
+  departureFKeyDurationMs?: number; // Dauer der Tastenaktivierung in ms (Default 1500)
+  departureLeadTimeSec?: number;    // Sekunden vor Abfahrt, wann der Sound ausgelöst wird (Default 3)
+  arrivalFKey?: number;             // DCC F-Taste bei Einfahrt
+  wioAudioUnit?: number;            // ESP32 Unit für DFPlayer / Lautsprecher
+  wioSoundIndex?: number;           // Sound-Track-ID auf dem ESP32
+  clientSoundId?: string;           // Optionaler Web Audio Sound-Name im Browser
+}
+
 export interface Block {
   id: string;
   name: string;
+  type?: BlockType;
   lengthCm: number;
   state: BlockState;
   currentLocoId: string | null;
@@ -105,6 +123,9 @@ export interface Block {
   direction: '+' | '-';
   sensorsPlus: BlockSensors;  // Fahrrichtung von + nach -
   sensorsMinus: BlockSensors; // Fahrrichtung von - nach +
+  minWaitTimeSec?: number;    // Min. Wartezeit in Sekunden (Default 10s)
+  maxWaitTimeSec?: number;    // Max. Wartezeit in Sekunden (Default 25s)
+  soundConfig?: BlockSoundConfig;
 }
 
 export interface BBTEntry {
@@ -305,7 +326,8 @@ export type WSServerMessage =
   | { type: 'BBT_UPDATED'; payload: BBTEntry }
   | { type: 'WIO_NODES_UPDATED'; payload: { nodes: WioNodeInfo[]; recentPackets: WioPacketInfo[] } }
   | { type: 'LOG_MESSAGE'; payload: { message: string; timestamp: number; level: 'info' | 'warn' | 'error' } }
-  | { type: 'LAYOUT_INSPECTION_RESULT'; payload: LayoutInspectionResult };
+  | { type: 'LAYOUT_INSPECTION_RESULT'; payload: LayoutInspectionResult }
+  | { type: 'PLAY_SOUND'; payload: { blockId: string; soundType: 'DEPARTURE' | 'ARRIVAL'; clientSoundId?: string } };
 
 
 

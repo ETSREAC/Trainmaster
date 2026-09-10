@@ -180,6 +180,7 @@ blockManager = new BlockManager(data.blocks, {
   onInTriggered: (block, loco) => {
     bbtEngine.handleInEvent(loco, block.id, block.direction);
     routeEngine.releaseRoute(block.id);
+    routeEngine.notifyTrainArrival(block.id, loco.id);
   },
   onGhostDetected: () => {
     if (data.settings.ghostDetectionActive) {
@@ -230,6 +231,16 @@ routeEngine = new RouteEngine(
       if (sig) {
         setSignalState(sig, aspect);
       }
+    },
+    onSoundTriggered: (block, soundType) => {
+      broadcast({
+        type: 'PLAY_SOUND',
+        payload: {
+          blockId: block.id,
+          soundType,
+          clientSoundId: block.soundConfig?.clientSoundId || 'whistle'
+        }
+      });
     },
     onLog: addLog
   }

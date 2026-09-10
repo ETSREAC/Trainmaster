@@ -266,8 +266,68 @@ export class WSClient {
         if (this.status.log.length > 200) this.status.log.shift();
         break;
       }
+
+      case 'PLAY_SOUND': {
+        this.playWebAudioSound(msg.payload.soundType, msg.payload.clientSoundId);
+        break;
+      }
     }
     this.notify();
+  }
+
+  private playWebAudioSound(soundType: 'DEPARTURE' | 'ARRIVAL', _soundId?: string): void {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      if (soundType === 'DEPARTURE') {
+        // Zweiklang-Pfeife / Schaffner-Pfiff
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(1480, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+        osc1.frequency.setValueAtTime(1760, ctx.currentTime + 0.55);
+
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1490, ctx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(1775, ctx.currentTime + 0.1);
+        osc2.frequency.setValueAtTime(1775, ctx.currentTime + 0.55);
+
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 0.75);
+        osc2.stop(ctx.currentTime + 0.75);
+      } else {
+        // Bahnhofsgong Ding-Dong
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(440.00, ctx.currentTime + 0.25); // A4
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.2);
+      }
+    } catch {
+      // AudioContext may require user interaction first
+    }
   }
 
   public onInspection(callback: (res: LayoutInspectionResult) => void): () => void {

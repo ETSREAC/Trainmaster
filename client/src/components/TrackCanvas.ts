@@ -1,4 +1,4 @@
-import { Block, Sensor, Signal, TrackElement, Turnout, getSignalSupportedAspects } from '../types.js';
+import { Block, BlockType, Sensor, Signal, TrackElement, Turnout, getSignalSupportedAspects } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { TrainDepotDrawer } from './TrainDepotDrawer.js';
 import { t } from '../i18n.js';
@@ -284,23 +284,39 @@ export class TrackCanvas {
       if (!block) return;
 
       const nameInput = document.getElementById('block-form-name') as HTMLInputElement | null;
+      const typeSelect = document.getElementById('block-form-type') as HTMLSelectElement | null;
       const lengthInput = document.getElementById('block-form-length') as HTMLInputElement | null;
       const dirSelect = document.getElementById('block-form-direction') as HTMLSelectElement | null;
       const locoSelect = document.getElementById('block-form-loco') as HTMLSelectElement | null;
+      const minWaitInput = document.getElementById('block-form-min-wait') as HTMLInputElement | null;
+      const maxWaitInput = document.getElementById('block-form-max-wait') as HTMLInputElement | null;
+      const soundFKeyInput = document.getElementById('block-form-sound-fkey') as HTMLInputElement | null;
+      const soundLeadInput = document.getElementById('block-form-sound-lead') as HTMLInputElement | null;
       const plusEnterSelect = document.getElementById('block-form-plus-enter') as HTMLSelectElement | null;
       const plusInSelect = document.getElementById('block-form-plus-in') as HTMLSelectElement | null;
       const minusEnterSelect = document.getElementById('block-form-minus-enter') as HTMLSelectElement | null;
       const minusInSelect = document.getElementById('block-form-minus-in') as HTMLSelectElement | null;
 
       const newLocoId = locoSelect?.value || null;
+      const fKeyVal = soundFKeyInput?.value ? parseInt(soundFKeyInput.value, 10) : undefined;
+      const leadVal = soundLeadInput?.value ? parseInt(soundLeadInput.value, 10) : 3;
 
       const updatedBlock: Block = {
         ...block,
         name: nameInput?.value.trim() || block.name,
+        type: (typeSelect?.value as BlockType) || 'STATION',
         lengthCm: parseInt(lengthInput?.value || '180', 10),
         direction: (dirSelect?.value as '+' | '-') || '+',
         currentLocoId: newLocoId,
         state: newLocoId ? 'OCCUPIED' : (block.state === 'OCCUPIED' ? 'FREE' : block.state),
+        minWaitTimeSec: parseInt(minWaitInput?.value || '10', 10),
+        maxWaitTimeSec: parseInt(maxWaitInput?.value || '25', 10),
+        soundConfig: {
+          ...block.soundConfig,
+          departureFKey: fKeyVal && fKeyVal > 0 ? fKeyVal : undefined,
+          departureLeadTimeSec: leadVal,
+          departureFKeyDurationMs: 1500
+        },
         sensorsPlus: {
           enter: plusEnterSelect?.value || '',
           in: plusInSelect?.value || ''
@@ -692,11 +708,22 @@ export class TrackCanvas {
     const minusEnterSelect = document.getElementById('block-form-minus-enter') as HTMLSelectElement | null;
     const minusInSelect = document.getElementById('block-form-minus-in') as HTMLSelectElement | null;
 
+    const typeSelect = document.getElementById('block-form-type') as HTMLSelectElement | null;
+    const minWaitInput = document.getElementById('block-form-min-wait') as HTMLInputElement | null;
+    const maxWaitInput = document.getElementById('block-form-max-wait') as HTMLInputElement | null;
+    const soundFKeyInput = document.getElementById('block-form-sound-fkey') as HTMLInputElement | null;
+    const soundLeadInput = document.getElementById('block-form-sound-lead') as HTMLInputElement | null;
+
     if (titleEl) titleEl.textContent = `⬛ Block bearbeiten: ${block.name}`;
     if (idInput) idInput.value = block.id;
     if (nameInput) nameInput.value = block.name;
+    if (typeSelect) typeSelect.value = block.type || (block.name.toLowerCase().includes('strecke') ? 'MAINLINE' : 'STATION');
     if (lengthInput) lengthInput.value = String(block.lengthCm);
     if (dirSelect) dirSelect.value = block.direction;
+    if (minWaitInput) minWaitInput.value = String(block.minWaitTimeSec !== undefined ? block.minWaitTimeSec : 10);
+    if (maxWaitInput) maxWaitInput.value = String(block.maxWaitTimeSec !== undefined ? block.maxWaitTimeSec : 25);
+    if (soundFKeyInput) soundFKeyInput.value = block.soundConfig?.departureFKey ? String(block.soundConfig.departureFKey) : '';
+    if (soundLeadInput) soundLeadInput.value = String(block.soundConfig?.departureLeadTimeSec ?? 3);
 
     // Lok-Liste
     if (locoSelect) {
@@ -1749,7 +1776,12 @@ export class TrackCanvas {
 
     const loco = block.currentLocoId ? wsClient.locos.find((l) => l.id === block.currentLocoId) : null;
     const dirArrow = block.direction === '+' ? '➔' : '⬅';
-    const blockTitle = `${dirArrow} ${block.name}`;
+    let typeIcon = '🏢';
+    if (block.type === 'LOCAL_STATION') typeIcon = '🚏';
+    else if (block.type === 'SHADOW_STATION') typeIcon = '🚇';
+    else if (block.type === 'MAINLINE') typeIcon = '🛤️';
+    else if (block.type === 'SIDING') typeIcon = '🏗️';
+    const blockTitle = `${typeIcon} ${dirArrow} ${block.name}`;
     const locoTitle = loco ? `🚂 ${loco.name || block.currentLocoId} (${loco.speed || 0})` : '';
 
     // Dynamische Breite & Typografie berechnen, damit lange Namen perfekt reinpassen und nichts abgeschnitten wird

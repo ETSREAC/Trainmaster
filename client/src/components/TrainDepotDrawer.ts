@@ -326,14 +326,20 @@ export class TrainDepotDrawer {
 
     let typeBadge = '';
     switch (loco.trainType) {
+      case 'HIGH_SPEED':
+        typeBadge = '<span class="loco-type-badge highspeed">🚅 Highspeed</span>';
+        break;
       case 'PASSENGER':
-        typeBadge = '<span class="loco-type-badge passenger">Personenzug</span>';
+        typeBadge = '<span class="loco-type-badge passenger">🚆 Reisezug</span>';
+        break;
+      case 'COMMUTER':
+        typeBadge = '<span class="loco-type-badge commuter" style="background:rgba(56,139,253,0.15);color:#58a6ff;border:1px solid rgba(56,139,253,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🚈 Regional</span>';
         break;
       case 'FREIGHT':
-        typeBadge = '<span class="loco-type-badge freight">Güterzug</span>';
+        typeBadge = '<span class="loco-type-badge freight">🚂 Güterzug</span>';
         break;
-      case 'HIGH_SPEED':
-        typeBadge = '<span class="loco-type-badge highspeed">ICE / Hochgeschw.</span>';
+      case 'SHUNTER':
+        typeBadge = '<span class="loco-type-badge shunter" style="background:rgba(210,153,34,0.15);color:#d29922;border:1px solid rgba(210,153,34,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🚜 Rangierer</span>';
         break;
       default:
         typeBadge = '<span class="loco-type-badge">Triebfahrzeug</span>';

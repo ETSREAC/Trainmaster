@@ -17,7 +17,7 @@
         <span class="logo-icon">🚂</span>
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.1.1 • Modern Dispatcher</span>
+          <span class="version-tag">v1.2.0 • Modern Dispatcher</span>
         </div>
       </div>
 
@@ -592,6 +592,19 @@
 
         <div class="form-row" style="display:flex;gap:12px;">
           <div class="form-group" style="flex:1;">
+            <label for="block-form-type">Block-Typ & Automatik: *</label>
+            <select id="block-form-type" class="form-control">
+              <option value="STATION">🏢 Hauptbahnhof / Bahnhof (Halt mit Wartezeit & Sounds)</option>
+              <option value="LOCAL_STATION">🚏 Regionalbahnhof (Halt für Regios, Durchfahrt für ICE/Güter)</option>
+              <option value="SHADOW_STATION">🚇 Schattenbahnhof (Zugspeicher / Parken)</option>
+              <option value="MAINLINE">🛤️ Freie Strecke (Durchfahrtsgleis)</option>
+              <option value="SIDING">🏗️ Abstell- / Rangiergleis</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div class="form-group" style="flex:1;">
             <label for="block-form-direction">Standard-Richtung:</label>
             <select id="block-form-direction" class="form-control">
               <option value="+">+ (Vorwärts / Von Links nach Rechts)</option>
@@ -603,6 +616,31 @@
             <select id="block-form-loco" class="form-control">
               <option value="">(Kein Zug im Block)</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Automatik Wartezeiten & Sound -->
+        <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d;margin-top:12px;">
+          <label style="color:#58a6ff;font-weight:600;display:block;margin-bottom:8px;">⏱️ Automatik-Wartezeiten & Sound:</label>
+          <div style="display:flex;gap:12px;margin-bottom:10px;">
+            <div style="flex:1;">
+              <label for="block-form-min-wait" style="font-size:11px;color:#8b949e;">Min. Wartezeit (Sek.):</label>
+              <input type="number" id="block-form-min-wait" class="form-control" value="10" min="0" max="3600">
+            </div>
+            <div style="flex:1;">
+              <label for="block-form-max-wait" style="font-size:11px;color:#8b949e;">Max. Wartezeit (Sek.):</label>
+              <input type="number" id="block-form-max-wait" class="form-control" value="25" min="0" max="3600">
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="block-form-sound-fkey" style="font-size:11px;color:#8b949e;">Abfahrts-Sound (Lok F-Taste):</label>
+              <input type="number" id="block-form-sound-fkey" class="form-control" placeholder="z. B. 3 für Pfiff (0 = Aus)" min="0" max="28">
+            </div>
+            <div style="flex:1;">
+              <label for="block-form-sound-lead" style="font-size:11px;color:#8b949e;">Vorlaufzeit vor Abfahrt (Sek.):</label>
+              <input type="number" id="block-form-sound-lead" class="form-control" value="3" min="1" max="30">
+            </div>
           </div>
         </div>
 

@@ -256,7 +256,10 @@
       "sensorsMinus": {
         "enter": "sens-2",
         "in": "sens-1"
-      }
+      },
+      "type": "STATION",
+      "minWaitTimeSec": 10,
+      "maxWaitTimeSec": 25
     },
     {
       "id": "block-bf-gl2",
@@ -273,6 +276,14 @@
       "sensorsMinus": {
         "enter": "sens-4",
         "in": "sens-3"
+      },
+      "type": "LOCAL_STATION",
+      "minWaitTimeSec": 12,
+      "maxWaitTimeSec": 20,
+      "soundConfig": {
+        "departureFKey": 3,
+        "departureLeadTimeSec": 2,
+        "departureFKeyDurationMs": 1500
       }
     },
     {
@@ -290,7 +301,10 @@
       "sensorsMinus": {
         "enter": "sens-6",
         "in": "sens-5"
-      }
+      },
+      "type": "MAINLINE",
+      "minWaitTimeSec": 0,
+      "maxWaitTimeSec": 0
     },
     {
       "id": "block-bf-gl3",
@@ -307,7 +321,10 @@
       "sensorsMinus": {
         "enter": "sens-8",
         "in": "sens-3"
-      }
+      },
+      "type": "STATION",
+      "minWaitTimeSec": 10,
+      "maxWaitTimeSec": 25
     }
   ],
   "layout": [

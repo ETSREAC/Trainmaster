@@ -75,11 +75,25 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.close': 'Schließen',
     'modal.address': 'Adresse',
     'modal.name': 'Bezeichnung',
-    'modal.direction': 'Richtung'
+    'modal.direction': 'Richtung',
+
+    // Block-Typen
+    'block.type.station': '🏢 Hauptbahnhof / Bahnhof (Halt & Sounds)',
+    'block.type.local_station': '🚏 Regionalbahnhof (Durchfahrt für ICE/Güter)',
+    'block.type.shadow_station': '🚇 Schattenbahnhof (Zugspeicher / Parken)',
+    'block.type.mainline': '🛤️ Freie Strecke (Durchfahrtsgleis)',
+    'block.type.siding': '🏗️ Abstell- / Rangiergleis',
+
+    // Zug-Typen
+    'train.type.high_speed': '🚅 Hochgeschwindigkeit (ICE, TGV)',
+    'train.type.passenger': '🚆 Reisezug / InterCity',
+    'train.type.commuter': '🚈 Nahverkehr / Regional / Tram',
+    'train.type.freight': '🚂 Güterzug',
+    'train.type.shunter': '🚜 Rangierlok'
   },
   en: {
     // Header & Brand
-    'brand.version': 'v1.1.0 • Modern Dispatcher',
+    'brand.version': 'v1.2.0 • Modern Dispatcher',
     'status.connecting': 'Connecting...',
     'status.connected': 'Connected',
     'status.disconnected': 'Disconnected',
@@ -151,7 +165,21 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.close': 'Close',
     'modal.address': 'Address',
     'modal.name': 'Name',
-    'modal.direction': 'Direction'
+    'modal.direction': 'Direction',
+
+    // Block Types
+    'block.type.station': '🏢 Main Station (Halt & Sounds)',
+    'block.type.local_station': '🚏 Regional Halt (Pass-through for ICE/Freight)',
+    'block.type.shadow_station': '🚇 Staging Yard (Storage & Park)',
+    'block.type.mainline': '🛤️ Mainline (Passing Track)',
+    'block.type.siding': '🏗️ Siding / Shunting',
+
+    // Train Types
+    'train.type.high_speed': '🚅 High-Speed (ICE, TGV)',
+    'train.type.passenger': '🚆 Passenger / InterCity',
+    'train.type.commuter': '🚈 Regional / Commuter / Tram',
+    'train.type.freight': '🚂 Freight Train',
+    'train.type.shunter': '🚜 Shunter / Switcher'
   }
 };
 

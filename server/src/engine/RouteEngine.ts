@@ -1,4 +1,4 @@
-import { Route, SignalAspect } from '../types.js';
+import { Block, Locomotive, Route, SignalAspect } from '../types.js';
 import { BlockManager } from './BlockManager.js';
 import { LocoManager } from './LocoManager.js';
 import { TurnoutManager } from './TurnoutManager.js';
@@ -6,6 +6,7 @@ import { TurnoutManager } from './TurnoutManager.js';
 export interface RouteEvents {
   onRouteUpdated: (route: Route) => void;
   onSignalSet?: (signalId: string, aspect: SignalAspect) => void;
+  onSoundTriggered?: (block: Block, soundType: 'DEPARTURE' | 'ARRIVAL') => void;
   onLog: (message: string, level?: 'info' | 'warn' | 'error') => void;
 }
 
@@ -18,6 +19,10 @@ export class RouteEngine {
 
   private automaticModeActive: boolean = false;
   private autoLoopTimer?: NodeJS.Timeout;
+
+  // Zeitpläne für geplante Abfahrten und Soundtrigger
+  private departureTimers: Map<string, NodeJS.Timeout> = new Map();
+  private soundTimers: Map<string, NodeJS.Timeout> = new Map();
 
   constructor(
     initialRoutes: Route[],
@@ -95,6 +100,9 @@ export class RouteEngine {
       return false;
     }
 
+    // Timer des Startblocks löschen (Zug fährt nun ab)
+    this.clearBlockTimer(fromBlockId);
+
     // Zielblock reservieren
     this.blockManager.reserveBlock(toBlockId, loco.id);
 
@@ -139,8 +147,126 @@ export class RouteEngine {
 
         // Falls voriger Block noch belegt war, freigeben
         this.blockManager.freeBlock(r.fromBlockId);
+        this.clearBlockTimer(r.fromBlockId);
       }
     }
+  }
+
+  /**
+   * Wird aufgerufen, wenn ein Zug das IN-Ereignis im Zielblock ausgelöst hat.
+   * Prüft Block-Typ, Zug-Typ, plant Haltezeiten oder veranlasst Durchfahrten.
+   */
+  notifyTrainArrival(blockId: string, locoId: string): void {
+    if (!this.automaticModeActive) return;
+
+    const block = this.blockManager.getBlock(blockId);
+    const loco = this.locoManager.getLoco(locoId);
+    if (!block || !loco) return;
+
+    const blockType = block.type || (block.name.toLowerCase().includes('strecke') ? 'MAINLINE' : 'STATION');
+
+    // 1. Freie Strecke: Durchfahrt ohne planmäßigen Halt
+    if (blockType === 'MAINLINE') {
+      this.events.onLog(`[Automatik] 🛤️ Durchfahrt auf Freier Strecke: ${loco.name} in ${block.name}`, 'info');
+      setTimeout(() => {
+        if (!this.automaticModeActive) return;
+        const dispatched = this.tryDispatchNext(block.id);
+        if (!dispatched) {
+          this.events.onLog(`[Automatik] Folgeblock belegt, Zug ${loco.name} wartet vor Signal auf der Strecke (${block.name}).`, 'info');
+        }
+      }, 500);
+      return;
+    }
+
+    // 2. Regionalbahnhof / Haltepunkt: Durchfahrt für HIGH_SPEED & FREIGHT
+    if (blockType === 'LOCAL_STATION') {
+      if (loco.trainType === 'HIGH_SPEED' || loco.trainType === 'FREIGHT') {
+        this.events.onLog(
+          `[Automatik] 🚄 Durchfahrt ohne Halt: ${loco.name} (${loco.trainType}) passiert Regionalhalt ${block.name}!`,
+          'info'
+        );
+        setTimeout(() => {
+          if (!this.automaticModeActive) return;
+          const dispatched = this.tryDispatchNext(block.id);
+          if (!dispatched) {
+            this.events.onLog(`[Automatik] Folgeblock belegt, ${loco.name} muss am Signal in ${block.name} warten.`, 'info');
+          }
+        }, 500);
+        return;
+      }
+    }
+
+    // 3. Planmäßiger Halt (STATION, LOCAL_STATION für Regios, SHADOW_STATION, SIDING)
+    const minWait = block.minWaitTimeSec !== undefined ? block.minWaitTimeSec : (blockType === 'SHADOW_STATION' ? 45 : 12);
+    const maxWait = block.maxWaitTimeSec !== undefined ? block.maxWaitTimeSec : (blockType === 'SHADOW_STATION' ? 90 : 25);
+    const waitSec = Math.max(3, Math.round(minWait + Math.random() * Math.max(0, maxWait - minWait)));
+
+    this.events.onLog(
+      `[Automatik] 🛑 Planmäßiger Halt für ${loco.name} in ${block.name} (${blockType}, Wartezeit: ${waitSec}s).`,
+      'info'
+    );
+
+    this.scheduleDeparture(block, loco, waitSec);
+  }
+
+  private scheduleDeparture(block: Block, loco: Locomotive, waitSec: number): void {
+    this.clearBlockTimer(block.id);
+
+    const soundConfig = block.soundConfig;
+    const leadTimeSec = Math.max(1, soundConfig?.departureLeadTimeSec ?? 3);
+    const soundDelayMs = Math.max(0, (waitSec - leadTimeSec) * 1000);
+    const departureDelayMs = waitSec * 1000;
+
+    // Sound-Trigger vor Abfahrt
+    if (soundConfig?.departureFKey !== undefined && soundConfig.departureFKey > 0) {
+      const fKey = soundConfig.departureFKey;
+      const durationMs = soundConfig.departureFKeyDurationMs ?? 1500;
+
+      const soundTimer = setTimeout(() => {
+        if (!this.automaticModeActive) return;
+        this.events.onLog(`[Sound] 📢 Abfahrtssignal / Pfiff für ${loco.name} in ${block.name} (F${fKey})`, 'info');
+        this.locoManager.setFunction(loco.id, fKey, true);
+        this.events.onSoundTriggered?.(block, 'DEPARTURE');
+
+        setTimeout(() => {
+          this.locoManager.setFunction(loco.id, fKey, false);
+        }, durationMs);
+      }, soundDelayMs);
+
+      this.soundTimers.set(block.id, soundTimer);
+    }
+
+    // Abfahrts-Timer
+    const departureTimer = setTimeout(() => {
+      this.departureTimers.delete(block.id);
+      if (!this.automaticModeActive) return;
+
+      this.events.onLog(`[Automatik] 🟢 Wartezeit in ${block.name} abgelaufen. Suche freie Ausfahrt für ${loco.name}...`, 'info');
+      const dispatched = this.tryDispatchNext(block.id);
+      if (!dispatched) {
+        this.events.onLog(`[Automatik] Ausfahrt aus ${block.name} aktuell blockiert. Zug wartet auf freies Gleis.`, 'info');
+      }
+    }, departureDelayMs);
+
+    this.departureTimers.set(block.id, departureTimer);
+  }
+
+  private clearBlockTimer(blockId: string): void {
+    if (this.departureTimers.has(blockId)) {
+      clearTimeout(this.departureTimers.get(blockId)!);
+      this.departureTimers.delete(blockId);
+    }
+    if (this.soundTimers.has(blockId)) {
+      clearTimeout(this.soundTimers.get(blockId)!);
+      this.soundTimers.delete(blockId);
+    }
+  }
+
+  private clearAllTimers(): void {
+    for (const t of this.departureTimers.values()) clearTimeout(t);
+    for (const t of this.soundTimers.values()) clearTimeout(t);
+    this.departureTimers.clear();
+    this.soundTimers.clear();
   }
 
   toggleAutomaticMode(active?: boolean): boolean {
@@ -155,6 +281,7 @@ export class RouteEngine {
         clearInterval(this.autoLoopTimer);
         this.autoLoopTimer = undefined;
       }
+      this.clearAllTimers();
     }
     return this.automaticModeActive;
   }
@@ -166,7 +293,7 @@ export class RouteEngine {
   private startAutoLoop(): void {
     if (this.autoLoopTimer) clearInterval(this.autoLoopTimer);
 
-    // Prüfe alle 3 Sekunden nach abfahrbereiten Zügen
+    // Prüfe alle 3 Sekunden nach abfahrbereiten Zügen, die nicht bereits in einem Abfahrtstimer hängen
     this.autoLoopTimer = setInterval(() => {
       if (!this.automaticModeActive) return;
 
@@ -174,8 +301,8 @@ export class RouteEngine {
       for (const block of blocks) {
         if (block.state === 'OCCUPIED' && block.currentLocoId) {
           const loco = this.locoManager.getLoco(block.currentLocoId);
-          // Wenn der Zug steht (Speed 0), suche nach freiem Zielblock
-          if (loco && loco.speed === 0) {
+          // Wenn der Zug steht und kein aktiver Timer läuft, suche Route
+          if (loco && loco.speed === 0 && !this.departureTimers.has(block.id)) {
             this.tryDispatchNext(block.id);
           }
         }
@@ -183,12 +310,22 @@ export class RouteEngine {
     }, 3000);
   }
 
-  private tryDispatchNext(fromBlockId: string): void {
+  private tryDispatchNext(fromBlockId: string): boolean {
+    const fromBlock = this.blockManager.getBlock(fromBlockId);
+    if (!fromBlock || !fromBlock.currentLocoId) return false;
+
+    const loco = this.locoManager.getLoco(fromBlock.currentLocoId);
+    if (!loco) return false;
+
     const candidateRoutes: Route[] = [];
     for (const r of this.routes.values()) {
       if (r.fromBlockId === fromBlockId && !r.active) {
         const toBlock = this.blockManager.getBlock(r.toBlockId);
         if (toBlock && toBlock.state === 'FREE') {
+          // Längenprüfung: Passt der Zug in den Zielblock?
+          if (toBlock.lengthCm && loco.lengthCm && loco.lengthCm > toBlock.lengthCm) {
+            continue;
+          }
           candidateRoutes.push(r);
         }
       }
@@ -198,7 +335,8 @@ export class RouteEngine {
       // Zufällige Route auswählen (Aquarium-Modus)
       const selected = candidateRoutes[Math.floor(Math.random() * candidateRoutes.length)];
       this.events.onLog(`[Automatik] Wähle Route für Abfahrt: ${selected.name}`, 'info');
-      this.requestRoute(selected.fromBlockId, selected.toBlockId);
+      return this.requestRoute(selected.fromBlockId, selected.toBlockId);
     }
+    return false;
   }
 }

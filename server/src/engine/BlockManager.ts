@@ -16,7 +16,15 @@ export class BlockManager {
   constructor(initialBlocks: Block[], events: BlockEvents) {
     this.events = events;
     for (const b of initialBlocks) {
-      this.blocks.set(b.id, { ...b });
+      const type = b.type || (b.name.toLowerCase().includes('strecke') ? 'MAINLINE' : 'STATION');
+      const minWait = b.minWaitTimeSec !== undefined ? b.minWaitTimeSec : (type === 'MAINLINE' ? 0 : 10);
+      const maxWait = b.maxWaitTimeSec !== undefined ? b.maxWaitTimeSec : (type === 'MAINLINE' ? 0 : 25);
+      this.blocks.set(b.id, {
+        ...b,
+        type,
+        minWaitTimeSec: minWait,
+        maxWaitTimeSec: maxWait
+      });
     }
     this.rebuildSensorMapping();
   }

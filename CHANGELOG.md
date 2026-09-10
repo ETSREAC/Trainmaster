@@ -10,6 +10,30 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.2.0] - 2026-09-10
+
+### 🚀 Highlights (Minor / Sub-Version)
+- **Automatikmodus 2.0 ("Intelligenter Dispatcher")**:
+  - **Block-Typen**: Jeder Block kann nun als Hauptbahnhof (`STATION`), Regionalbahnhof / Haltepunkt (`LOCAL_STATION`), Schattenbahnhof (`SHADOW_STATION`), Freie Strecke (`MAINLINE`) oder Abstellgleis (`SIDING`) konfiguriert werden.
+  - **Zug-Klassifizierung & Durchfahrtslogik**: Regionalbahnhöfe unterscheiden Züge nach ihrem Typ: Regional- und Nahverkehrszüge (`COMMUTER`, `PASSENGER`) halten planmäßig am Bahnsteig, während Hochgeschwindigkeitszüge (`HIGH_SPEED` wie ICE/TGV) und Güterzüge (`FREIGHT`) **ohne Halt durchfahren**!
+  - **Konfigurierbare Wartezeiten**: Einstellbarer Zufallsbereich (Min–Max Sekunden) für lebendigen, unvorhersehbaren Modellbahnbetrieb.
+  - **Zuglängen-Prüfung**: Der Automatikmodus prüft die Länge von Lok und Zugverband gegen die Blocklänge, um Überlängen zu verhindern.
+- **Sound-Choreografie & Akustik**:
+  - **DCC-Funktionstasten-Trigger**: Automatischer Schaffnerpfiff / Signalhorn (z. B. F3) vor der Abfahrt mit einstellbarer Vorlaufzeit (z. B. 3s vor Grün/Fahrt).
+  - **Web Audio Synthesizer**: Soundausgabe direkt im Browser ohne Zusatzhardware (synthetisierter Schaffnerpfiff & Bahnhofsgong über HTML5 Web Audio API).
+  - **Dauerhafte Ideen-Sammlung**: Neues Referenzdokument `docs/SOUND_IDEAS.md` für alle zukünftigen Soundideen (WIO DFPlayer-Module, Bahnübergang-Bimmeln, Lautsprecher am Bahnsteig).
+
+### Added
+- `server/src/types.ts` & `client/src/types.ts`: `BlockType`, `BlockSoundConfig` und WebSocket-Event `PLAY_SOUND` hinzugefügt.
+- `server/src/engine/RouteEngine.ts`: `notifyTrainArrival()`, `scheduleDeparture()`, `clearBlockTimer()` und Durchfahrtsentscheidung implementiert.
+- `client/index.html`: Block-Modal um Block-Typ-Auswahl, Wartezeiten-Felder und Sound-Konfiguration erweitert.
+- `client/src/components/TrackCanvas.ts`: Block-Badges zeigen ihren Typ mit Icons auf dem Gleisplan an (🏢, 🚏, 🚇, 🛤️, 🏗️).
+- `client/src/components/TrainDepotDrawer.ts`: Farbcodierte Typ-Badges für alle 5 Zugtypen (`HIGH_SPEED`, `PASSENGER`, `COMMUTER`, `FREIGHT`, `SHUNTER`).
+- `client/src/wsClient.ts`: Web Audio Synthesizer für automatische Soundeffekte integriert.
+- `docs/SOUND_IDEAS.md`: Umfassendes Ideen- und Hardware-Handbuch für Modellbahn-Sound.
+
+---
+
 ## [1.1.1] - 2026-09-10
 
 ### 🛠️ Highlights (Patch / Bugfix)
