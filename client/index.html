@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrainMaster - Digitale Modellbahn-Steuerung</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Header & Global Status -->
+    <header class="top-header">
+      <div class="brand">
+        <span class="logo-icon">🚂</span>
+        <div class="brand-text">
+          <h1>TrainMaster</h1>
+          <span class="version-tag">v1.0-alpha • Modern Dispatcher</span>
+        </div>
+      </div>
+
+      <div class="quick-status">
+        <div class="status-badge" id="badge-connection">
+          <span class="indicator red"></span>
+          <span class="text">Verbinde...</span>
+        </div>
+        <div class="status-badge" id="badge-cs">
+          <span class="icon">🔌</span>
+          <span class="text">Simulator</span>
+        </div>
+        <button id="btn-power" class="btn btn-power on" title="Gleisspannung ein/ausschalten">
+          <span class="icon">⚡</span>
+          <span class="text">Gleisstrom EIN</span>
+        </button>
+        <button id="btn-auto" class="btn btn-auto" title="Aquarium / Automatikmodus starten">
+          <span class="icon">🔄</span>
+          <span class="text">Automatik: AUS</span>
+        </button>
+        <button id="btn-estop" class="btn btn-estop" title="NOT-HALT für alle Züge (Leertaste)">
+          <span class="icon">🛑</span>
+          <span class="text">NOT-HALT [Space]</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Navigation Bar -->
+    <nav class="main-nav">
+      <button class="nav-tab active" data-tab="layout">
+        <span class="icon">🗺️</span> Gleisplan & Stellwerk
+      </button>
+      <button class="nav-tab" data-tab="throttle">
+        <span class="icon">🎛️</span> Handregler
+      </button>
+      <button class="nav-tab" data-tab="bbt">
+        <span class="icon">⏱️</span> BBT Bremsrechner
+      </button>
+      <button class="nav-tab" data-tab="sensors">
+        <span class="icon">🚦</span> Signale & Rückmelder
+      </button>
+      <button class="nav-tab" data-tab="logs">
+        <span class="icon">📜</span> System-Log
+      </button>
+      <button class="nav-tab" data-tab="settings">
+        <span class="icon">⚙️</span> Einstellungen
+      </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+      <!-- Tab 1: Gleisplan & Stellwerk -->
+      <section id="tab-layout" class="tab-pane active">
+        <div class="panel-toolbar">
+          <div class="toolbar-group">
+            <span class="mode-label">Modus:</span>
+            <button id="btn-mode-run" class="tool-btn active">🚦 Betriebs-Modus (Klick zum Fahren)</button>
+            <button id="btn-mode-edit" class="tool-btn">✏️ Editor-Modus</button>
+          </div>
+          <div class="toolbar-group">
+            <button id="btn-inspect-layout" class="btn btn-save" title="Gleisplan prüfen und Sensoren/Signale Blöcken zuordnen">
+              <span class="icon">⚡</span> Plan prüfen & Blöcke zuordnen
+            </button>
+            <button id="btn-auto-routes" class="btn btn-save" style="background:#1f6feb26;color:#58a6ff;border-color:rgba(88,166,255,0.4);" title="Alle möglichen Fahrstraßen automatisch generieren">
+              <span class="icon">🧭</span> Fahrstraßen-Automatik
+            </button>
+          </div>
+          <div class="toolbar-group">
+            <span class="mode-label">Zoom:</span>
+            <button id="btn-zoom-out" class="tool-btn" title="Verkleinern (oder Strg + Mausrad)">🔍 -</button>
+            <span id="zoom-level-text" style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);min-width:38px;text-align:center;">100%</span>
+            <button id="btn-zoom-in" class="tool-btn" title="Vergrößern (oder Strg + Mausrad)">🔍 +</button>
+            <button id="btn-zoom-reset" class="tool-btn" title="Auf 100% zurücksetzen">1:1</button>
+          </div>
+          <div class="toolbar-group info-text" id="route-helper-text">
+            💡 <em>Klick auf einen Startblock und danach auf einen freien Zielblock, um eine Fahrstraße zu stellen.</em>
+          </div>
+        </div>
+        <!-- Editor Werkzeugleiste (im Editor-Modus aktiv) -->
+        <div class="editor-palette" id="editor-palette" style="display: none;">
+          <span class="palette-label">Werkzeuge:</span>
+          <button class="palette-btn active" data-tool="STRAIGHT" title="Gerades Gleis">
+            <span class="icon">━</span> Gerade
+          </button>
+          <button class="palette-btn" data-tool="CURVE" title="Kurve">
+            <span class="icon">◜</span> Kurve
+          </button>
+          <button class="palette-btn" data-tool="TURNOUT_LEFT" title="Weiche Links">
+            <span class="icon">⎇</span> Weiche L
+          </button>
+          <button class="palette-btn" data-tool="TURNOUT_RIGHT" title="Weiche Rechts">
+            <span class="icon">⎇</span> Weiche R
+          </button>
+          <button class="palette-btn" data-tool="BLOCK" title="Block / Bahnhofsgleis">
+            <span class="icon">⬛</span> Block
+          </button>
+          <button class="palette-btn" data-tool="SIGNAL" title="Signal (Hp0 / Hp1 / Hp2)">
+            <span class="icon">🚦</span> Signal
+          </button>
+          <button class="palette-btn" data-tool="SENSOR" title="Rückmelder / Gleissensor">
+            <span class="icon">📡</span> Sensor
+          </button>
+          <button class="palette-btn" data-tool="BUFFER" title="Prellbock">
+            <span class="icon">┨</span> Prellbock
+          </button>
+          <span class="palette-separator"></span>
+          <button class="palette-btn" data-tool="INSPECT" title="Element konfigurieren (Block / Weiche / Sensor)">
+            <span class="icon">⚙️</span> Konfigurieren
+          </button>
+          <button class="palette-btn" data-tool="ROTATE" title="Gleis um 90° drehen">
+            <span class="icon">🔄</span> Drehen (90°)
+          </button>
+          <button class="palette-btn danger" data-tool="DELETE" title="Gleis löschen">
+            <span class="icon">🗑️</span> Löschen
+          </button>
+          <span class="palette-separator"></span>
+          <span class="palette-label">Rand:</span>
+          <button id="btn-expand-left" class="palette-btn" title="Spalte links hinzufügen (verschiebt Gleise nach rechts)">
+            <span class="icon">⬅️</span> +Links
+          </button>
+          <button id="btn-expand-top" class="palette-btn" title="Zeile oben hinzufügen (verschiebt Gleise nach unten)">
+            <span class="icon">⬆️</span> +Oben
+          </button>
+          <button id="btn-expand-right" class="palette-btn" title="Rechts erweitern (+2 Spalten)">
+            <span class="icon">➡️</span> +Rechts
+          </button>
+          <button id="btn-expand-bottom" class="palette-btn" title="Unten erweitern (+2 Zeilen)">
+            <span class="icon">⬇️</span> +Unten
+          </button>
+          <span class="palette-separator"></span>
+          <button id="btn-inspect-layout-palette" class="palette-btn" title="Gleisplan prüfen & Blöcke zuordnen">
+            <span class="icon">⚡</span> Plan prüfen
+          </button>
+          <button id="btn-auto-routes-palette" class="palette-btn" title="Fahrstraßen-Automatik">
+            <span class="icon">🧭</span> Auto-Routen
+          </button>
+          <span class="palette-separator"></span>
+          <button id="btn-save-layout" class="btn btn-save" title="Gleisplan dauerhaft im Server speichern">
+            <span class="icon">💾</span> Speichern
+          </button>
+          <button id="btn-clear-layout" class="btn btn-clear" title="Gleisplan leeren">
+            <span class="icon">🧹</span> Leeren
+          </button>
+        </div>
+        <div class="track-workspace-wrapper">
+          <div id="train-depot-container"></div>
+          <div class="canvas-container">
+            <svg id="track-svg" class="track-svg"></svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Handregler -->
+      <section id="tab-throttle" class="tab-pane">
+        <div class="panel-toolbar">
+          <div class="toolbar-group">
+            <span class="mode-label">🚂 Fuhrpark-Verwaltung:</span>
+            <button id="btn-add-loco" class="btn btn-save">➕ Neuen Zug anlegen</button>
+          </div>
+          <div class="toolbar-group info-text">
+            💡 <em>Hier kannst du deine Lokomotiven steuern, mit ✏️ bearbeiten oder neue Loks mit DCC-Adresse hinzufügen.</em>
+          </div>
+        </div>
+        <div class="throttle-container" id="throttle-wrapper">
+          <!-- Dynamisch generiert -->
+        </div>
+      </section>
+
+      <!-- Tab 3: BBT Bremsrechner -->
+      <section id="tab-bbt" class="tab-pane">
+        <div class="card-container">
+          <div class="card-header">
+            <h2>⏱️ Block Brake Timer (BBT) Matrix</h2>
+            <p>Erlernte Bremsrampen pro Lokomotive, Block und Fahrtrichtung. Das System optimiert die Schrittintervalle selbsttätig.</p>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="bbt-table">
+              <thead>
+                <tr>
+                  <th>Lokomotive</th>
+                  <th>Block</th>
+                  <th>Richtung</th>
+                  <th>Stufen</th>
+                  <th>Intervall (ms)</th>
+                  <th>V_Start</th>
+                  <th>V_Min (Kriechen)</th>
+                  <th>Letzter Durchlauf</th>
+                  <th>Gesperrt</th>
+                </tr>
+              </thead>
+              <tbody id="bbt-tbody">
+                <!-- Dynamisch generiert -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Sensoren & Rückmelder -->
+      <section id="tab-sensors" class="tab-pane">
+        <div class="panel-toolbar">
+          <div class="toolbar-group">
+            <span class="mode-label">📡 Rückmelder & WIO:</span>
+            <button id="btn-add-sensor" class="btn btn-save">➕ Neuen Rückmelder anlegen</button>
+          </div>
+          <div class="toolbar-group">
+            <span class="badge" style="background:#1f6feb;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;" id="wio-status-chip">
+              📡 ESP32 WIO-UDP: Port 8051 aktiv
+            </span>
+          </div>
+          <div class="toolbar-group info-text" style="flex:1;">
+            💡 <em>Hier siehst du deine aktiven ESP32-WIO-Module, Live-Pins, eingehende Pakete und konfigurierte Melder.</em>
+          </div>
+        </div>
+        <div class="card-container" style="margin-top:0;">
+          <!-- ESP32 WIO Geräte-Manager -->
+          <div id="wio-manager-content">
+            <!-- Dynamisch generiert durch SensorMonitor -->
+          </div>
+
+          <!-- Signal-Steuerung & Konfiguration -->
+          <div id="signal-manager-content">
+            <!-- Dynamisch generiert durch SignalMonitor -->
+          </div>
+
+          <!-- Konfigurierte Rückmelder & Kontakte -->
+          <div style="margin-top: 16px;">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div>
+                <h2>🏷️ Konfigurierte Rückmelder & Kontakte</h2>
+                <p>Echtzeit-Zustand aller Gleisbelegtmelder und Schaltkontakte. Klicke auf "Test-Impuls", um einen Kontakt manuell zu prüfen.</p>
+              </div>
+            </div>
+            <div class="sensor-grid" id="sensor-cards">
+              <!-- Dynamisch generiert -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Live-Log -->
+      <section id="tab-logs" class="tab-pane">
+        <div class="card-container">
+          <div class="card-header">
+            <h2>📜 Echtzeit-Systemprotokoll</h2>
+            <button id="btn-clear-logs" class="btn btn-sm">Log leeren</button>
+          </div>
+          <div class="log-console" id="log-console">
+            <!-- Logs -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 6: Einstellungen -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="card-container">
+          <div class="card-header">
+            <h2>⚙️ System-Einstellungen</h2>
+            <p>Konfiguration der Digitalzentrale, Verbindungsparameter und Anlagen-Optionen.</p>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Box 1: Digitalzentrale -->
+            <div class="settings-card">
+              <h3>🔌 Digitalzentrale (Hardware / Simulator)</h3>
+              
+              <div class="form-group">
+                <label for="cs-type-select">Zentralen-Typ:</label>
+                <select id="cs-type-select" class="form-control">
+                  <option value="VIRTUAL">🟢 Virtueller Simulator (Offline-Betrieb)</option>
+                  <option value="DCC_EX">🚂 DCC-EX CommandStation (USB / WiFi)</option>
+                  <option value="Z21">🔵 Roco Z21 / z21 start (LAN / WLAN)</option>
+                </select>
+              </div>
+
+              <!-- DCC-EX Konfiguration -->
+              <div id="cfg-dcc-ex" class="cs-config-subpanel" style="display:none;">
+                <div class="form-group">
+                  <label>Schnittstelle:</label>
+                  <div class="radio-group">
+                    <label><input type="radio" name="dcc-conn" value="SERIAL" checked> USB / Seriell (COM)</label>
+                    <label><input type="radio" name="dcc-conn" value="TCP"> WiFi / Netzwerk (TCP)</label>
+                  </div>
+                </div>
+
+                <div id="dcc-serial-fields">
+                  <div class="form-group">
+                    <label for="dcc-serial-port">COM-Port:</label>
+                    <div style="display:flex;gap:8px;">
+                      <select id="dcc-serial-port" class="form-control" style="flex:1;">
+                        <option value="COM3">COM3 (Default)</option>
+                      </select>
+                      <button id="btn-scan-ports" class="btn btn-sm" type="button">🔄 Suchen</button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="dcc-baud">Baudrate:</label>
+                    <select id="dcc-baud" class="form-control">
+                      <option value="115200">115200 (Standard für DCC-EX)</option>
+                      <option value="57600">57600</option>
+                      <option value="38400">38400</option>
+                      <option value="9600">9600</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div id="dcc-tcp-fields" style="display:none;">
+                  <div class="form-group">
+                    <label for="dcc-ip">IP-Adresse:</label>
+                    <input type="text" id="dcc-ip" class="form-control" value="192.168.4.1" placeholder="z.B. 192.168.4.1">
+                  </div>
+                  <div class="form-group">
+                    <label for="dcc-port">Port:</label>
+                    <input type="number" id="dcc-port" class="form-control" value="2560">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Z21 Konfiguration -->
+              <div id="cfg-z21" class="cs-config-subpanel" style="display:none;">
+                <div class="form-group">
+                  <label for="z21-ip">Z21 IP-Adresse:</label>
+                  <input type="text" id="z21-ip" class="form-control" value="192.168.0.111" placeholder="192.168.0.111">
+                </div>
+                <div class="form-group">
+                  <label for="z21-port">UDP Port:</label>
+                  <input type="number" id="z21-port" class="form-control" value="21105">
+                </div>
+              </div>
+
+              <div style="margin-top:20px;">
+                <button id="btn-save-settings" class="btn btn-save" style="width:100%;justify-content:center;">
+                  💾 Zentrale verbinden & Einstellungen speichern
+                </button>
+              </div>
+            </div>
+
+            <!-- Box 2: Anlagen-Optionen -->
+            <div class="settings-card">
+              <h3>📐 Anlagen-Parameter & Zugsicherung</h3>
+
+              <div class="form-group">
+                <label for="setting-scale">Modellbahn-Nenngröße (Maßstab):</label>
+                <select id="setting-scale" class="form-control">
+                  <option value="H0">H0 (1:87)</option>
+                  <option value="N">N (1:160)</option>
+                  <option value="TT">TT (1:120)</option>
+                  <option value="Z">Z (1:220)</option>
+                  <option value="0">0 (1:45)</option>
+                  <option value="G">G (1:22.5)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="setting-creep-time">BBT Soll-Kriechzeit vor Halt (ms):</label>
+                <input type="number" id="setting-creep-time" class="form-control" value="1200" step="100" min="200" max="5000">
+                <small style="color:#8b949e;display:block;margin-top:4px;">Gewünschte Zeitspanne, die der Zug vor dem IN-Sensor im Kriechgang ausrollt.</small>
+              </div>
+
+              <div class="form-group" style="margin-top:16px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="setting-ghost-active" checked>
+                  <span><strong>Geisterzug-Notabschaltung aktiv</strong> (Sofortiger Not-Halt bei ungemeldeten Belegungen)</span>
+                </label>
+              </div>
+
+              <div class="form-group" style="margin-top:16px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="setting-manual-sensor-trigger" checked>
+                  <span><strong>⚡ Rückmelder im Fahrbetrieb manuell auslösbar</strong> (Testbetrieb / Simulation)</span>
+                </label>
+                <small style="color:#8b949e;display:block;margin-top:4px;margin-left:24px;">
+                  Ermöglicht es, Rückmelder direkt durch Anklicken im Gleisplan auszulösen, um Zugüberfahrten, Blockbelegungen und Automatik-Abläufe auch ohne reale Züge zu testen.
+                </small>
+              </div>
+            </div>
+
+            <!-- Box 3: WIO ESP32 Rückmeldesystem -->
+            <div class="settings-card">
+              <h3>📡 ESP32 WIO (Wireless I/O) Rückmeldesystem</h3>
+              <p style="font-size:12px;color:#8b949e;margin-bottom:12px;">
+                Empfängt Rückmeldesignale drahtlos von ESP32-Modulen über UDP-Datagramme (Rocrail WIO / RocNet-kompatibel) oder HTTP REST.
+              </p>
+
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="wio-enabled" checked>
+                  <span><strong>WIO UDP-Empfänger aktiv</strong></span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label for="wio-port">WIO UDP-Port:</label>
+                <input type="number" id="wio-port" class="form-control" value="8051" min="1024" max="65535">
+                <small style="color:#8b949e;display:block;margin-top:4px;">Standardport 8051 für Rocrail WIO-Firmware oder eigene ESP32-Skripte.</small>
+              </div>
+
+              <div class="form-group" style="margin-top:16px;background:#0d1117;padding:10px;border-radius:6px;border:1px solid #30363d;">
+                <label style="font-size:12px;color:#58a6ff;font-weight:600;">💡 HTTP REST Webhook für ESP32:</label>
+                <code style="font-size:11px;color:#c9d1d9;display:block;margin-top:4px;word-break:break-all;">
+                  POST http://&lt;TrainMaster-IP&gt;:3001/api/wio/sensor<br>
+                  JSON: {"unit": 1, "pin": 3, "state": true}
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: Lokomotive anlegen / bearbeiten -->
+  <div id="loco-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="modal-loco-title">🚂 Neue Lokomotive anlegen</h2>
+        <button id="btn-modal-close" class="btn-icon" type="button">✕</button>
+      </div>
+      <form id="form-loco">
+        <input type="hidden" id="loco-edit-id" value="">
+
+        <div class="form-group">
+          <label for="loco-form-name">Lok-Name / Baureihe: *</label>
+          <input type="text" id="loco-form-name" class="form-control" required placeholder="z. B. DB BR 101 oder Taurus">
+        </div>
+
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div class="form-group" style="flex:1;">
+            <label for="loco-form-address">DCC-Adresse (1 - 9999): *</label>
+            <input type="number" id="loco-form-address" class="form-control" required min="1" max="9999" value="3">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="loco-form-type">Zuggattung / Typ:</label>
+            <select id="loco-form-type" class="form-control">
+              <option value="PASSENGER">Personenzug</option>
+              <option value="HIGH_SPEED">ICE / Hochgeschwindigkeit</option>
+              <option value="FREIGHT">Güterzug</option>
+              <option value="COMMUTER">Wendezug / Nahverkehr</option>
+              <option value="SHUNTER">Rangierlok</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Geschwindigkeitsprofil (Fahrstufen 0 - 128):</label>
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;">
+            <div>
+              <label style="font-size:11px;color:#8b949e;">V_Min (Kriechen):</label>
+              <input type="number" id="loco-form-vmin" class="form-control" value="12" min="1" max="128">
+            </div>
+            <div>
+              <label style="font-size:11px;color:#8b949e;">V_Mid (Reise):</label>
+              <input type="number" id="loco-form-vmid" class="form-control" value="55" min="1" max="128">
+            </div>
+            <div>
+              <label style="font-size:11px;color:#8b949e;">V_Max (Höchst):</label>
+              <input type="number" id="loco-form-vmax" class="form-control" value="110" min="1" max="128">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="loco-form-length">Zuglänge in cm (für Blockprüfung):</label>
+          <input type="number" id="loco-form-length" class="form-control" value="20" min="5" max="1000" step="0.5">
+        </div>
+
+        <div class="modal-footer" style="display:flex;justify-content:space-between;margin-top:20px;">
+          <button type="button" id="btn-modal-delete" class="btn btn-clear" style="color:#f85149;border-color:rgba(248,81,73,0.3);display:none;">
+            🗑️ Lok löschen
+          </button>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button type="button" id="btn-modal-cancel" class="btn btn-clear">Abbrechen</button>
+            <button type="submit" class="btn btn-save">💾 Speichern</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Rückmelder anlegen / bearbeiten -->
+  <div id="sensor-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="modal-sensor-title">📡 Rückmelder anlegen</h2>
+        <button id="btn-sensor-close" class="btn-icon" type="button">✕</button>
+      </div>
+      <form id="form-sensor">
+        <input type="hidden" id="sensor-edit-id" value="">
+
+        <div class="form-group">
+          <label for="sensor-form-name">Bezeichnung / Name: *</label>
+          <input type="text" id="sensor-form-name" class="form-control" required placeholder="z. B. Bf Gl 1 ENTER oder WIO Melder 1">
+        </div>
+
+        <div class="form-group">
+          <label for="sensor-form-type">Sensor-Typ / Anbindung: *</label>
+          <select id="sensor-form-type" class="form-control">
+            <option value="WIO">📡 WIO (ESP32 Wireless I/O)</option>
+            <option value="DCC_EX">🚂 DCC-EX Sensor-Pin (Arduino/ESP)</option>
+            <option value="CURRENT">⚡ Stromfühler (Gleisbesetztmelder)</option>
+            <option value="REED">🧲 Reedkontakt / Hallsensor</option>
+            <option value="OPTICAL">🔦 Lichtschranke / Infrarot</option>
+            <option value="RAILCOM">🏷️ RailCom Detektor</option>
+          </select>
+        </div>
+
+        <!-- WIO-spezifische Felder -->
+        <div id="sensor-wio-fields" style="background:#0d1117;padding:12px;border-radius:6px;border:1px solid #30363d;margin-bottom:14px;">
+          <label style="color:#58a6ff;font-weight:600;display:block;margin-bottom:8px;">📡 WIO (ESP32) Parameter:</label>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="sensor-form-wio-unit" style="font-size:11px;color:#8b949e;">Unit / Node-ID (ESP32):</label>
+              <input type="number" id="sensor-form-wio-unit" class="form-control" value="1" min="1" max="255">
+            </div>
+            <div style="flex:1;">
+              <label for="sensor-form-wio-pin" style="font-size:11px;color:#8b949e;">WIO Pin / Port:</label>
+              <input type="number" id="sensor-form-wio-pin" class="form-control" value="1" min="1" max="64">
+            </div>
+          </div>
+          <small style="color:#8b949e;display:block;margin-top:6px;">Entspricht der Baugruppe und dem Eingangs-Pin des ESP32 WIO Moduls.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="sensor-form-address">Hardware- / DCC-Adresse (1 - 2048): *</label>
+          <input type="number" id="sensor-form-address" class="form-control" required min="1" max="2048" value="1">
+          <small style="color:#8b949e;display:block;margin-top:4px;">Eindeutige Adresse für Zentrale oder automatische Zuordnung.</small>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="sensor-form-inverted">
+            <span><strong>Signal invertieren</strong> (Öffnerkontakt statt Schließer / Active-Low)</span>
+          </label>
+        </div>
+
+        <div class="modal-footer" style="display:flex;justify-content:space-between;margin-top:20px;">
+          <button type="button" id="btn-sensor-delete" class="btn btn-clear" style="color:#f85149;border-color:rgba(248,81,73,0.3);display:none;">
+            🗑️ Sensor löschen
+          </button>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button type="button" id="btn-sensor-cancel" class="btn btn-clear">Abbrechen</button>
+            <button type="submit" class="btn btn-save">💾 Sensor speichern</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Block konfigurieren -->
+  <div id="block-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog" style="max-width:560px;">
+      <div class="modal-header">
+        <h2 id="modal-block-title">⬛ Block konfigurieren</h2>
+        <button id="btn-block-close" class="btn-icon" type="button">✕</button>
+      </div>
+      <form id="form-block">
+        <input type="hidden" id="block-edit-id" value="">
+
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div class="form-group" style="flex:2;">
+            <label for="block-form-name">Block-Name: *</label>
+            <input type="text" id="block-form-name" class="form-control" required placeholder="z. B. Bahnhof Gleis 1">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="block-form-length">Länge (cm): *</label>
+            <input type="number" id="block-form-length" class="form-control" required value="180" min="10" max="5000">
+          </div>
+        </div>
+
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div class="form-group" style="flex:1;">
+            <label for="block-form-direction">Standard-Richtung:</label>
+            <select id="block-form-direction" class="form-control">
+              <option value="+">+ (Vorwärts / Von Links nach Rechts)</option>
+              <option value="-">- (Rückwärts / Von Rechts nach Links)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label for="block-form-loco">Zug / Lok im Block:</label>
+            <select id="block-form-loco" class="form-control">
+              <option value="">(Kein Zug im Block)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Sensoren Fahrtrichtung + -->
+        <div style="background:#0d1117;padding:12px;border-radius:6px;border:1px solid #30363d;margin-top:12px;">
+          <label style="color:#58a6ff;font-weight:600;display:block;margin-bottom:8px;">🚦 Rückmelder Fahrtrichtung [+] :</label>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="block-form-plus-enter" style="font-size:11px;color:#8b949e;">ENTER-Melder (Bremsbeginn):</label>
+              <select id="block-form-plus-enter" class="form-control">
+                <option value="">(Kein ENTER-Melder)</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="block-form-plus-in" style="font-size:11px;color:#8b949e;">IN-Melder (Haltepunkt):</label>
+              <select id="block-form-plus-in" class="form-control">
+                <option value="">(Kein IN-Melder)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sensoren Fahrtrichtung - -->
+        <div style="background:#0d1117;padding:12px;border-radius:6px;border:1px solid #30363d;margin-top:12px;">
+          <label style="color:#e3b341;font-weight:600;display:block;margin-bottom:8px;">🚦 Rückmelder Gegenrichtung [-] :</label>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="block-form-minus-enter" style="font-size:11px;color:#8b949e;">ENTER-Melder (Gegenrichtung):</label>
+              <select id="block-form-minus-enter" class="form-control">
+                <option value="">(Kein ENTER-Melder)</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="block-form-minus-in" style="font-size:11px;color:#8b949e;">IN-Melder (Gegenrichtung):</label>
+              <select id="block-form-minus-in" class="form-control">
+                <option value="">(Kein IN-Melder)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+          <button type="button" id="btn-block-cancel" class="btn btn-clear">Abbrechen</button>
+          <button type="submit" class="btn btn-save">💾 Block speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Weiche konfigurieren -->
+  <div id="turnout-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="modal-turnout-title">⎇ Weiche konfigurieren</h2>
+        <button id="btn-turnout-close" class="btn-icon" type="button">✕</button>
+      </div>
+      <form id="form-turnout">
+        <input type="hidden" id="turnout-edit-id" value="">
+
+        <div class="form-group">
+          <label for="turnout-form-name">Weichen-Bezeichnung: *</label>
+          <input type="text" id="turnout-form-name" class="form-control" required placeholder="z. B. Weiche W1 Ost">
+        </div>
+
+        <div class="form-group">
+          <label for="turnout-form-address">DCC Magnetartikel-Adresse (1 - 2048): *</label>
+          <input type="number" id="turnout-form-address" class="form-control" required min="1" max="2048" value="1">
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="turnout-form-inverted">
+            <span><strong>Polarität umkehren</strong> (Gerade ↔ Abzweig vertauschen)</span>
+          </label>
+        </div>
+
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+          <button type="button" id="btn-turnout-cancel" class="btn btn-clear">Abbrechen</button>
+          <button type="submit" class="btn btn-save">💾 Weiche speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Signal konfigurieren / anlegen -->
+  <div id="signal-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <h2 id="modal-signal-title">🚦 Signal konfigurieren</h2>
+        <button id="btn-signal-close" class="btn-icon" type="button">✕</button>
+      </div>
+      <form id="form-signal">
+        <input type="hidden" id="signal-edit-id" value="">
+
+        <!-- Gleisplan-Zuweisung / Verknüpfung -->
+        <div id="signal-track-link-box" style="display: none; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+            <label style="font-size: 12px; color: #58a6ff; font-weight: 600; margin: 0;">📍 Gleisfeld: <span id="signal-track-coords" style="color:#f0f6fc;">(X, Y)</span></label>
+            <button type="button" id="btn-signal-unlink-new" class="btn btn-sm" style="background:#238636; color:#ffffff; font-size:11px; padding:4px 8px; border:none; cursor:pointer;" title="Erstellt für dieses Gleisfeld sofort ein neues, unabhängiges Signal und entkoppelt es von allen anderen.">
+              ➕ Als neues Signal entkoppeln
+            </button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="signal-select-linked" style="font-size: 11px; color: #8b949e; white-space: nowrap; margin: 0;">Zugeordnetes Signal:</label>
+            <select id="signal-select-linked" class="form-control" style="font-size: 12px; padding: 4px 8px;">
+              <!-- Optionen aller Signale -->
+            </select>
+          </div>
+          <small style="color: #8b949e; font-size: 10px; display: block; margin-top: 5px;">
+            💡 Jedes Signal auf dem Gleisplan sollte idealerweise ein separates Signal sein, damit es unabhängig geschaltet werden kann.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="signal-form-name">Signal-Bezeichnung: *</label>
+          <input type="text" id="signal-form-name" class="form-control" required placeholder="z. B. Ausfahrsignal N1">
+        </div>
+
+        <div class="form-group">
+          <label for="signal-form-kind">Signal-Bauart / Modell: *</label>
+          <select id="signal-form-kind" class="form-control">
+            <option value="BLOCK">🟢🔴 Blocksignal (2 Begriffe: Hp0 Halt, Hp1 Fahrt)</option>
+            <option value="ENTRY_EXIT">🟢🔴🟡 Einfahr- / Ausfahrsignal (3 Begriffe: Hp0, Hp1, Hp2 Langsam)</option>
+            <option value="ADVANCED">🟢🔴🟡⚪ Haupt- & Sperrsignal (4 Begriffe: Hp0, Hp1, Hp2, Sh1)</option>
+            <option value="SHUNTING">🔴⚪ Sperrsignal (2 Begriffe: Sh0 Halt, Sh1 Rangierfahrt)</option>
+          </select>
+          <small id="signal-kind-hint" style="color:#58a6ff; font-size:11px; margin-top:4px; display:block;">
+            💡 <strong>2-begriffiges Blocksignal</strong>: Bei Fahrstraßen über Weichen wird niemals Gelb (Hp2) gestellt, sondern vorbildgerecht Hp1 (Grün).
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="signal-form-type">Ansteuerungs-Typ: *</label>
+          <select id="signal-form-type" class="form-control">
+            <option value="WIO">📡 ESP32 WIO (WLAN / Pins & NeoPixel)</option>
+            <option value="DCC_EX">🚂 DCC-EX Digitalzentrale (Zubehör-Adresse)</option>
+            <option value="VIRTUAL">⚡ Virtuell (Software-Simulation)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="signal-form-address">Signal-Adresse (DCC / Ident): *</label>
+          <input type="number" id="signal-form-address" class="form-control" required min="1" max="9999" value="101">
+        </div>
+
+        <!-- ESP32 WIO Spezifische Felder -->
+        <div id="signal-wio-fields" style="background:#161b22;padding:14px;border-radius:8px;border:1px solid #30363d;margin-top:10px;">
+          <div style="font-weight:600;font-size:13px;color:#58a6ff;margin-bottom:8px;">📡 ESP32 WIO Pin-Konfiguration:</div>
+
+          <div class="form-group">
+            <label for="signal-form-wio-unit">ESP32 Unit-Nummer (1 - 127):</label>
+            <input type="number" id="signal-form-wio-unit" class="form-control" min="1" max="127" value="1">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group" id="group-pin-red">
+              <label for="signal-form-pin-red" style="color:#f85149;">Pin Rot (Hp0 / Halt): *</label>
+              <input type="number" id="signal-form-pin-red" class="form-control" placeholder="z. B. 12" min="1" max="64">
+            </div>
+            <div class="form-group" id="group-pin-green">
+              <label for="signal-form-pin-green" style="color:#3fb950;">Pin Grün (Hp1 / Fahrt): *</label>
+              <input type="number" id="signal-form-pin-green" class="form-control" placeholder="z. B. 13" min="1" max="64">
+            </div>
+            <div class="form-group" id="group-pin-yellow">
+              <label for="signal-form-pin-yellow" style="color:#e3b341;">Pin Gelb (Hp2 / Langsam):</label>
+              <input type="number" id="signal-form-pin-yellow" class="form-control" placeholder="z. B. 14" min="1" max="64">
+            </div>
+            <div class="form-group" id="group-pin-white">
+              <label for="signal-form-pin-white" style="color:#c9d1d9;">Pin Weiß (Sh1 / Rangier):</label>
+              <input type="number" id="signal-form-pin-white" class="form-control" placeholder="z. B. 15" min="1" max="64">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:8px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="signal-form-inverted">
+              <span><strong>Active-Low</strong> (Gemeinsame Anode / Common-Anode / Schaltet gegen GND)</span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-top:6px;">
+            <label for="signal-form-led-idx">Optional: WS2812 NeoPixel LED-Index:</label>
+            <input type="number" id="signal-form-led-idx" class="form-control" placeholder="Leer = Standard-Pins" min="0" max="255">
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display:flex;justify-content:space-between;margin-top:20px;">
+          <button type="button" id="btn-signal-delete" class="btn btn-clear" style="color:#f85149;border-color:rgba(248,81,73,0.3);display:none;">
+            🗑️ Signal löschen
+          </button>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button type="button" id="btn-signal-cancel" class="btn btn-clear">Abbrechen</button>
+            <button type="submit" class="btn btn-save">💾 Signal speichern</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Gleisplan-Inspektor & Fahrstraßen-Automatik -->
+  <div id="modal-layout-inspector" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-header">
+        <div>
+          <h2>⚡ Gleisplan-Prüfung & Fahrstraßen-Automatik</h2>
+          <div id="inspector-status-text" style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+            Topologie-Prüfung und Routengenerierung
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="btn-inspector-refresh" class="btn btn-clear" type="button" title="Gleisplan neu analysieren">
+            🔄 Neu prüfen
+          </button>
+          <button id="btn-inspector-close" class="btn-icon" type="button">✕</button>
+        </div>
+      </div>
+
+      <div class="inspector-tabs">
+        <button id="tab-btn-inspector-diag" class="inspector-tab-btn active" type="button">
+          🔍 Gleisplan-Diagnose & Blöcke
+        </button>
+        <button id="tab-btn-inspector-routes" class="inspector-tab-btn" type="button">
+          🧭 Fahrstraßen-Automatik <span id="inspector-routes-count" class="badge badge-dir" style="margin-left: 6px;">0</span>
+        </button>
+      </div>
+
+      <div id="inspector-alert" style="display: none; padding: 10px 14px; border-radius: 6px; background: rgba(35,134,54,0.15); border: 1px solid #238636; color: #3fb950; font-size: 13px; margin-bottom: 12px;"></div>
+
+      <!-- Tab 1: Diagnose & Block-Zuordnung -->
+      <div id="inspector-pane-diag" style="flex: 1; overflow-y: auto; padding-right: 4px;">
+        <div class="stats-row" id="inspector-diag-cards">
+          <!-- Dynamisch gefüllt -->
+        </div>
+
+        <div id="inspector-issues-list" style="margin-bottom: 16px;">
+          <!-- Dynamisch gefüllt -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+          <h3 style="font-size: 15px; font-weight: 600; color: #58a6ff;">
+            📡 Automatische Sensor- & Signal-Zuordnung zu Blöcken
+          </h3>
+          <button type="button" id="btn-apply-block-assignments" class="btn btn-save">
+            💾 Zuordnungen anwenden & speichern
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Block-Name</th>
+                <th>Fahrrichtung [+] (Minus ➔ Plus)</th>
+                <th>Fahrrichtung [-] (Plus ➔ Minus)</th>
+                <th>Ausfahrsignale</th>
+                <th>Erkannte Sensoren</th>
+              </tr>
+            </thead>
+            <tbody id="inspector-blocks-tbody">
+              <!-- Dynamisch gefüllt -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Fahrstraßen-Automatik -->
+      <div id="inspector-pane-routes" style="display: none; flex: 1; overflow-y: auto; padding-right: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div style="font-size: 13px; color: var(--text-muted);">
+            Wähle die gewünschten Fahrstraßen aus. Der Router hat Weichenlagen & Signale automatisch berechnet:
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="btn-save-routes-merge" class="btn btn-clear" title="Ergänzt neue Routen zu vorhandenen">
+              ➕ Zu bestehenden Routen hinzufügen
+            </button>
+            <button type="button" id="btn-save-routes-replace" class="btn btn-save" title="Überschreibt alle Fahrstraßen mit den neu generierten">
+              🚀 Fahrstraßen im Stellwerk speichern
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">
+                  <input type="checkbox" id="cb-select-all-routes" checked title="Alle auswählen / abwählen" />
+                </th>
+                <th style="width: 50px;">Richtung</th>
+                <th>Von Block ➔ Nach Block</th>
+                <th>Weichenstellung</th>
+                <th>Signalbegriff</th>
+                <th>Fahrstraßen-ID</th>
+              </tr>
+            </thead>
+            <tbody id="inspector-routes-tbody">
+              <!-- Dynamisch gefüllt -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+        <button type="button" id="btn-inspector-dismiss" class="btn btn-clear">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block Kontext-Menü (Rechtsklick auf Block) -->
+  <div id="block-context-menu" class="block-context-menu" style="display: none;"></div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

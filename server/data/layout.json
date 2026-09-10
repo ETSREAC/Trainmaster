@@ -1,0 +1,681 @@
+{
+  "locos": [
+    {
+      "id": "loco-br-218",
+      "name": "DB BR 218 (Diesel)",
+      "dccAddress": 218,
+      "speed": 0,
+      "targetSpeed": 0,
+      "direction": "FWD",
+      "functions": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": false
+      },
+      "vMin": 12,
+      "vMid": 55,
+      "vMax": 105,
+      "lengthCm": 19.5,
+      "trainType": "PASSENGER",
+      "currentBlockId": "block-bf-gl1"
+    },
+    {
+      "id": "loco-ice-3",
+      "name": "Kato Pocketline Tram",
+      "dccAddress": 10,
+      "speed": 0,
+      "targetSpeed": 0,
+      "direction": "FWD",
+      "functions": {
+        "0": true,
+        "1": false,
+        "2": false,
+        "3": false
+      },
+      "vMin": 15,
+      "vMid": 70,
+      "vMax": 126,
+      "lengthCm": 15,
+      "trainType": "PASSENGER",
+      "currentBlockId": null
+    },
+    {
+      "id": "loco-fleischmann-vectron",
+      "name": "Fleischmann BR 193 Vectron",
+      "dccAddress": 43,
+      "speed": 0,
+      "targetSpeed": 0,
+      "direction": "FWD",
+      "functions": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": false,
+        "4": false,
+        "5": false,
+        "6": false,
+        "7": false,
+        "8": false,
+        "9": false,
+        "10": false,
+        "11": false,
+        "12": false,
+        "13": false,
+        "14": false,
+        "15": false,
+        "16": false,
+        "17": false,
+        "18": false,
+        "19": false,
+        "20": false,
+        "21": false,
+        "22": false
+      },
+      "vMin": 10,
+      "vMid": 60,
+      "vMax": 120,
+      "lengthCm": 12,
+      "trainType": "FREIGHT",
+      "currentBlockId": null,
+      "functionLabels": {
+        "0": "💡 F0 Licht (Spitzenlicht)",
+        "1": "🔊 F1 Sound ein (Motor/Aufrüsten)",
+        "2": "🎺 F2 Lokpfeife hoch-lang",
+        "3": "📯 F3 Lokpfeife tief-lang",
+        "4": "🔦 F4 Fernlicht",
+        "5": "🔗 F5 Kuppler-Geräusch",
+        "6": "⏩ F6 ABV aus (Beschleunigung)",
+        "7": "💨 F7 Luftpresser",
+        "8": "🚨 F8 Spitzenlicht hinten",
+        "9": "🐢 F9 Rangiergang",
+        "10": "🔇 F10 Stumm (Mute)",
+        "11": "💡 F11 Licht FS2",
+        "12": "💡 F12 Licht FS1",
+        "13": "🎺 F13 Horn tief-kurz",
+        "14": "🚂 F14 Güterzug-Sound",
+        "15": "🚪 F15 Führerstandstür",
+        "16": "⚠️ F16 Ansage: Störung",
+        "17": "⚠️ F17 Ansage: Zugbeeinflussung",
+        "18": "🚨 F18 Sifa-Hupe",
+        "19": "🛑 F19 Bremsen-Quietschen",
+        "20": "⛔ F20 Zwangsbremsung",
+        "21": "🔉 F21 Lautstärke Leiser",
+        "22": "🔊 F22 Lautstärke Lauter"
+      }
+    }
+  ],
+  "turnouts": [
+    {
+      "id": "to-1",
+      "name": "Weiche W1 (Einfahrt Ost)",
+      "address": 20,
+      "state": "STRAIGHT",
+      "inverted": false,
+      "locked": false,
+      "lockedByRouteId": null
+    },
+    {
+      "id": "to-2",
+      "name": "Weiche W2 (Ausfahrt West)",
+      "address": 2,
+      "state": "STRAIGHT",
+      "locked": false
+    }
+  ],
+  "signals": [
+    {
+      "id": "sig-1",
+      "name": "Ausfahrsignal N6",
+      "address": 101,
+      "aspect": "HP0",
+      "type": "WIO",
+      "kind": "ADVANCED",
+      "wioUnit": 33,
+      "wioPins": {
+        "red": 12,
+        "green": 13,
+        "yellow": 14,
+        "white": 15
+      },
+      "inverted": false
+    },
+    {
+      "id": "sig-2",
+      "name": "Ausfahrsignal N2",
+      "address": 102,
+      "aspect": "HP0",
+      "kind": "BLOCK"
+    },
+    {
+      "id": "sig-3",
+      "name": "Ausfahrsignal N3",
+      "address": 103,
+      "aspect": "HP0",
+      "type": "WIO",
+      "kind": "BLOCK",
+      "wioUnit": 1,
+      "wioPins": {
+        "red": 14,
+        "green": 15
+      },
+      "inverted": false
+    },
+    {
+      "id": "sig-4",
+      "name": "Ausfahrsignal N4",
+      "address": 104,
+      "aspect": "HP0",
+      "type": "WIO",
+      "kind": "BLOCK",
+      "wioUnit": 1,
+      "wioPins": {
+        "red": 16,
+        "green": 17
+      },
+      "inverted": false
+    }
+  ],
+  "sensors": [
+    {
+      "id": "sens-1",
+      "name": "Bf Gl1 ENTER (+)",
+      "address": 1,
+      "type": "CURRENT",
+      "active": false,
+      "lastTriggered": 1788980377468
+    },
+    {
+      "id": "sens-2",
+      "name": "Bf Gl1 IN (+)",
+      "address": 2,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-3",
+      "name": "Bf Gl2 ENTER (+)",
+      "address": 3,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-4",
+      "name": "Bf Gl2 IN (+)",
+      "address": 4,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-5",
+      "name": "Strecke ENTER (+)",
+      "address": 5,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-6",
+      "name": "Strecke IN (+)",
+      "address": 6,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-7",
+      "name": "Strecke IN (Gleis 2)",
+      "address": 7,
+      "type": "CURRENT",
+      "active": false
+    },
+    {
+      "id": "sens-8",
+      "name": "Gleis 3 IN",
+      "address": 8,
+      "type": "CURRENT",
+      "active": false
+    }
+  ],
+  "blocks": [
+    {
+      "id": "block-bf-gl1",
+      "name": "Bahnhof Gleis 1",
+      "lengthCm": 180,
+      "state": "RESERVED",
+      "currentLocoId": null,
+      "reservedForLocoId": "loco-fleischmann-vectron",
+      "direction": "+",
+      "sensorsPlus": {
+        "enter": "sens-1",
+        "in": "sens-2"
+      },
+      "sensorsMinus": {
+        "enter": "sens-2",
+        "in": "sens-1"
+      }
+    },
+    {
+      "id": "block-bf-gl2",
+      "name": "Bahnhof Gleis 2 (Ausweichgleis)",
+      "lengthCm": 160,
+      "state": "FREE",
+      "currentLocoId": null,
+      "reservedForLocoId": null,
+      "direction": "+",
+      "sensorsPlus": {
+        "enter": "sens-3",
+        "in": "sens-4"
+      },
+      "sensorsMinus": {
+        "enter": "sens-4",
+        "in": "sens-3"
+      }
+    },
+    {
+      "id": "block-strecke",
+      "name": "Freie Strecke Nord",
+      "lengthCm": 250,
+      "state": "FREE",
+      "currentLocoId": null,
+      "reservedForLocoId": null,
+      "direction": "+",
+      "sensorsPlus": {
+        "enter": "sens-5",
+        "in": "sens-6"
+      },
+      "sensorsMinus": {
+        "enter": "sens-6",
+        "in": "sens-5"
+      }
+    },
+    {
+      "id": "block-bf-gl3",
+      "name": "Bahnhof Gleis 3",
+      "lengthCm": 160,
+      "state": "OCCUPIED",
+      "currentLocoId": "loco-br-218",
+      "reservedForLocoId": null,
+      "direction": "+",
+      "sensorsPlus": {
+        "enter": "sens-3",
+        "in": "sens-8"
+      },
+      "sensorsMinus": {
+        "enter": "sens-8",
+        "in": "sens-3"
+      }
+    }
+  ],
+  "layout": [
+    {
+      "id": "elem-1788858499865-1",
+      "x": 7,
+      "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-1"
+    },
+    {
+      "id": "elem-1788858500767-538",
+      "x": 5,
+      "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-2"
+    },
+    {
+      "id": "elem-1788888592331-699",
+      "x": 4,
+      "y": 1,
+      "rotation": 180,
+      "type": "SIGNAL",
+      "linkedId": "sig-1"
+    },
+    {
+      "id": "elem-1788889900732-173",
+      "x": 8,
+      "y": 1,
+      "rotation": 0,
+      "type": "TURNOUT_RIGHT",
+      "linkedId": "to-1"
+    },
+    {
+      "id": "elem-1788890985410-333",
+      "x": 6,
+      "y": 1,
+      "rotation": 0,
+      "type": "BLOCK",
+      "linkedId": "block-bf-gl1"
+    },
+    {
+      "id": "elem-1788936486953-2",
+      "x": 8,
+      "y": 2,
+      "rotation": 180,
+      "type": "CURVE"
+    },
+    {
+      "id": "elem-1788936502038-655",
+      "x": 9,
+      "y": 2,
+      "rotation": 0,
+      "type": "TURNOUT_RIGHT",
+      "linkedId": "to-2"
+    },
+    {
+      "id": "elem-1788936504723-866",
+      "x": 9,
+      "y": 3,
+      "rotation": 180,
+      "type": "CURVE"
+    },
+    {
+      "id": "elem-1788936519722-588",
+      "x": 9,
+      "y": 1,
+      "rotation": 0,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1788936543270-582",
+      "x": 10,
+      "y": 1,
+      "rotation": 0,
+      "type": "SIGNAL",
+      "linkedId": "sig-2"
+    },
+    {
+      "id": "elem-1788936544551-631",
+      "x": 10,
+      "y": 2,
+      "rotation": 0,
+      "type": "SIGNAL",
+      "linkedId": "sig-3"
+    },
+    {
+      "id": "elem-1788936545003-377",
+      "x": 10,
+      "y": 3,
+      "rotation": 0,
+      "type": "SIGNAL",
+      "linkedId": "sig-4"
+    },
+    {
+      "id": "elem-1788936572056-641",
+      "x": 11,
+      "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-4"
+    },
+    {
+      "id": "elem-1788936572349-155",
+      "x": 11,
+      "y": 2,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-5"
+    },
+    {
+      "id": "elem-1788936577930-259",
+      "x": 11,
+      "y": 3,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-3"
+    },
+    {
+      "id": "elem-1788936580314-354",
+      "x": 13,
+      "y": 2,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-7"
+    },
+    {
+      "id": "elem-1788936580610-579",
+      "x": 13,
+      "y": 3,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-8"
+    },
+    {
+      "id": "elem-1788936587264-505",
+      "x": 12,
+      "y": 1,
+      "rotation": 0,
+      "type": "BLOCK",
+      "linkedId": "block-bf-gl2"
+    },
+    {
+      "id": "elem-1788936587624-704",
+      "x": 12,
+      "y": 2,
+      "rotation": 0,
+      "type": "BLOCK",
+      "linkedId": "block-strecke"
+    },
+    {
+      "id": "elem-1788936588056-837",
+      "x": 12,
+      "y": 3,
+      "rotation": 0,
+      "type": "BLOCK",
+      "linkedId": "block-bf-gl3"
+    },
+    {
+      "id": "elem-1788952310896-508",
+      "x": 3,
+      "y": 1,
+      "rotation": 180,
+      "type": "BUFFER"
+    },
+    {
+      "id": "elem-1788952331595-931",
+      "x": 13,
+      "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sens-6"
+    },
+    {
+      "id": "elem-1788952544086-430",
+      "x": 14,
+      "y": 1,
+      "rotation": 0,
+      "type": "BUFFER"
+    },
+    {
+      "id": "elem-1788952544693-701",
+      "x": 14,
+      "y": 2,
+      "rotation": 0,
+      "type": "BUFFER"
+    },
+    {
+      "id": "elem-1788952545236-601",
+      "x": 14,
+      "y": 3,
+      "rotation": 0,
+      "type": "BUFFER"
+    }
+  ],
+  "routes": [
+    {
+      "id": "route-block-bf-gl1-to-block-bf-gl2",
+      "name": "Fahrstraße Bahnhof Gleis 1 -> Bahnhof Gleis 2 (Ausweichgleis)",
+      "fromBlockId": "block-bf-gl1",
+      "toBlockId": "block-bf-gl2",
+      "direction": "+",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-1",
+          "state": "STRAIGHT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-2",
+          "aspect": "HP1"
+        }
+      ],
+      "active": false
+    },
+    {
+      "id": "route-block-bf-gl1-to-block-strecke",
+      "name": "Fahrstraße Bahnhof Gleis 1 -> Freie Strecke Nord",
+      "fromBlockId": "block-bf-gl1",
+      "toBlockId": "block-strecke",
+      "direction": "+",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-1",
+          "state": "DIVERGENT"
+        },
+        {
+          "turnoutId": "to-2",
+          "state": "STRAIGHT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-3",
+          "aspect": "HP1"
+        }
+      ],
+      "active": false
+    },
+    {
+      "id": "route-block-bf-gl1-to-block-bf-gl3",
+      "name": "Fahrstraße Bahnhof Gleis 1 -> Bahnhof Gleis 3",
+      "fromBlockId": "block-bf-gl1",
+      "toBlockId": "block-bf-gl3",
+      "direction": "+",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-1",
+          "state": "DIVERGENT"
+        },
+        {
+          "turnoutId": "to-2",
+          "state": "DIVERGENT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-4",
+          "aspect": "HP1"
+        }
+      ],
+      "active": false
+    },
+    {
+      "id": "route-block-bf-gl2-to-block-bf-gl1",
+      "name": "Fahrstraße Bahnhof Gleis 2 (Ausweichgleis) -> Bahnhof Gleis 1",
+      "fromBlockId": "block-bf-gl2",
+      "toBlockId": "block-bf-gl1",
+      "direction": "-",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-1",
+          "state": "STRAIGHT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-2",
+          "aspect": "HP1"
+        }
+      ],
+      "active": false
+    },
+    {
+      "id": "route-block-strecke-to-block-bf-gl1",
+      "name": "Fahrstraße Freie Strecke Nord -> Bahnhof Gleis 1",
+      "fromBlockId": "block-strecke",
+      "toBlockId": "block-bf-gl1",
+      "direction": "-",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-2",
+          "state": "STRAIGHT"
+        },
+        {
+          "turnoutId": "to-1",
+          "state": "DIVERGENT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-3",
+          "aspect": "HP2"
+        }
+      ],
+      "active": false
+    },
+    {
+      "id": "route-block-bf-gl3-to-block-bf-gl1",
+      "name": "Fahrstraße Bahnhof Gleis 3 -> Bahnhof Gleis 1",
+      "fromBlockId": "block-bf-gl3",
+      "toBlockId": "block-bf-gl1",
+      "direction": "-",
+      "turnoutSettings": [
+        {
+          "turnoutId": "to-2",
+          "state": "DIVERGENT"
+        },
+        {
+          "turnoutId": "to-1",
+          "state": "DIVERGENT"
+        }
+      ],
+      "signalSettings": [
+        {
+          "signalId": "sig-4",
+          "aspect": "HP2"
+        }
+      ],
+      "active": false
+    }
+  ],
+  "bbt": [
+    {
+      "locoId": "loco-br-218",
+      "blockId": "block-bf-gl1",
+      "direction": "+",
+      "steps": 45,
+      "intervalMs": 80,
+      "vStart": 55,
+      "vMin": 12,
+      "locked": false
+    },
+    {
+      "locoId": "loco-br-218",
+      "blockId": "block-strecke",
+      "direction": "+",
+      "steps": 60,
+      "intervalMs": 90,
+      "vStart": 65,
+      "vMin": 12,
+      "locked": false
+    }
+  ],
+  "settings": {
+    "commandStation": {
+      "type": "VIRTUAL",
+      "connectionType": "SERIAL",
+      "serialPort": "COM3",
+      "baudRate": 115200,
+      "host": "192.168.0.111",
+      "port": 21105
+    },
+    "wio": {
+      "enabled": true,
+      "udpPort": 8051
+    },
+    "scale": "N",
+    "targetCreepMs": 1200,
+    "ghostDetectionActive": true,
+    "manualSensorTriggerInRunMode": true
+  }
+}
