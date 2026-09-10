@@ -339,6 +339,7 @@ if (data.settings.wio?.enabled !== false) {
 }
 
 function triggerEmergencyStop(): void {
+  if (status.emergencyStop) return;
   status.emergencyStop = true;
   hal.emergencyStop();
   locoManager.emergencyStopAll();
@@ -347,6 +348,7 @@ function triggerEmergencyStop(): void {
 }
 
 function resumeStop(): void {
+  if (!status.emergencyStop) return;
   status.emergencyStop = false;
   hal.resume();
   broadcast({ type: 'STATUS_UPDATE', payload: { emergencyStop: false } });
@@ -595,15 +597,14 @@ wss.on('connection', (ws) => {
         case 'ASSIGN_LOCO_TO_BLOCK': {
           const { locoId, blockId } = action.payload;
           blockManager.assignLocoToBlock(locoId, blockId);
-          for (const l of data.locos) {
+          for (const l of locoManager.getAllLocos()) {
             if (l.id === locoId) {
-              l.currentBlockId = blockId;
-              broadcast({ type: 'LOCO_UPDATED', payload: l });
+              locoManager.setLocoBlock(l.id, blockId);
             } else if (blockId && l.currentBlockId === blockId) {
-              l.currentBlockId = null;
-              broadcast({ type: 'LOCO_UPDATED', payload: l });
+              locoManager.setLocoBlock(l.id, null);
             }
           }
+          data.locos = locoManager.getAllLocos();
           data.blocks = blockManager.getAllBlocks();
           saveAllData();
           break;
@@ -613,14 +614,16 @@ wss.on('connection', (ws) => {
           const { blockId } = action.payload;
           const targetBlock = blockManager.getBlock(blockId);
           const currentLocoId = targetBlock?.currentLocoId;
-          if (currentLocoId) {
-            const loco = data.locos.find((l) => l.id === currentLocoId);
-            if (loco) {
-              loco.currentBlockId = null;
-              broadcast({ type: 'LOCO_UPDATED', payload: loco });
+          const reservedLocoId = targetBlock?.reservedForLocoId;
+
+          // Alle Loks freigeben, die im Block standen, dafür reserviert waren oder noch darauf verweisen
+          for (const l of locoManager.getAllLocos()) {
+            if (l.id === currentLocoId || l.id === reservedLocoId || l.currentBlockId === blockId) {
+              locoManager.setLocoBlock(l.id, null);
             }
           }
           blockManager.freeBlock(blockId);
+          data.locos = locoManager.getAllLocos();
           data.blocks = blockManager.getAllBlocks();
           saveAllData();
           break;

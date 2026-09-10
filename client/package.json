@@ -1,6 +1,6 @@
 {
   "name": "trainmaster-client",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "TrainMaster Web UI - Stellpult & Handregler",
   "scripts": {
     "dev": "vite --port 5173 --host",

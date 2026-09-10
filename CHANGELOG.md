@@ -10,6 +10,22 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.1.1] - 2026-09-10
+
+### 🛠️ Highlights (Patch / Bugfix)
+- **Zuverlässige Block-Freigabe**: Behebung eines Fehlers, bei dem Blöcke im Zustand `RESERVED` (Fahrstraße aktiv/abgebrochen) oder mit abweichender Lok-Zuordnung nicht direkt freigegeben werden konnten.
+- **Kontextmenü-Aktionen**: Das Rechtsklick- bzw. Long-Press-Menü auf Blöcken bietet nun für alle Zustände (`RESERVED`, `OCCUPIED`, `GHOST`) einen direkten Freigabe- und Quittierungs-Button.
+- **Server-Datenkonsistenz**: Synchronisation von `currentBlockId` direkt im `LocoManager` sichergestellt, sodass Lok- und Block-Status beim Speichern in `layout.json` und beim Seiten-Reload stets synchron bleiben.
+- **Nothalt-Rekursionsschutz**: Schutz vor Stack-Overflow-Schleifen zwischen HAL-Simulator und System-Events in `triggerEmergencyStop`.
+
+### Fixed
+- `server/src/engine/LocoManager.ts`: Methode `setLocoBlock(id, blockId)` hinzugefügt, um Lok- und Block-Zustände im internen Map-Speicher synchron zu halten.
+- `server/src/index.ts`: In `ASSIGN_LOCO_TO_BLOCK` und `FREE_BLOCK` werden Lok-Referenzen jetzt über den `LocoManager` aufgelöst und konsistent an alle Clients gestreamt.
+- `server/src/index.ts`: Rekursions-Guard in `triggerEmergencyStop()` und `resumeStop()` verhindert doppelte Kaskaden bei HAL-Callbacks.
+- `client/src/components/TrackCanvas.ts`: Block-Kontextmenü zeigt jetzt für `RESERVED`, `OCCUPIED` (ohne Lok) und `GHOST` eindeutige Statusmeldungen und den "Block freigeben"-Button an.
+
+---
+
 ## [1.1.0] - 2026-09-10
 
 ### 🌐 Highlights

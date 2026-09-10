@@ -60,6 +60,13 @@ export class LocoManager {
     this.events.onLog('Alle Lokomotiven per Nothalt gestoppt (Fahrstufe 0).', 'warn');
   }
 
+  setLocoBlock(id: string, blockId: string | null): void {
+    const loco = this.locos.get(id);
+    if (!loco) return;
+    loco.currentBlockId = blockId;
+    this.events.onLocoUpdated(loco);
+  }
+
   addLoco(loco: Locomotive): void {
     this.locos.set(loco.id, { ...loco });
     this.events.onLocoUpdated(loco);

@@ -2094,6 +2094,10 @@ export class TrackCanvas {
       ? wsClient.locos.find((l) => l.id === block.currentLocoId)
       : null;
 
+    const reservedLoco = block.reservedForLocoId
+      ? wsClient.locos.find((l) => l.id === block.reservedForLocoId)
+      : null;
+
     let statusHtml = '';
     let actionButtons = '';
 
@@ -2114,6 +2118,68 @@ export class TrackCanvas {
           <span class="ctx-item-text">
             <strong>Block freigeben</strong>
             <small>Zug "${currentLoco.name}" entfernen & Gleis räumen</small>
+          </span>
+        </button>
+      `;
+    } else if (reservedLoco || block.state === 'RESERVED') {
+      statusHtml = `
+        <div class="ctx-block-status reserved" style="border-left: 3px solid #d29922; background: rgba(210, 153, 34, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
+          <span class="status-indicator">🟡</span>
+          <div class="status-details">
+            <div class="status-label" style="font-size: 11px; color: #8b949e;">Fahrstraße reserviert:</div>
+            <div class="status-loco-name" style="font-weight: bold; color: #d29922;">
+              ${reservedLoco ? `🚂 ${reservedLoco.name} (#${reservedLoco.dccAddress})` : 'Reserviert für Fahrstraße'}
+            </div>
+          </div>
+        </div>
+      `;
+
+      actionButtons += `
+        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
+          <span class="ctx-item-icon">🚫</span>
+          <span class="ctx-item-text">
+            <strong>Reservierung aufheben & Block freigeben</strong>
+            <small>Fahrstraße stornieren und Gleis auf FREI setzen</small>
+          </span>
+        </button>
+      `;
+    } else if (block.state === 'GHOST') {
+      statusHtml = `
+        <div class="ctx-block-status ghost" style="border-left: 3px solid #ff0000; background: rgba(255, 0, 0, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
+          <span class="status-indicator">⚠️</span>
+          <div class="status-details">
+            <div class="status-label" style="font-size: 11px; color: #f85149;">Geisterzug-Alarm!</div>
+            <div class="status-loco-name" style="font-weight: bold; color: #ff7b72;">Unangemeldeter Sensor ausgelöst</div>
+          </div>
+        </div>
+      `;
+
+      actionButtons += `
+        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
+          <span class="ctx-item-icon">🚫</span>
+          <span class="ctx-item-text">
+            <strong>Geisterzug-Alarm quittieren & Gleis freigeben</strong>
+            <small>Block zurücksetzen</small>
+          </span>
+        </button>
+      `;
+    } else if (block.state === 'OCCUPIED') {
+      statusHtml = `
+        <div class="ctx-block-status occupied">
+          <span class="status-indicator">🔴</span>
+          <div class="status-details">
+            <div class="status-label">Belegt (kein Zug zugewiesen)</div>
+            <div class="status-loco-name">Sensor meldet Besetztzustand</div>
+          </div>
+        </div>
+      `;
+
+      actionButtons += `
+        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
+          <span class="ctx-item-icon">🚫</span>
+          <span class="ctx-item-text">
+            <strong>Block freigeben & zurücksetzen</strong>
+            <small>Gleis auf FREI setzen</small>
           </span>
         </button>
       `;

@@ -110,7 +110,7 @@
       "id": "to-1",
       "name": "Weiche W1 (Einfahrt Ost)",
       "address": 20,
-      "state": "STRAIGHT",
+      "state": "DIVERGENT",
       "inverted": false,
       "locked": false,
       "lockedByRouteId": null
@@ -119,8 +119,9 @@
       "id": "to-2",
       "name": "Weiche W2 (Ausfahrt West)",
       "address": 2,
-      "state": "STRAIGHT",
-      "locked": false
+      "state": "DIVERGENT",
+      "locked": false,
+      "lockedByRouteId": null
     }
   ],
   "signals": [
@@ -182,22 +183,24 @@
       "name": "Bf Gl1 ENTER (+)",
       "address": 1,
       "type": "CURRENT",
-      "active": false,
-      "lastTriggered": 1788980377468
+      "active": true,
+      "lastTriggered": 1789034104522
     },
     {
       "id": "sens-2",
       "name": "Bf Gl1 IN (+)",
       "address": 2,
       "type": "CURRENT",
-      "active": false
+      "active": false,
+      "lastTriggered": 1789034000360
     },
     {
       "id": "sens-3",
       "name": "Bf Gl2 ENTER (+)",
       "address": 3,
       "type": "CURRENT",
-      "active": false
+      "active": true,
+      "lastTriggered": 1789034098448
     },
     {
       "id": "sens-4",
@@ -211,7 +214,8 @@
       "name": "Strecke ENTER (+)",
       "address": 5,
       "type": "CURRENT",
-      "active": false
+      "active": false,
+      "lastTriggered": 1789034095186
     },
     {
       "id": "sens-6",
@@ -232,7 +236,8 @@
       "name": "Gleis 3 IN",
       "address": 8,
       "type": "CURRENT",
-      "active": false
+      "active": false,
+      "lastTriggered": 1789034098336
     }
   ],
   "blocks": [
@@ -242,7 +247,7 @@
       "lengthCm": 180,
       "state": "RESERVED",
       "currentLocoId": null,
-      "reservedForLocoId": "loco-fleischmann-vectron",
+      "reservedForLocoId": "loco-ice-3",
       "direction": "+",
       "sensorsPlus": {
         "enter": "sens-1",
@@ -274,9 +279,9 @@
       "id": "block-strecke",
       "name": "Freie Strecke Nord",
       "lengthCm": 250,
-      "state": "FREE",
+      "state": "RESERVED",
       "currentLocoId": null,
-      "reservedForLocoId": null,
+      "reservedForLocoId": "loco-ice-3",
       "direction": "+",
       "sensorsPlus": {
         "enter": "sens-5",
@@ -292,7 +297,7 @@
       "name": "Bahnhof Gleis 3",
       "lengthCm": 160,
       "state": "OCCUPIED",
-      "currentLocoId": "loco-br-218",
+      "currentLocoId": "loco-ice-3",
       "reservedForLocoId": null,
       "direction": "+",
       "sensorsPlus": {
@@ -657,6 +662,26 @@
       "intervalMs": 90,
       "vStart": 65,
       "vMin": 12,
+      "locked": false
+    },
+    {
+      "locoId": "loco-ice-3",
+      "blockId": "block-bf-gl1",
+      "direction": "+",
+      "steps": 10,
+      "intervalMs": 80,
+      "vStart": 0,
+      "vMin": 15,
+      "locked": false
+    },
+    {
+      "locoId": "loco-ice-3",
+      "blockId": "block-bf-gl3",
+      "direction": "+",
+      "steps": 10,
+      "intervalMs": 80,
+      "vStart": 0,
+      "vMin": 15,
       "locked": false
     }
   ],
