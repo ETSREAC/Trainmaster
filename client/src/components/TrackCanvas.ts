@@ -263,7 +263,39 @@ export class TrackCanvas {
       }
     });
 
+    // Sekündlicher Ticker für Live-Wartezeit-Countdowns auf dem Gleisplan & im Menü
+    setInterval(() => this.tickWaitTimers(), 1000);
+
     this.render();
+  }
+
+  private tickWaitTimers(): void {
+    const now = Date.now();
+    for (const block of wsClient.blocks) {
+      if (block.waitTimer && block.waitTimer.status === 'WAITING') {
+        const textElem = document.getElementById(`block-timer-text-${block.id}`);
+        if (textElem) {
+          const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - now) / 1000));
+          if (rem > 0) {
+            textElem.textContent = `⏳ Abfahrt in ${rem}s`;
+          } else {
+            textElem.textContent = `🟢 Abfahrt...`;
+          }
+        }
+      }
+    }
+
+    const ctxTimerCountdown = document.getElementById('ctx-timer-countdown');
+    const ctxTimerBlockId = ctxTimerCountdown?.dataset.blockId;
+    if (ctxTimerCountdown && ctxTimerBlockId) {
+      const block = wsClient.blocks.find((b) => b.id === ctxTimerBlockId);
+      if (block?.waitTimer?.status === 'WAITING') {
+        const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - now) / 1000));
+        ctxTimerCountdown.innerHTML = rem > 0
+          ? `Noch <strong>${rem}s</strong> bis zur planmäßigen Abfahrt (von ${block.waitTimer.totalWaitSec}s)`
+          : `<strong>Abfahrt wird eingeleitet...</strong>`;
+      }
+    }
   }
 
   private initModals(): void {
@@ -1784,12 +1816,13 @@ export class TrackCanvas {
     const blockTitle = `${typeIcon} ${dirArrow} ${block.name}`;
     const locoTitle = loco ? `🚂 ${loco.name || block.currentLocoId} (${loco.speed || 0})` : '';
 
+    const hasTimer = !!block.waitTimer;
     // Dynamische Breite & Typografie berechnen, damit lange Namen perfekt reinpassen und nichts abgeschnitten wird
     const maxChars = Math.max(blockTitle.length, locoTitle.length);
     const calculatedWidth = Math.max(this.cellSize * 1.5, maxChars * 6.5 + 22);
     // Begrenzung, damit er nicht zu tief in Nachbarkacheln ragt
     const width = Math.min(this.cellSize * 1.85, calculatedWidth);
-    const height = 34;
+    const height = hasTimer ? 48 : 34;
 
     // 1. Blickdichte Trägerplatte (GARANTIERT, dass darunterliegende Gleise NIEMALS durch den Text schneiden!)
     const bgBase = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1825,6 +1858,16 @@ export class TrackCanvas {
     } else if (block.state === 'GHOST') {
       fill = 'rgba(255, 0, 0, 0.65)';
       stroke = '#ff0000';
+    }
+
+    if (block.waitTimer?.status === 'WAITING') {
+      stroke = '#e3b341';
+      fill = 'rgba(227, 179, 65, 0.22)';
+      bg.setAttribute('stroke-dasharray', '5,2.5');
+    } else if (block.waitTimer?.status === 'DISPATCH_BLOCKED') {
+      stroke = '#f85149';
+      fill = 'rgba(218, 54, 51, 0.25)';
+      bg.setAttribute('stroke-dasharray', '3,3');
     }
 
     if (isSelected) {
@@ -1923,7 +1966,7 @@ export class TrackCanvas {
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', '0');
-    text.setAttribute('y', block.currentLocoId ? '-2' : '4');
+    text.setAttribute('y', hasTimer ? '-9' : (block.currentLocoId ? '-2' : '4'));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('fill', '#f0f6fc');
 
@@ -1944,7 +1987,7 @@ export class TrackCanvas {
     if (block.currentLocoId) {
       const locoText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       locoText.setAttribute('x', '0');
-      locoText.setAttribute('y', '12');
+      locoText.setAttribute('y', hasTimer ? '4' : '12');
       locoText.setAttribute('text-anchor', 'middle');
       locoText.setAttribute('fill', '#58a6ff');
 
@@ -1960,6 +2003,31 @@ export class TrackCanvas {
       locoText.textContent = locoTitle;
       locoText.style.pointerEvents = 'none';
       blockLabelGroup.appendChild(locoText);
+    }
+
+    // Wenn Wartezeit-Timer aktiv: Live-Countdown anzeigen
+    if (block.waitTimer) {
+      const timerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      timerText.setAttribute('id', `block-timer-text-${block.id}`);
+      timerText.setAttribute('class', 'block-live-timer');
+      timerText.setAttribute('data-block-id', block.id);
+      timerText.setAttribute('x', '0');
+      timerText.setAttribute('y', '17');
+      timerText.setAttribute('text-anchor', 'middle');
+      timerText.setAttribute('font-size', '9.5px');
+      timerText.setAttribute('font-weight', '700');
+      timerText.setAttribute('font-family', 'monospace');
+      timerText.style.pointerEvents = 'none';
+
+      if (block.waitTimer.status === 'WAITING') {
+        const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - Date.now()) / 1000));
+        timerText.setAttribute('fill', '#e3b341');
+        timerText.textContent = `⏳ Abfahrt in ${rem}s`;
+      } else {
+        timerText.setAttribute('fill', '#f85149');
+        timerText.textContent = `🚦 Warten auf Ausfahrt`;
+      }
+      blockLabelGroup.appendChild(timerText);
     }
 
     g.appendChild(blockLabelGroup);
@@ -2227,6 +2295,34 @@ export class TrackCanvas {
       `;
     }
 
+    // Wartezeit-Timer & Sofort-Abfahrt Button
+    if (block.waitTimer) {
+      const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - Date.now()) / 1000));
+      statusHtml += `
+        <div class="ctx-timer-box ${block.waitTimer.status === 'DISPATCH_BLOCKED' ? 'blocked' : ''}">
+          <div class="ctx-timer-header">
+            <span>${block.waitTimer.status === 'WAITING' ? '⏳' : '🚦'}</span>
+            <span>${block.waitTimer.status === 'WAITING' ? 'Planmäßiger Halt (Wartezeit)' : 'Ausfahrt aktuell blockiert'}</span>
+          </div>
+          <div class="ctx-timer-value" id="ctx-timer-countdown" data-block-id="${block.id}">
+            ${block.waitTimer.status === 'WAITING'
+              ? `Noch <strong>${rem}s</strong> bis zur planmäßigen Abfahrt (von ${block.waitTimer.totalWaitSec}s)`
+              : 'Wartezeit abgelaufen. Signal oder Zielblock ist noch belegt!'}
+          </div>
+        </div>
+      `;
+
+      actionButtons = `
+        <button id="ctx-btn-dispatch-now" class="ctx-menu-item primary">
+          <span class="ctx-item-icon">⚡</span>
+          <span class="ctx-item-text">
+            <strong>Sofort abfahren lassen</strong>
+            <small>${block.waitTimer.status === 'WAITING' ? 'Wartezeit überspringen & Route stellen' : 'Erneut Ausfahrt anfordern'}</small>
+          </span>
+        </button>
+      ` + actionButtons;
+    }
+
     // Quick-Zuweisung wenn kein Zug auf dem Block steht
     if (!currentLoco) {
       const unassignedLocos = wsClient.locos.filter((l) => !l.currentBlockId);
@@ -2288,6 +2384,14 @@ export class TrackCanvas {
     `;
 
     // Event Handlers
+    document.getElementById('ctx-btn-dispatch-now')?.addEventListener('click', () => {
+      wsClient.send({
+        type: 'DISPATCH_BLOCK_NOW',
+        payload: { blockId: block.id }
+      });
+      this.hideBlockContextMenu();
+    });
+
     document.getElementById('ctx-btn-free-block')?.addEventListener('click', () => {
       wsClient.send({
         type: 'FREE_BLOCK',

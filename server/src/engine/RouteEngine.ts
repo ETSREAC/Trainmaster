@@ -5,6 +5,7 @@ import { TurnoutManager } from './TurnoutManager.js';
 
 export interface RouteEvents {
   onRouteUpdated: (route: Route) => void;
+  onBlockUpdated?: (block: Block) => void;
   onSignalSet?: (signalId: string, aspect: SignalAspect) => void;
   onSoundTriggered?: (block: Block, soundType: 'DEPARTURE' | 'ARRIVAL') => void;
   onLog: (message: string, level?: 'info' | 'warn' | 'error') => void;
@@ -217,6 +218,14 @@ export class RouteEngine {
     const soundDelayMs = Math.max(0, (waitSec - leadTimeSec) * 1000);
     const departureDelayMs = waitSec * 1000;
 
+    // WaitTimer auf dem Block setzen und an Clients senden
+    block.waitTimer = {
+      departureTimestamp: Date.now() + departureDelayMs,
+      totalWaitSec: waitSec,
+      status: 'WAITING'
+    };
+    this.events.onBlockUpdated?.(block);
+
     // Sound-Trigger vor Abfahrt
     if (soundConfig?.departureFKey !== undefined && soundConfig.departureFKey > 0) {
       const fKey = soundConfig.departureFKey;
@@ -244,14 +253,24 @@ export class RouteEngine {
       this.events.onLog(`[Automatik] 🟢 Wartezeit in ${block.name} abgelaufen. Suche freie Ausfahrt für ${loco.name}...`, 'info');
       const dispatched = this.tryDispatchNext(block.id);
       if (!dispatched) {
+        // Timer abgelaufen, aber Ausfahrt blockiert
+        block.waitTimer = {
+          departureTimestamp: 0,
+          totalWaitSec: waitSec,
+          status: 'DISPATCH_BLOCKED'
+        };
+        this.events.onBlockUpdated?.(block);
         this.events.onLog(`[Automatik] Ausfahrt aus ${block.name} aktuell blockiert. Zug wartet auf freies Gleis.`, 'info');
+      } else {
+        block.waitTimer = null;
+        this.events.onBlockUpdated?.(block);
       }
     }, departureDelayMs);
 
     this.departureTimers.set(block.id, departureTimer);
   }
 
-  private clearBlockTimer(blockId: string): void {
+  clearBlockTimer(blockId: string): void {
     if (this.departureTimers.has(blockId)) {
       clearTimeout(this.departureTimers.get(blockId)!);
       this.departureTimers.delete(blockId);
@@ -260,6 +279,11 @@ export class RouteEngine {
       clearTimeout(this.soundTimers.get(blockId)!);
       this.soundTimers.delete(blockId);
     }
+    const block = this.blockManager.getBlock(blockId);
+    if (block && block.waitTimer) {
+      block.waitTimer = null;
+      this.events.onBlockUpdated?.(block);
+    }
   }
 
   private clearAllTimers(): void {
@@ -267,6 +291,12 @@ export class RouteEngine {
     for (const t of this.soundTimers.values()) clearTimeout(t);
     this.departureTimers.clear();
     this.soundTimers.clear();
+    for (const block of this.blockManager.getAllBlocks()) {
+      if (block.waitTimer) {
+        block.waitTimer = null;
+        this.events.onBlockUpdated?.(block);
+      }
+    }
   }
 
   toggleAutomaticMode(active?: boolean): boolean {
@@ -358,8 +388,30 @@ export class RouteEngine {
       // Zufällige Route auswählen (Aquarium-Modus)
       const selected = candidateRoutes[Math.floor(Math.random() * candidateRoutes.length)];
       this.events.onLog(`[Automatik] Wähle Route für Abfahrt: ${selected.name}`, 'info');
-      return this.requestRoute(selected.fromBlockId, selected.toBlockId);
+      const ok = this.requestRoute(selected.fromBlockId, selected.toBlockId);
+      if (ok) {
+        fromBlock.waitTimer = null;
+        this.events.onBlockUpdated?.(fromBlock);
+      }
+      return ok;
     }
     return false;
+  }
+
+  dispatchBlockNow(blockId: string): boolean {
+    const block = this.blockManager.getBlock(blockId);
+    if (!block || !block.currentLocoId) return false;
+
+    this.clearBlockTimer(blockId);
+    const dispatched = this.tryDispatchNext(blockId);
+    if (!dispatched) {
+      block.waitTimer = {
+        departureTimestamp: 0,
+        totalWaitSec: 0,
+        status: 'DISPATCH_BLOCKED'
+      };
+      this.events.onBlockUpdated?.(block);
+    }
+    return dispatched;
   }
 }

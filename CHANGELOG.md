@@ -10,6 +10,24 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.3.0] - 2026-09-10
+
+### 🚀 Highlights (Minor / Sub-Version)
+- **Live Wartezeit-Timer & Telemetrie im Gleisplan**:
+  - **Echtzeit-Countdown auf dem Gleis**: Steht ein Zug in einem Block (z. B. Bahnhof oder Schattenbahnhof), wird die verbleibende Wartezeit direkt auf dem Block-Badge im Gleisplan sekündlich heruntergezählt (`⏳ Abfahrt in 14s`).
+  - **Ausfahrts-Blockierungserkennung (`🚦 Warten auf freies Gleis`)**: Ist die geplante Wartezeit abgelaufen, aber das Ausfahrsignal rot oder die Weichenstraße durch einen anderen Zug belegt, schaltet der Block visuell auf Rot/Warnung mit Klartextanzeige um. Der Fahrdienstleiter sieht sofort, warum der Zug nicht abfährt.
+  - **Sofort-Abfahrts-Taste (`⚡ Sofort abfahren lassen`)**: Im Block-Rechtsklick-Menü kann die verbleibende Wartezeit per Klick sofort übersprungen werden, um den Zug auf Wunsch unmittelbar abfahren zu lassen.
+  - **Kontextmenü-Statusbox**: Detaillierte Anzeige der Soll- und Restwartezeit im Block-Menü mit synchronem Live-Countdown.
+
+### Added
+- `server/src/types.ts` & `client/src/types.ts`: `BlockWaitTimer` Interface mit `departureTimestamp`, `totalWaitSec` und `status` (`WAITING` / `DISPATCH_BLOCKED`). Neuer WS-Befehl `DISPATCH_BLOCK_NOW`.
+- `server/src/engine/RouteEngine.ts`: Wartezeit-Tracking in `scheduleDeparture`, `clearBlockTimer` und Methode `dispatchBlockNow(blockId)`.
+- `server/src/index.ts`: WebSocket-Handler für `DISPATCH_BLOCK_NOW` und `onBlockUpdated` Callback-Verknüpfung.
+- `client/src/components/TrackCanvas.ts`: Dynamische Badge-Höhe (48px) bei aktivem Timer, Live-Text-Ticker ohne Re-Render-Overhead (`tickWaitTimers()`) und Kontextmenü-Timer-Box mit Sofort-Start-Button.
+- `client/src/style.css`: Farbcodierte Stile für `.ctx-timer-box` (Gold für Halt / Rot für Ausfahrtsblockierung) und `.ctx-menu-item.primary`.
+
+---
+
 ## [1.2.1] - 2026-09-10
 
 ### 🛠️ Highlights (Patch / Bugfix)

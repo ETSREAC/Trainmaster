@@ -235,6 +235,9 @@ routeEngine = new RouteEngine(
     onRouteUpdated: (route) => {
       broadcast({ type: 'ROUTE_UPDATED', payload: route });
     },
+    onBlockUpdated: (block) => {
+      broadcast({ type: 'BLOCK_UPDATED', payload: block });
+    },
     onSignalSet: (signalId, aspect) => {
       const sig = data.signals.find((s) => s.id === signalId);
       if (sig) {
@@ -662,6 +665,18 @@ wss.on('connection', (ws) => {
         case 'REQUEST_ROUTE':
           routeEngine.requestRoute(action.payload.fromBlockId, action.payload.toBlockId);
           break;
+
+        case 'DISPATCH_BLOCK_NOW': {
+          const { blockId } = action.payload;
+          const target = blockManager.getBlock(blockId);
+          const ok = routeEngine.dispatchBlockNow(blockId);
+          if (ok) {
+            addLog(`Sofortige Abfahrt aus ${target?.name || blockId} veranlasst.`, 'info');
+          } else {
+            addLog(`Sofortige Abfahrt aus ${target?.name || blockId}: Keine freie Ausfahrt verfügbar.`, 'warn');
+          }
+          break;
+        }
 
         case 'TOGGLE_AUTOMATIC_MODE':
           status.automaticMode = routeEngine.toggleAutomaticMode(action.payload.active);

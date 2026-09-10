@@ -18,7 +18,7 @@
       "vMax": 105,
       "lengthCm": 19.5,
       "trainType": "PASSENGER",
-      "currentBlockId": "block-bf-gl2"
+      "currentBlockId": "block-bf-gl1"
     },
     {
       "id": "loco-ice-3",
@@ -110,7 +110,7 @@
       "id": "to-1",
       "name": "Weiche W1 (Einfahrt Ost)",
       "address": 20,
-      "state": "STRAIGHT",
+      "state": "DIVERGENT",
       "inverted": false,
       "locked": false,
       "lockedByRouteId": null
@@ -183,8 +183,8 @@
       "name": "Bf Gl1 ENTER (+)",
       "address": 1,
       "type": "CURRENT",
-      "active": true,
-      "lastTriggered": 1789035221658
+      "active": false,
+      "lastTriggered": 1789036070630
     },
     {
       "id": "sens-2",
@@ -192,7 +192,7 @@
       "address": 2,
       "type": "CURRENT",
       "active": true,
-      "lastTriggered": 1789035288455
+      "lastTriggered": 1789036073642
     },
     {
       "id": "sens-3",
@@ -200,7 +200,7 @@
       "address": 3,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789035650407
+      "lastTriggered": 1789036065004
     },
     {
       "id": "sens-4",
@@ -239,7 +239,7 @@
       "address": 8,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789035645602
+      "lastTriggered": 1789036068012
     }
   ],
   "blocks": [
@@ -247,8 +247,8 @@
       "id": "block-bf-gl1",
       "name": "Bahnhof Gleis 1",
       "lengthCm": 180,
-      "state": "FREE",
-      "currentLocoId": null,
+      "state": "OCCUPIED",
+      "currentLocoId": "loco-br-218",
       "reservedForLocoId": null,
       "direction": "+",
       "sensorsPlus": {
@@ -261,14 +261,15 @@
       },
       "type": "STATION",
       "minWaitTimeSec": 10,
-      "maxWaitTimeSec": 25
+      "maxWaitTimeSec": 25,
+      "waitTimer": null
     },
     {
       "id": "block-bf-gl2",
       "name": "Bahnhof Gleis 2 (Ausweichgleis)",
       "lengthCm": 160,
-      "state": "OCCUPIED",
-      "currentLocoId": "loco-br-218",
+      "state": "FREE",
+      "currentLocoId": null,
       "reservedForLocoId": null,
       "direction": "+",
       "sensorsPlus": {
@@ -330,7 +331,8 @@
       "soundConfig": {
         "departureLeadTimeSec": 3,
         "departureFKeyDurationMs": 1500
-      }
+      },
+      "waitTimer": null
     },
     {
       "id": "block-1789034861385-503",
@@ -696,15 +698,15 @@
       "blockId": "block-bf-gl1",
       "direction": "+",
       "steps": 45,
-      "intervalMs": 60,
+      "intervalMs": 54,
       "vStart": 55,
       "vMin": 12,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 0,
+        "creepDurationMs": 173,
         "targetCreepDurationMs": 1200,
-        "overranIn": true,
-        "timestamp": 1789035220657
+        "overranIn": false,
+        "timestamp": 1789036073643
       }
     },
     {
@@ -742,10 +744,16 @@
       "blockId": "block-bf-gl3",
       "direction": "+",
       "steps": 10,
-      "intervalMs": 80,
+      "intervalMs": 102,
       "vStart": 0,
       "vMin": 12,
-      "locked": false
+      "locked": false,
+      "lastRunMetrics": {
+        "creepDurationMs": 2073,
+        "targetCreepDurationMs": 1200,
+        "overranIn": false,
+        "timestamp": 1789036068014
+      }
     },
     {
       "locoId": "loco-br-218",

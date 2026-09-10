@@ -112,6 +112,12 @@ export interface BlockSoundConfig {
   clientSoundId?: string;           // Optionaler Web Audio Sound-Name im Browser
 }
 
+export interface BlockWaitTimer {
+  departureTimestamp: number; // Unix-Zeitstempel in ms für geplante Abfahrt
+  totalWaitSec: number;        // Gesamte geplante Haltezeit in Sekunden
+  status: 'WAITING' | 'DISPATCH_BLOCKED'; // WAITING = Countdown läuft, DISPATCH_BLOCKED = Wartezeit abgelaufen, wartet auf freies Gleis
+}
+
 export interface Block {
   id: string;
   name: string;
@@ -126,6 +132,7 @@ export interface Block {
   minWaitTimeSec?: number;    // Min. Wartezeit in Sekunden (Default 10s)
   maxWaitTimeSec?: number;    // Max. Wartezeit in Sekunden (Default 25s)
   soundConfig?: BlockSoundConfig;
+  waitTimer?: BlockWaitTimer | null;
 }
 
 export interface BBTEntry {
@@ -290,6 +297,7 @@ export type WSClientAction =
   | { type: 'FREE_BLOCK'; payload: { blockId: string } }
   | { type: 'ASSIGN_LOCO_TO_BLOCK'; payload: { locoId: string; blockId: string | null } }
   | { type: 'REQUEST_ROUTE'; payload: { fromBlockId: string; toBlockId: string } }
+  | { type: 'DISPATCH_BLOCK_NOW'; payload: { blockId: string } }
   | { type: 'TOGGLE_AUTOMATIC_MODE'; payload: { active?: boolean } }
   | { type: 'UPDATE_LAYOUT'; payload: { elements: TrackElement[] } }
   | { type: 'SAVE_BBT_ENTRY'; payload: { entry: BBTEntry } }
