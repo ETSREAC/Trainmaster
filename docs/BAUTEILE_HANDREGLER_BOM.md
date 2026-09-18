@@ -32,18 +32,16 @@
 
 ---
 
-### 📳 Haptik, Licht & Kleinteile
+### 📳 Status-LED & Gehäuseteile
 
 | Nr. | Komponente | Spezifikation / Modell | Details | Ca. Preis |
 |:---:|---|---|---|:---:|
-| **13** | **Vibrationsmotor** | **1027 Münz-Vibrationsmotor (Coin ERM)**, 3V, ø 10mm, selbstklebend | AliExpress / Amazon | 0,60 € |
-| **14** | **Motortreiber** | 1x **2N7002** N-Kanal MOSFET (oder NPN Transistor BC547) + 1x Freilaufdiode **1N4148** + 1x 1kΩ Gate-Widerstand | Bastelkiste / Reichelt | 0,30 € |
-| **15** | **Status-LED** | 1x **WS2812B (NeoPixel)** RGB-LED (SMD 3535 oder 5mm Modul) für Gleisstrom- und Verbindungsanzeige | AliExpress | 0,30 € |
-| **16** | **Schrauben & Inserts** | 4x **M2.5 oder M3 Messing-Einschmelzgewinde** (Heat-Set Inserts, Länge 4–5 mm) + 4x M2.5x8 mm Zylinderkopfschrauben | Amazon / AliExpress | 1,50 € |
-| **17** | **Gehäuse-Material** | 100g **PETG oder PLA+ Filament** (Schwarz, Anthrazit oder DB-Verkehrsrot für Nothalt) | 3D-Drucker | ~ 2,00 € |
-| **18** | **Trageschlaufe (Lanyard)** | Handgelenkschlaufe mit Schnellverschluss (Absturzsicherung) | Amazon / Vorhanden | 0,50 € |
+| **13** | **Status-LED** | 1x **WS2812B (NeoPixel)** RGB-LED (SMD 3535 oder 5mm Modul) für Gleisstrom- und Verbindungsanzeige | AliExpress | 0,30 € |
+| **14** | **Schrauben & Inserts** | 4x **M2.5 oder M3 Messing-Einschmelzgewinde** (Heat-Set Inserts, Länge 4–5 mm) + 4x M2.5x8 mm Zylinderkopfschrauben | Amazon / AliExpress | 1,50 € |
+| **15** | **Gehäuse-Material** | 100g **PETG oder PLA+ Filament** (Schwarz, Anthrazit oder DB-Verkehrsrot für Nothalt) | 3D-Drucker | ~ 2,00 € |
+| **16** | **Trageschlaufe (Lanyard)** | Handgelenkschlaufe mit Schnellverschluss (Absturzsicherung) | Amazon / Vorhanden | 0,50 € |
 
-**Gesamtkosten für 1 Handregler: ca. 24,00 € – 28,00 €**
+**Gesamtkosten für 1 Handregler: ca. 23,00 € – 26,00 €**
 
 ---
 
@@ -63,7 +61,7 @@ Der **ESP32-S3** bietet 45 frei konfigurierbare GPIOs ohne die alten ADC2/WLAN-K
 [Display BLK] ── GPIO 7 (PWM Hellig) GPIO 6  ── [Taste F1 (Sound)]
                │                     GPIO 13 ── [Taste F2 (Horn/Pfiff)]
 [WS2812B LED] ── GPIO 18             GPIO 14 ── [Taste SHIFT / Menü]
-[Vibrationsmot]── GPIO 17 (PWM/FET)  GPIO 15 ── [Richtungsschalter Vorwärts]
+[Frei / Res.] ── GPIO 17             GPIO 15 ── [Richtungsschalter Vorwärts]
 [Akku ADC]    ── GPIO 21 (Teiler)    GPIO 16 ── [Richtungsschalter Rückwärts]
                │                              │
 [USB D-]      ── GPIO 19             GPIO 20 ── [USB D+] (Natives USB-C)
@@ -130,7 +128,6 @@ Mit diesen exakten englischen Bezeichnungen findest du bei AliExpress direkt die
 | **Richtungsschalter** | `SS12D00 slide switch 3 pin` | 3 Pins (1x UM Schalter) für Vor/Rück oder Ein/Aus |
 | **Ladeplatine (BMS)**| `TP4056 Type-C with protection 5V 1A` | Unbedingt die Version **mit Schutz** (DW01A Chip, 2x ICs auf Board) |
 | **18650 Halter** | `18650 battery holder with wires` | 1-Slot Batteriefach mit Anschlussdrähten (rot/schwarz) |
-| **Vibrationsmotor** | `1027 coin vibration motor 3V` | 10 mm Durchmesser, 2.7 mm flach, mit Klebepad |
 | **Gewindeeinsätze** | `M3 heat set inserts brass M3x4x5` | Für M3 Schrauben, Außendurchmesser ca. 4.6–5 mm, Länge 4–5 mm |
 | **Schrauben** | `M3x8 hex socket head cap screws black` | M3 x 8 mm Zylinderkopf-Inbusschrauben (Schwarz oder Edelstahl) |
 | **RGB Status-LED** | `WS2812B RGB LED breakout module 5050` | Mini-Platine mit WS2812B (VCC, GND, DIN, DOUT) |

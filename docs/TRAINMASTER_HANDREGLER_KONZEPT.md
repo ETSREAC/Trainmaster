@@ -26,7 +26,6 @@ graph TD
         ENC[Dreh-Encoder + Tastklick] --> MCU[ESP32-S3 Dual-Core]
         BTN[Funktionstasten F0-F28 & Nothalt] --> MCU
         TFT[1.54''/2.0'' IPS Display ST7789] <-- SPI --> MCU
-        HAP[Vibrationsmotor LRA/ERM] <-- PWM/GPIO --> MCU
         BAT[18650 Li-Ion / LiPo 2000mAh] --> PMIC[TP4056 / IP5306 + 3.3V LDO]
         PMIC --> MCU
     end
@@ -54,7 +53,6 @@ graph TD
 | **Nothalt-Taster** | 12mm Taktiler roter Drucktaster (oben links/rechts) | Sofortige Not-Aus-Abschaltung des Gleisstroms | 0,80 € |
 | **Funktionstasten** | 4–6x Silikon- oder Mikrotaster (6x6mm Soft-Touch) | F0 (Licht), F1 (Sound), F2 (Pfeife/Hupe), Lok-Wechsel | 1,50 € |
 | **Richtungsumschalter** | 3-Positionen Schiebeschalter oder Wipptaster (Vor - Halt - Zurück) | Fühlbare Richtungswahl ohne Hinsehen | 0,90 € |
-| **Haptisches Feedback** | Miniatur-Münzvibrationsmotor (1027, 3V) | Haptische Klicks beim Drehen, Vibration bei Nothalt | 0,60 € |
 | **Power Management** | **IP5306** (All-in-One) oder **TP4056 + ME6211 (3.3V LDO)** | USB-C Ladeelektronik, Überladeschutz, Tiefentladeschutz | 1,20 € |
 | **Akku** | **18650 Li-Ion (3000 mAh)** oder Flach-LiPo (1800 mAh) | Hält locker 10–14 Stunden Modellbahn-Fahrbetrieb | 4,50 € |
 | **Buchsen & Kleinteile** | USB-C 16-Pin Buchse, Ein/Aus-Schiebeschalter, M3 Gewindeeinsätze | Sauberes Gehäuse-Finish | 2,00 € |
@@ -224,4 +222,3 @@ void loop() {
    - Perfekt angepasstes Gehäuse für Einhandbedienung inklusive Akku-Halterung.
 4. **Phase 4 – Erweiterte Features**:
    - TrainMaster WebSocket-Erweiterung für Block- und Signal-Anzeige auf dem Display.
-   - Haptisches Feedback (Klicks beim Drehen, Rütteln bei Halt).
