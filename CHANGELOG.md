@@ -18,6 +18,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
   - **Eingabeschutz vor Hintergrund-Überschreibungen**: Hintergrund-Telemetrie und Log-Nachrichten (z. B. periodische Reconnect-Meldungen bei noch nicht verbundener Zentrale) überschreiben nun nicht mehr aktiv fokussierte oder editierte Eingabefelder (`dcc-port`, `dcc-ip`, `dcc-serial-port`, etc.). Das Zurücksetzen und Flackern während des Tippens wurde vollständig behoben.
   - **Robustes Einstellungs-Handling**: Sichere Port-Konvertierung mit Fallbacks gegen `NaN` und automatische Whitespace-Bereinigung beim Speichern.
 
+### Added
+- `start.bat` & `TrainMaster_Windows.bat`: 1-Klick-Starter für Windows mit Node/npm-Prüfung und automatischem Start von Backend, Frontend und Browser.
+- `TrainMaster_macOS.command` & `start.sh`: Doppelklickbarer 1-Klick-Starter für macOS (Finder-kompatibel) und Linux (`chmod +x`).
+- `scripts/start.mjs`: Vereinheitlichter, farbcodierter Multi-Process-Runner (`npm run dev`) mit automatischem Browser-Launch und sauberem Prozess-Shutdown.
+
 ### Fixed
 - `client/index.html`: `dcc-serial-port` von `<select>` zu `<input type="text" list="dcc-serial-port-list">` umgebaut inklusive informativer Hilfebeschreibung.
 - `client/src/components/SettingsTab.ts`: Dirty-Tracking und Fokus-Prüfung (`isElementFocused`) implementiert; Initial-Befüllung von `s.commandStation.serialPort` korrigiert; `updateSerialPortsDatalist` ergänzt.

@@ -97,12 +97,18 @@ npm install
 ```
 
 ### 3. Start server & client
+
+**1-Click Starters (Desktop):**
+- 🪟 **Windows**: Double-click **`start.bat`** (or `TrainMaster_Windows.bat`)
+- 🍏 **macOS**: Double-click **`TrainMaster_macOS.command`** (or `./start.sh`)
+
+**Or via Terminal (Any OS):**
 ```bash
-# Starts backend (port 3001) and web client (port 5173/5174) in parallel:
+# Starts backend (port 3001) and web client (port 5173) in parallel:
 npm run dev
 ```
 
-Open in your browser:
+The browser will open automatically at:
 👉 **`http://localhost:5173`** *(or on your tablet: `http://<PC-IP>:5173`)*
 
 ---

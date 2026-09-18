@@ -8,6 +8,7 @@
     "client"
   ],
   "scripts": {
+    "dev": "node scripts/start.mjs",
     "server": "npm run dev --workspace=server",
     "client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",

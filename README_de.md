@@ -97,12 +97,18 @@ npm install
 ```
 
 ### 3. Server & WebUI starten
+
+**1-Klick Starter (Desktop):**
+- 🪟 **Windows**: Doppelklick auf **`start.bat`** (oder `TrainMaster_Windows.bat`)
+- 🍏 **macOS**: Doppelklick auf **`TrainMaster_macOS.command`** (oder `./start.sh`)
+
+**Oder über das Terminal (jedes OS):**
 ```bash
-# Startet Backend (Port 3001) und Client (Port 5173/5174) parallel:
+# Startet Backend (Port 3001) und Client (Port 5173) parallel:
 npm run dev
 ```
 
-Öffne anschließend im Browser deiner Wahl:
+Der Browser öffnet sich automatisch unter:
 👉 **`http://localhost:5173`** *(oder auf deinem Tablet: `http://<PC-IP>:5173`)*
 
 ---
