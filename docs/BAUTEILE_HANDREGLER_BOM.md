@@ -112,3 +112,25 @@ graph TD
 4. **Schritt 4 (Endmontage)**:
    - Display mit 2 Tropfen Heißkleber oder Cliphalter in der Oberschale fixieren.
    - Elektronik einsetzen, 18650 Zelle einlegen und Gehäuse mit den 4 M2.5/M3 Schrauben verschließen.
+
+---
+
+## 🔍 5. Copy & Paste Suchbegriffe für AliExpress
+
+Mit diesen exakten englischen Bezeichnungen findest du bei AliExpress direkt die richtigen Angebote ohne Umwege:
+
+| Bauteil | 📋 Exakter Suchbegriff (Copy & Paste) | Worauf achten? |
+|---|---|---|
+| **ESP32-S3 Board** | `ESP32-S3 DevKitC-1 N16R8 Type-C` | N16R8 (16MB Flash, 8MB PSRAM) oder N8R8 wählen; Dual Type-C Ports |
+| **Display** | `1.54 inch IPS ST7789 SPI 240x240 8pin` | Achte auf 8 Pins (GND, VCC, SCL, SDA, RES, DC, CS, BLK) & 3.3V |
+| **Drehencoder** | `EC11 rotary encoder with switch 20mm` | 5 Pins (3 für Encoder, 2 für Taster), D-Achse oder geriffelt |
+| **Alu-Knopf** | `30mm aluminium knob 6mm shaft` | Durchmesser 30–32 mm, 6mm Bohrung mit seitlicher Madenschraube |
+| **Nothalt-Taster** | `12x12x7.3 tactile switch with round cap red` | 12x12 mm Mikrotaster mit aufsteckbarer runder roter Kappe |
+| **F-Tasten (4x)** | `6x6x8 tactile push button switch cap` | 6x6 mm Taster mit Höhe 8–9 mm und farbigen Kappen |
+| **Richtungsschalter** | `SS12D00 slide switch 3 pin` | 3 Pins (1x UM Schalter) für Vor/Rück oder Ein/Aus |
+| **Ladeplatine (BMS)**| `TP4056 Type-C with protection 5V 1A` | Unbedingt die Version **mit Schutz** (DW01A Chip, 2x ICs auf Board) |
+| **18650 Halter** | `18650 battery holder with wires` | 1-Slot Batteriefach mit Anschlussdrähten (rot/schwarz) |
+| **Vibrationsmotor** | `1027 coin vibration motor 3V` | 10 mm Durchmesser, 2.7 mm flach, mit Klebepad |
+| **Gewindeeinsätze** | `M3 heat set inserts brass M3x4x5` | Für M3 Schrauben, Außendurchmesser ca. 4.6–5 mm, Länge 4–5 mm |
+| **Schrauben** | `M3x8 hex socket head cap screws black` | M3 x 8 mm Zylinderkopf-Inbusschrauben (Schwarz oder Edelstahl) |
+| **RGB Status-LED** | `WS2812B RGB LED breakout module 5050` | Mini-Platine mit WS2812B (VCC, GND, DIN, DOUT) |
