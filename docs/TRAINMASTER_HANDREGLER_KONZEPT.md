@@ -156,17 +156,72 @@ graph TD
 }
 ```
 
+### C. Offizielle `DCCEXProtocol` C++ Library Integration (Dual-Mode)
+
+Die offizielle [**DCCEXProtocol Library**](https://dcc-ex.com/DCCEXProtocol/index.html) des DCC-EX Kernteams ist die ideale Grundlage für unseren Handregler. Sie bietet out-of-the-box:
+
+1. **Echtes Multi-Threading & Throttling**:
+   - Drehen am Encoder erzeugt viele Impulse. `DCCEXProtocol` besitzt eine eingebaute **Speed Update Queue & Rate-Limiting**, sodass der TCP-Stream oder die Zentrale niemals überlastet werden.
+2. **Automatisches Roster- & Fahrzeugmanagement**:
+   - Die Library lädt automatisch das in DCC-EX gespeicherte Lokomotiv-Roster (`roster`, `Loco`, `findLocoInRoster`), inklusive Funktionsnamen (F0-F28) und Momentary-Flags (z. B. Horn nur solange gedrückt).
+3. **Event-basiertes Delegate-Muster (`DCCEXProtocolDelegate`)**:
+   - Ändert jemand die Lok-Geschwindigkeit im TrainMaster Web-Stellpult oder auf einem anderen Regler, feuert `receivedLocoUpdate()`. Unser Display aktualisiert Tacho und Richtung vollautomatisch.
+4. **Dual-Mode Betriebsmodi**:
+   - 🔌 **Modus 1: Standalone DCC-EX**: Der Handregler verbindet sich via WLAN direkt mit der DCC-EX Zentrale (TCP Port 2560). Funktioniert an JEDER DCC-EX Modellbahnanlage weltweit ohne PC oder TrainMaster-Server!
+   - 🚂 **Modus 2: TrainMaster Connected**: Der Handregler verbindet sich mit dem TrainMaster WebSocket-Server (`ws://<IP>:3001`). Dadurch hat er zusätzlich Zugriff auf Gleisplan-Blöcke, Automatik-Status, Live-Signalbegriffe und Weichenstraßen.
+
+#### C++ Code-Ausschnitt für die ESP32-Firmware:
+```cpp
+#include <WiFi.h>
+#include <DCCEXProtocol.h>
+
+WiFiClient client;
+DCCEXProtocol dccex;
+
+class HandreglerDelegate : public DCCEXProtocolDelegate {
+public:
+  void receivedLocoUpdate(Loco* loco) override {
+    // Tacho auf Display aktualisieren
+    displayUpdateSpeed(loco->getAddress(), loco->getSpeed(), loco->getDirection());
+  }
+
+  void receivedPower(bool power) override {
+    // Gleisstrom-LED aktualisieren
+    digitalWrite(PIN_LED_POWER, power ? HIGH : LOW);
+  }
+};
+
+HandreglerDelegate delegate;
+
+void setup() {
+  WiFi.begin("Modellbahn-WLAN", "passwort");
+  while (WiFi.status() != WL_CONNECTED) delay(100);
+
+  // Verbinden mit DCC-EX Zentrale auf Port 2560
+  client.connect("192.168.178.210", 2560);
+  
+  dccex.setDelegate(&delegate);
+  dccex.enableHeartbeat(10000);
+  dccex.connect(&client);
+}
+
+void loop() {
+  dccex.check(); // Verarbeitet eingehende DCC-EX Pakete
+  handleEncoder(); // Liest Drehrad und ruft dccex.setThrottle() auf
+}
+```
+
 ---
 
 ## 🚀 7. Geplante Phasen zur Umsetzung
 
 1. **Phase 1 – Steckbrett-Prototyp (Breadboard)**:
    - ESP32-DevKit + ST7789 Display + Drehencoder + 2 Buttons auf einem Breadboard.
-   - Firmware mit Basis-WebSocket-Anbindung und Lok-Geschwindigkeitsregelung.
+   - Firmware mit `DCCEXProtocol` Library direkt an DCC-EX CommandStation testen.
 2. **Phase 2 – Custom-PCB Layout (EasyEDA / KiCad)**:
    - Einteilige Platine, auf der ESP32, Display-Header, Taster, Encoder und Li-Ion-Lader direkt verlötet sind.
 3. **Phase 3 – 3D-Gehäusedesign (Fusion 360 / STEP)**:
    - Perfekt angepasstes Gehäuse für Einhandbedienung inklusive Akku-Halterung.
 4. **Phase 4 – Erweiterte Features**:
-   - Weichen- und Fahrstraßen-Schaltung direkt vom Handregler.
+   - TrainMaster WebSocket-Erweiterung für Block- und Signal-Anzeige auf dem Display.
    - Haptisches Feedback (Klicks beim Drehen, Rütteln bei Halt).
