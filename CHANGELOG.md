@@ -10,6 +10,20 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.3.1] - 2026-09-18
+
+### 🛠️ Highlights (Patch / Bugfix)
+- **Freie Port-Eingabe & Stabilität im DCC-EX Einstellungsdialog**:
+  - **Freie COM-Port-Eingabe**: Das COM-Port-Feld unter *Einstellungen > Zentrale (DCC-EX)* ist nun ein flexibles Eingabefeld mit Autovervollständigungs-Datalist statt eines starren `<select>`-Dropdowns. Beliebige Ports (z. B. `COM1`–`COM99` oder Linux/macOS-Gerätepfade wie `/dev/ttyUSB0`) können frei von Hand eingetragen oder über den Button `🔄 Suchen` automatisch erkannt und vorgeschlagen werden.
+  - **Eingabeschutz vor Hintergrund-Überschreibungen**: Hintergrund-Telemetrie und Log-Nachrichten (z. B. periodische Reconnect-Meldungen bei noch nicht verbundener Zentrale) überschreiben nun nicht mehr aktiv fokussierte oder editierte Eingabefelder (`dcc-port`, `dcc-ip`, `dcc-serial-port`, etc.). Das Zurücksetzen und Flackern während des Tippens wurde vollständig behoben.
+  - **Robustes Einstellungs-Handling**: Sichere Port-Konvertierung mit Fallbacks gegen `NaN` und automatische Whitespace-Bereinigung beim Speichern.
+
+### Fixed
+- `client/index.html`: `dcc-serial-port` von `<select>` zu `<input type="text" list="dcc-serial-port-list">` umgebaut inklusive informativer Hilfebeschreibung.
+- `client/src/components/SettingsTab.ts`: Dirty-Tracking und Fokus-Prüfung (`isElementFocused`) implementiert; Initial-Befüllung von `s.commandStation.serialPort` korrigiert; `updateSerialPortsDatalist` ergänzt.
+
+---
+
 ## [1.3.0] - 2026-09-10
 
 ### 🚀 Highlights (Minor / Sub-Version)

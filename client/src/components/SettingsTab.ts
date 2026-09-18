@@ -10,7 +10,8 @@ export class SettingsTab {
   private dccSerialFields = document.getElementById('dcc-serial-fields') as HTMLElement;
   private dccTcpFields = document.getElementById('dcc-tcp-fields') as HTMLElement;
 
-  private dccSerialPort = document.getElementById('dcc-serial-port') as HTMLSelectElement;
+  private dccSerialPort = document.getElementById('dcc-serial-port') as HTMLInputElement;
+  private dccSerialPortList = document.getElementById('dcc-serial-port-list') as HTMLDataListElement | null;
   private btnScanPorts = document.getElementById('btn-scan-ports') as HTMLButtonElement;
   private dccBaud = document.getElementById('dcc-baud') as HTMLSelectElement;
 
@@ -27,11 +28,23 @@ export class SettingsTab {
 
   private btnSave = document.getElementById('btn-save-settings') as HTMLButtonElement;
 
+  private isDirty = false;
+  private lastSettingsJson = '';
+
   constructor() {
     this.init();
   }
 
   private init(): void {
+    // Dirty-Tracking bei Nutzereingaben, damit Hintergrund-Updates Eingaben nicht plätten
+    const settingsPanel = document.getElementById('tab-settings');
+    settingsPanel?.addEventListener('input', () => {
+      this.isDirty = true;
+    });
+    settingsPanel?.addEventListener('change', () => {
+      this.isDirty = true;
+    });
+
     // Dropdown Zentrale Wechsel
     this.csTypeSelect?.addEventListener('change', () => {
       this.updateVisibility();
@@ -61,11 +74,11 @@ export class SettingsTab {
     });
 
     // Initial befüllen
-    this.populateFromState();
+    this.populateFromState(true);
   }
 
   private updateVisibility(): void {
-    const val = this.csTypeSelect.value;
+    const val = this.csTypeSelect?.value;
     if (this.cfgDccEx) this.cfgDccEx.style.display = val === 'DCC_EX' ? 'block' : 'none';
     if (this.cfgZ21) this.cfgZ21.style.display = val === 'Z21' ? 'block' : 'none';
   }
@@ -76,68 +89,124 @@ export class SettingsTab {
     if (this.dccTcpFields) this.dccTcpFields.style.display = isSerial ? 'none' : 'block';
   }
 
-  private populateFromState(): void {
+  private isElementFocused(el: HTMLElement | null): boolean {
+    return !!el && document.activeElement === el;
+  }
+
+  private updateSerialPortsDatalist(): void {
+    if (this.dccSerialPortList) {
+      const options: string[] = [];
+      if (wsClient.serialPorts.length > 0) {
+        for (const p of wsClient.serialPorts) {
+          options.push(`<option value="${p.path}">${p.path} (${p.friendlyName || p.manufacturer || 'Erkannt'})</option>`);
+        }
+      }
+      const defaults = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', '/dev/ttyUSB0', '/dev/ttyACM0'];
+      for (const def of defaults) {
+        if (!options.some((o) => o.includes(`value="${def}"`))) {
+          options.push(`<option value="${def}">${def}</option>`);
+        }
+      }
+      this.dccSerialPortList.innerHTML = options.join('');
+    }
+
+    if (this.btnScanPorts && wsClient.serialPorts.length > 0) {
+      this.btnScanPorts.textContent = '🔄 Suchen';
+    }
+  }
+
+  private populateFromState(force = false): void {
     const s = wsClient.settings;
     if (!s) return;
 
-    if (this.csTypeSelect) this.csTypeSelect.value = s.commandStation.type;
+    const currentJson = JSON.stringify(s);
+    const settingsChanged = currentJson !== this.lastSettingsJson;
+    this.lastSettingsJson = currentJson;
+
+    // Datalist für COM-Ports immer aktualisieren wenn Ports gescannt wurden
+    this.updateSerialPortsDatalist();
+
+    // Wenn der Nutzer gerade editiert und keine erzwungene Aktualisierung vorliegt,
+    // überschreiben wir die Formularfelder NICHT.
+    if (this.isDirty && !force) {
+      return;
+    }
+
+    // Wenn sich die Settings nicht geändert haben und es nicht force ist, nichts tun
+    if (!settingsChanged && !force) {
+      return;
+    }
+
+    if (this.csTypeSelect && !this.isElementFocused(this.csTypeSelect)) {
+      this.csTypeSelect.value = s.commandStation.type;
+    }
     this.updateVisibility();
 
-    // DCC-EX
-    this.dccConnRadios.forEach((r) => {
-      r.checked = r.value === s.commandStation.connectionType;
-    });
-    this.updateDccConnVisibility();
+    // DCC-EX Schnittstellen Radios
+    const isAnyRadioFocused = Array.from(this.dccConnRadios).some((r) => this.isElementFocused(r));
+    if (!isAnyRadioFocused) {
+      this.dccConnRadios.forEach((r) => {
+        r.checked = r.value === s.commandStation.connectionType;
+      });
+      this.updateDccConnVisibility();
+    }
 
-    if (this.dccBaud && s.commandStation.baudRate) {
+    // COM-Port (Serial)
+    if (this.dccSerialPort && !this.isElementFocused(this.dccSerialPort)) {
+      if (s.commandStation.serialPort) {
+        this.dccSerialPort.value = s.commandStation.serialPort;
+      } else if (!this.dccSerialPort.value) {
+        this.dccSerialPort.value = 'COM3';
+      }
+    }
+
+    if (this.dccBaud && !this.isElementFocused(this.dccBaud) && s.commandStation.baudRate) {
       this.dccBaud.value = `${s.commandStation.baudRate}`;
     }
-    if (this.dccIp && s.commandStation.host) {
+    if (this.dccIp && !this.isElementFocused(this.dccIp) && s.commandStation.host) {
       this.dccIp.value = s.commandStation.host;
     }
-    if (this.dccPort && s.commandStation.port) {
+    if (this.dccPort && !this.isElementFocused(this.dccPort) && s.commandStation.port) {
       this.dccPort.value = `${s.commandStation.port}`;
     }
 
     // Z21
     if (s.commandStation.type === 'Z21') {
-      if (this.z21Ip && s.commandStation.host) this.z21Ip.value = s.commandStation.host;
-      if (this.z21Port && s.commandStation.port) this.z21Port.value = `${s.commandStation.port}`;
-    }
-
-    // COM-Ports aktualisieren falls neue Liste empfangen
-    if (wsClient.serialPorts.length > 0 && this.dccSerialPort) {
-      this.btnScanPorts.textContent = '🔄 Suchen';
-      const currentVal = this.dccSerialPort.value;
-      this.dccSerialPort.innerHTML = wsClient.serialPorts
-        .map((p) => `<option value="${p.path}">${p.path} (${p.friendlyName || p.manufacturer || 'Unbekannt'})</option>`)
-        .join('');
-      if (currentVal && wsClient.serialPorts.some((p) => p.path === currentVal)) {
-        this.dccSerialPort.value = currentVal;
+      if (this.z21Ip && !this.isElementFocused(this.z21Ip) && s.commandStation.host) {
+        this.z21Ip.value = s.commandStation.host;
+      }
+      if (this.z21Port && !this.isElementFocused(this.z21Port) && s.commandStation.port) {
+        this.z21Port.value = `${s.commandStation.port}`;
       }
     }
 
     // Sonstige Einstellungen
-    if (this.settingScale) this.settingScale.value = s.scale;
-    if (this.settingCreepTime) this.settingCreepTime.value = `${s.targetCreepMs}`;
-    if (this.settingGhostActive) this.settingGhostActive.checked = s.ghostDetectionActive;
-    if (this.settingManualSensorTrigger) {
+    if (this.settingScale && !this.isElementFocused(this.settingScale)) {
+      this.settingScale.value = s.scale;
+    }
+    if (this.settingCreepTime && !this.isElementFocused(this.settingCreepTime)) {
+      this.settingCreepTime.value = `${s.targetCreepMs}`;
+    }
+    if (this.settingGhostActive && !this.isElementFocused(this.settingGhostActive)) {
+      this.settingGhostActive.checked = s.ghostDetectionActive;
+    }
+    if (this.settingManualSensorTrigger && !this.isElementFocused(this.settingManualSensorTrigger)) {
       this.settingManualSensorTrigger.checked = s.manualSensorTriggerInRunMode !== false;
     }
 
     // WIO Einstellungen
     const wioEnabled = document.getElementById('wio-enabled') as HTMLInputElement | null;
     const wioPort = document.getElementById('wio-port') as HTMLInputElement | null;
-    if (wioEnabled) {
+    if (wioEnabled && !this.isElementFocused(wioEnabled)) {
       wioEnabled.checked = s.wio?.enabled !== false;
     }
-    if (wioPort) {
+    if (wioPort && !this.isElementFocused(wioPort)) {
       wioPort.value = String(s.wio?.udpPort || 8051);
     }
   }
 
   private saveSettings(): void {
-    const csType = this.csTypeSelect.value as 'VIRTUAL' | 'DCC_EX' | 'Z21';
+    const csType = (this.csTypeSelect?.value || 'VIRTUAL') as 'VIRTUAL' | 'DCC_EX' | 'Z21';
     let connType: 'SERIAL' | 'TCP' | 'UDP' = 'SERIAL';
     let host = '192.168.0.111';
     let port = 21105;
@@ -147,14 +216,16 @@ export class SettingsTab {
     if (csType === 'DCC_EX') {
       const isSerial = Array.from(this.dccConnRadios).find((r) => r.checked)?.value === 'SERIAL';
       connType = isSerial ? 'SERIAL' : 'TCP';
-      serialPort = this.dccSerialPort?.value || 'COM3';
-      baudRate = parseInt(this.dccBaud?.value || '115200', 10);
-      host = this.dccIp?.value || '192.168.4.1';
-      port = parseInt(this.dccPort?.value || '2560', 10);
+      serialPort = this.dccSerialPort?.value.trim() || 'COM3';
+      baudRate = parseInt(this.dccBaud?.value || '115200', 10) || 115200;
+      host = this.dccIp?.value.trim() || '192.168.4.1';
+      const parsedPort = parseInt(this.dccPort?.value || '2560', 10);
+      port = isNaN(parsedPort) ? 2560 : parsedPort;
     } else if (csType === 'Z21') {
       connType = 'UDP';
-      host = this.z21Ip?.value || '192.168.0.111';
-      port = parseInt(this.z21Port?.value || '21105', 10);
+      host = this.z21Ip?.value.trim() || '192.168.0.111';
+      const parsedPort = parseInt(this.z21Port?.value || '21105', 10);
+      port = isNaN(parsedPort) ? 21105 : parsedPort;
     }
 
     const commandStation: CommandStationConfig = {
@@ -180,6 +251,9 @@ export class SettingsTab {
       ghostDetectionActive: !!this.settingGhostActive?.checked,
       manualSensorTriggerInRunMode: !!this.settingManualSensorTrigger?.checked
     };
+
+    this.isDirty = false;
+    this.lastSettingsJson = JSON.stringify(newSettings);
 
     wsClient.send({
       type: 'UPDATE_SETTINGS',

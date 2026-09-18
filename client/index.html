@@ -17,7 +17,7 @@
         <span class="logo-icon">🚂</span>
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.3.0 • Live Wait Timers</span>
+          <span class="version-tag">v1.3.1 • DCC-EX Port Fix</span>
         </div>
       </div>
 
@@ -310,11 +310,13 @@
                   <div class="form-group">
                     <label for="dcc-serial-port">COM-Port:</label>
                     <div style="display:flex;gap:8px;">
-                      <select id="dcc-serial-port" class="form-control" style="flex:1;">
+                      <input type="text" id="dcc-serial-port" list="dcc-serial-port-list" class="form-control" style="flex:1;" placeholder="z. B. COM3, COM4 oder /dev/ttyUSB0" value="COM3">
+                      <datalist id="dcc-serial-port-list">
                         <option value="COM3">COM3 (Default)</option>
-                      </select>
-                      <button id="btn-scan-ports" class="btn btn-sm" type="button">🔄 Suchen</button>
+                      </datalist>
+                      <button id="btn-scan-ports" class="btn btn-sm" type="button" title="Verfügbare Schnittstellen scannen">🔄 Suchen</button>
                     </div>
+                    <small style="color:#8b949e;display:block;margin-top:4px;">Frei editierbar (z. B. COM1–COM99 oder /dev/ttyUSB0) oder über "Suchen" vorschlagen lassen.</small>
                   </div>
                   <div class="form-group">
                     <label for="dcc-baud">Baudrate:</label>

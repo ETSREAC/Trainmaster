@@ -103,6 +103,26 @@
         "21": "🔉 F21 Lautstärke Leiser",
         "22": "🔊 F22 Lautstärke Lauter"
       }
+    },
+    {
+      "id": "loco-1789734130948",
+      "name": "Amori701",
+      "dccAddress": 9,
+      "speed": 0,
+      "targetSpeed": 0,
+      "direction": "FWD",
+      "functions": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": false
+      },
+      "vMin": 5,
+      "vMid": 40,
+      "vMax": 65,
+      "lengthCm": 20,
+      "trainType": "PASSENGER",
+      "currentBlockId": null
     }
   ],
   "turnouts": [
@@ -184,7 +204,7 @@
       "address": 1,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036070630
+      "lastTriggered": 1789036829254
     },
     {
       "id": "sens-2",
@@ -192,7 +212,7 @@
       "address": 2,
       "type": "CURRENT",
       "active": true,
-      "lastTriggered": 1789036073642
+      "lastTriggered": 1789036832261
     },
     {
       "id": "sens-3",
@@ -200,15 +220,15 @@
       "address": 3,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036065004
+      "lastTriggered": 1789036810369
     },
     {
       "id": "sens-4",
       "name": "Bf Gl2 IN (+)",
       "address": 4,
       "type": "CURRENT",
-      "active": true,
-      "lastTriggered": 1789035653424
+      "active": false,
+      "lastTriggered": 1789036769775
     },
     {
       "id": "sens-5",
@@ -216,14 +236,15 @@
       "address": 5,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789035201769
+      "lastTriggered": 1789036650615
     },
     {
       "id": "sens-6",
       "name": "Strecke IN (+)",
       "address": 6,
       "type": "CURRENT",
-      "active": false
+      "active": false,
+      "lastTriggered": 1789036653632
     },
     {
       "id": "sens-7",
@@ -239,7 +260,7 @@
       "address": 8,
       "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036068012
+      "lastTriggered": 1789036813377
     }
   ],
   "blocks": [
@@ -262,7 +283,11 @@
       "type": "STATION",
       "minWaitTimeSec": 10,
       "maxWaitTimeSec": 25,
-      "waitTimer": null
+      "waitTimer": {
+        "departureTimestamp": 1789036845264,
+        "totalWaitSec": 13,
+        "status": "WAITING"
+      }
     },
     {
       "id": "block-bf-gl2",
@@ -287,7 +312,8 @@
         "departureFKey": 3,
         "departureLeadTimeSec": 2,
         "departureFKeyDurationMs": 1500
-      }
+      },
+      "waitTimer": null
     },
     {
       "id": "block-strecke",
@@ -307,7 +333,8 @@
       },
       "type": "MAINLINE",
       "minWaitTimeSec": 0,
-      "maxWaitTimeSec": 0
+      "maxWaitTimeSec": 0,
+      "waitTimer": null
     },
     {
       "id": "block-bf-gl3",
@@ -698,15 +725,15 @@
       "blockId": "block-bf-gl1",
       "direction": "+",
       "steps": 45,
-      "intervalMs": 54,
+      "intervalMs": 35,
       "vStart": 55,
       "vMin": 12,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 173,
+        "creepDurationMs": 905,
         "targetCreepDurationMs": 1200,
         "overranIn": false,
-        "timestamp": 1789036073643
+        "timestamp": 1789036832262
       }
     },
     {
@@ -714,10 +741,16 @@
       "blockId": "block-strecke",
       "direction": "+",
       "steps": 60,
-      "intervalMs": 90,
+      "intervalMs": 51,
       "vStart": 65,
       "vMin": 12,
-      "locked": false
+      "locked": false,
+      "lastRunMetrics": {
+        "creepDurationMs": 0,
+        "targetCreepDurationMs": 1200,
+        "overranIn": true,
+        "timestamp": 1789036653633
+      }
     },
     {
       "locoId": "loco-ice-3",
@@ -744,15 +777,15 @@
       "blockId": "block-bf-gl3",
       "direction": "+",
       "steps": 10,
-      "intervalMs": 102,
+      "intervalMs": 134,
       "vStart": 0,
       "vMin": 12,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 2073,
+        "creepDurationMs": 1764,
         "targetCreepDurationMs": 1200,
         "overranIn": false,
-        "timestamp": 1789036068014
+        "timestamp": 1789036813378
       }
     },
     {
@@ -760,26 +793,26 @@
       "blockId": "block-bf-gl2",
       "direction": "+",
       "steps": 43,
-      "intervalMs": 60,
+      "intervalMs": 50,
       "vStart": 55,
       "vMin": 12,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 0,
+        "creepDurationMs": 332,
         "targetCreepDurationMs": 1200,
-        "overranIn": true,
-        "timestamp": 1789035653425
+        "overranIn": false,
+        "timestamp": 1789036769777
       }
     }
   ],
   "settings": {
     "commandStation": {
-      "type": "VIRTUAL",
-      "connectionType": "SERIAL",
-      "serialPort": "COM3",
+      "type": "DCC_EX",
+      "connectionType": "TCP",
+      "serialPort": "COM1",
       "baudRate": 115200,
-      "host": "192.168.0.111",
-      "port": 21105
+      "host": "192.168.178.210",
+      "port": 2560
     },
     "wio": {
       "enabled": true,
