@@ -862,6 +862,14 @@ app.get('/api/status', (_req, res) => {
   res.json(status);
 });
 
+app.get('/api/turnouts', (_req, res) => {
+  res.json(turnoutManager.getAllTurnouts());
+});
+
+app.get('/api/locos', (_req, res) => {
+  res.json(locoManager.getAllLocos());
+});
+
 // WIO REST API Endpunkte für ESP32 (HTTP POST / GET)
 app.post('/api/wio/sensor', (req, res) => {
   const payload = req.body;

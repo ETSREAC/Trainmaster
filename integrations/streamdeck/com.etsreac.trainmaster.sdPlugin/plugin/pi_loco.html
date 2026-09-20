@@ -8,21 +8,24 @@
     .sdpi-item { margin-bottom: 12px; }
     .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
     select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+    .status-hint { margin-top: 6px; font-size: 10px; color: #888; }
   </style>
 </head>
 <body>
   <div class="sdpi-item">
     <div class="sdpi-heading">Lokomotive</div>
     <select id="loco-select">
-      <option value="">(Aktive Lokomotive)</option>
+      <option value="">(Aktive Lokomotive durchwechseln)</option>
     </select>
+    <div id="status-hint" class="status-hint">Lade Lokomotiven...</div>
   </div>
-  <p style="color:#888;font-size:10px;">Tipp: Wenn du "(Aktive Lokomotive)" wählst, wechselt diese Taste beim Drücken zur nächsten Lok im Fuhrpark durch.</p>
+  <p style="color:#888;font-size:10px;">Tipp: Wenn du "(Aktive Lokomotive durchwechseln)" wählst, wechselt diese Taste beim Drücken zur nächsten Lok im Fuhrpark durch.</p>
 
   <script>
     let websocket = null;
     let uuid = null;
     let actionInfo = {};
+    let locosList = [];
 
     function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
       uuid = inUUID;
@@ -31,43 +34,73 @@
 
       websocket.onopen = function() {
         websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
-        loadSettings();
+        initUI();
       };
-
-      // Load available locos from TrainMaster backend
-      fetchLocos();
     }
 
-    function loadSettings() {
-      const settings = actionInfo.payload?.settings || {};
+    function initUI() {
       const sel = document.getElementById("loco-select");
-      if (settings.locoId) sel.value = settings.locoId;
-
       sel.addEventListener("change", () => {
         saveSettings({ locoId: sel.value });
       });
+
+      // 1. Sofortiger REST-Fetch
+      fetch("http://localhost:3001/api/locos")
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            renderLocos(data);
+          }
+        })
+        .catch(() => {});
+
+      // 2. WebSocket für Live-Sync
+      connectTrainMasterWS();
     }
 
-    function fetchLocos() {
-      const ws = new WebSocket("ws://localhost:3001");
-      ws.onmessage = function(evt) {
-        try {
-          const msg = JSON.parse(evt.data);
-          if (msg.type === "SYNC_STATE" && msg.payload?.locos) {
-            const sel = document.getElementById("loco-select");
-            const cur = sel.value;
-            sel.innerHTML = '<option value="">(Aktive Lokomotive durchwechseln)</option>';
-            msg.payload.locos.forEach(l => {
-              const opt = document.createElement("option");
-              opt.value = l.id;
-              opt.textContent = `${l.name} (DCC #${l.dccAddress})`;
-              sel.appendChild(opt);
-            });
-            if (cur) sel.value = cur;
-            ws.close();
-          }
-        } catch(_) {}
-      };
+    function renderLocos(locos) {
+      locosList = locos;
+      const sel = document.getElementById("loco-select");
+      const hint = document.getElementById("status-hint");
+      const currentVal = sel.value || actionInfo.payload?.settings?.locoId || "";
+
+      sel.innerHTML = '<option value="">(Aktive Lokomotive durchwechseln)</option>';
+      if (!locos || locos.length === 0) {
+        hint.textContent = "Keine Lokomotiven in TrainMaster gefunden.";
+        return;
+      }
+
+      locos.forEach(l => {
+        const opt = document.createElement("option");
+        opt.value = l.id;
+        const addrStr = l.dccAddress !== undefined ? ` (DCC #${l.dccAddress})` : "";
+        opt.textContent = `${l.name || l.id}${addrStr}`;
+        sel.appendChild(opt);
+      });
+
+      if (currentVal) {
+        sel.value = currentVal;
+      }
+      hint.textContent = `${locos.length} Lokomotive(n) gefunden.`;
+    }
+
+    function connectTrainMasterWS() {
+      try {
+        const ws = new WebSocket("ws://localhost:3001");
+        ws.onmessage = function(evt) {
+          try {
+            const msg = JSON.parse(evt.data);
+            if ((msg.type === "INITIAL_STATE" || msg.type === "SYNC_STATE") && msg.payload?.locos) {
+              renderLocos(msg.payload.locos);
+            } else if (msg.type === "LOCO_UPDATED" && msg.payload) {
+              const idx = locosList.findIndex(l => l.id === msg.payload.id);
+              if (idx >= 0) locosList[idx] = msg.payload;
+              else locosList.push(msg.payload);
+              renderLocos(locosList);
+            }
+          } catch(_) {}
+        };
+      } catch(_) {}
     }
 
     function saveSettings(settings) {

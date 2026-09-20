@@ -8,6 +8,7 @@
     .sdpi-item { margin-bottom: 12px; }
     .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
     select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+    .status-hint { margin-top: 6px; font-size: 10px; color: #888; }
   </style>
 </head>
 <body>
@@ -16,12 +17,14 @@
     <select id="turnout-select">
       <option value="">(Wähle eine Weiche)</option>
     </select>
+    <div id="status-hint" class="status-hint">Lade Weichen...</div>
   </div>
 
   <script>
     let websocket = null;
     let uuid = null;
     let actionInfo = {};
+    let turnoutsList = [];
 
     function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
       uuid = inUUID;
@@ -30,42 +33,73 @@
 
       websocket.onopen = function() {
         websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
-        loadSettings();
+        initUI();
       };
-
-      fetchTurnouts();
     }
 
-    function loadSettings() {
-      const settings = actionInfo.payload?.settings || {};
+    function initUI() {
       const sel = document.getElementById("turnout-select");
-      if (settings.turnoutId) sel.value = settings.turnoutId;
-
       sel.addEventListener("change", () => {
         saveSettings({ turnoutId: sel.value });
       });
+
+      // 1. Sofortiger REST-Fetch für maximale Zuverlässigkeit
+      fetch("http://localhost:3001/api/turnouts")
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            renderTurnouts(data);
+          }
+        })
+        .catch(() => {});
+
+      // 2. WebSocket für Echtzeit-Sync & Fallback
+      connectTrainMasterWS();
     }
 
-    function fetchTurnouts() {
-      const ws = new WebSocket("ws://localhost:3001");
-      ws.onmessage = function(evt) {
-        try {
-          const msg = JSON.parse(evt.data);
-          if (msg.type === "SYNC_STATE" && msg.payload?.turnouts) {
-            const sel = document.getElementById("turnout-select");
-            const cur = sel.value;
-            sel.innerHTML = '<option value="">(Wähle eine Weiche)</option>';
-            msg.payload.turnouts.forEach(t => {
-              const opt = document.createElement("option");
-              opt.value = t.id;
-              opt.textContent = `${t.name || t.id} (DCC #${t.dccAddress || '-'})`;
-              sel.appendChild(opt);
-            });
-            if (cur) sel.value = cur;
-            ws.close();
-          }
-        } catch(_) {}
-      };
+    function renderTurnouts(turnouts) {
+      turnoutsList = turnouts;
+      const sel = document.getElementById("turnout-select");
+      const hint = document.getElementById("status-hint");
+      const currentVal = sel.value || actionInfo.payload?.settings?.turnoutId || "";
+
+      sel.innerHTML = '<option value="">(Wähle eine Weiche)</option>';
+      if (!turnouts || turnouts.length === 0) {
+        hint.textContent = "Keine Weichen in TrainMaster angelegt.";
+        return;
+      }
+
+      turnouts.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t.id;
+        const addr = t.address !== undefined ? t.address : (t.dccAddress !== undefined ? t.dccAddress : "-");
+        opt.textContent = `${t.name || t.id} (DCC #${addr})`;
+        sel.appendChild(opt);
+      });
+
+      if (currentVal) {
+        sel.value = currentVal;
+      }
+      hint.textContent = `${turnouts.length} Weiche(n) gefunden.`;
+    }
+
+    function connectTrainMasterWS() {
+      try {
+        const ws = new WebSocket("ws://localhost:3001");
+        ws.onmessage = function(evt) {
+          try {
+            const msg = JSON.parse(evt.data);
+            if ((msg.type === "INITIAL_STATE" || msg.type === "SYNC_STATE") && msg.payload?.turnouts) {
+              renderTurnouts(msg.payload.turnouts);
+            } else if (msg.type === "TURNOUT_UPDATED" && msg.payload) {
+              const idx = turnoutsList.findIndex(t => t.id === msg.payload.id);
+              if (idx >= 0) turnoutsList[idx] = msg.payload;
+              else turnoutsList.push(msg.payload);
+              renderTurnouts(turnoutsList);
+            }
+          } catch(_) {}
+        };
+      } catch(_) {}
     }
 
     function saveSettings(settings) {
