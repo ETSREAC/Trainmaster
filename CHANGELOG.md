@@ -17,11 +17,12 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
     - **Mittlere Zone**: EC11-Encoder und MTS-103 Kippschalter mit komplett freiem Verkabelungsraum darunter.
     - **Untere Zone**: 18650 Akkuhalter mittig in Führungsschienen, flankiert von den MX-Tastatur-Switches (26 mm freier Mittelkorridor).
   - **FDM-Drucktoleranzen ab Werk**: MX Plate Mount (14.10 × 14.10 mm, 1.5 mm Kantenstärke), M3 Einschmelzgewinde-Bohrungen (4.20 mm Schmelzpassung), USB-C Schacht (11.0 × 6.0 mm mit Fase).
-- **Dateien & Tools**:
-  - Druckfertige STLs in [`hardware/enclosure/stl/`](hardware/enclosure/stl/): `throttle_top.stl`, `throttle_bottom.stl`, `keycap_function.stl`, `keycap_stop.stl`.
-  - Parametrisches CAD-Modell: [`hardware/enclosure/TrainMaster_ThrottleOne.scad`](hardware/enclosure/TrainMaster_ThrottleOne.scad).
-  - Automatischer STL-Generator: [`scripts/generate_enclosure.py`](scripts/generate_enclosure.py).
-  - Umfassende Druck- und Montageanleitung: [`docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md`](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md).
+- **Globale Tastatur- & Macropad-Steuerung (USB Rotary Knobs & Keypads)**:
+  - Volle Unterstützung für handelsübliche programmierbare USB-Macropads mit Drehknopf (z. B. 3-Key / 6-Key / 9-Key Keypads) und Standard-PC-Tastaturen.
+  - **Fahrstufen-Regelung**: `BildAuf` / `PfeilHoch` / `W` (+5 Fahrstufen) und `BildAb` / `PfeilRunter` / `S` (-5 Fahrstufen); `Pos1` / `X` für Soforthalt (0).
+  - **Funktionen & Richtung**: `L` / `0` für Licht (F0), `1`–`9` für Sonderfunktionen F1–F9, `R` für Fahrtrichtungsumkehr (FWD/REV), `P` für Gleisstrom ein/aus.
+  - **Lok-Auswahl & Not-Aus**: `Tab` zum schnellen Durchwechseln der Lokomotiven, `Leertaste` für sofortigen Not-Aus.
+  - Eingabefelder (`<input>`, `<textarea>`) sind geschützt, sodass beim Tippen von Namen oder IPs keine Hotkeys versehentlich auslösen.
 
 ---
 

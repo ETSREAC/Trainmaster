@@ -141,12 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-expand-bottom')?.addEventListener('click', () => trackCanvas.expandGrid('BOTTOM'));
 
   // Track Power Toggle
-  btnPower?.addEventListener('click', () => {
+  const togglePower = () => {
     wsClient.send({
       type: 'SET_POWER',
       payload: { active: !wsClient.status.trackPower }
     });
-  });
+  };
+  btnPower?.addEventListener('click', togglePower);
 
   // Automatic Mode (Aquarium) Toggle
   btnAuto?.addEventListener('click', () => {
@@ -167,11 +168,109 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnEstop?.addEventListener('click', toggleEstop);
 
-  // Spacebar Hotkey für NOT-HALT
+  // --- Globale Tastatur- & Macropad-Steuerung (USB Rotary Knobs & Keypads) ---
+  let activeLocoIndex = 0;
+
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'INPUT') {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+      return;
+    }
+
+    // Leertaste: NOT-HALT
+    if (e.code === 'Space') {
       e.preventDefault();
       toggleEstop();
+      return;
+    }
+
+    // KeyP: Gleisstrom an/aus
+    if (e.code === 'KeyP') {
+      e.preventDefault();
+      togglePower();
+      return;
+    }
+
+    const locos = wsClient.locos;
+    if (!locos || locos.length === 0) return;
+
+    if (activeLocoIndex >= locos.length) activeLocoIndex = 0;
+    const currentLoco = locos[activeLocoIndex];
+
+    // Tab: Nächste Lokomotive auswählen
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      activeLocoIndex = (activeLocoIndex + 1) % locos.length;
+      return;
+    }
+
+    // PageUp / ArrowUp / KeyW / Plus / Equal: Geschwindigkeit erhöhen (+5 Fahrstufen)
+    if (e.code === 'PageUp' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'BracketRight' || e.code === 'NumpadAdd') {
+      e.preventDefault();
+      const newSpeed = Math.min(128, currentLoco.speed + 5);
+      wsClient.send({
+        type: 'SET_LOCO_SPEED',
+        payload: { locoId: currentLoco.id, speed: newSpeed }
+      });
+      return;
+    }
+
+    // PageDown / ArrowDown / KeyS / Minus / Slash: Geschwindigkeit verringern (-5 Fahrstufen)
+    if (e.code === 'PageDown' || e.code === 'ArrowDown' || e.code === 'KeyS' || e.code === 'Slash' || e.code === 'NumpadSubtract') {
+      e.preventDefault();
+      const newSpeed = Math.max(0, currentLoco.speed - 5);
+      wsClient.send({
+        type: 'SET_LOCO_SPEED',
+        payload: { locoId: currentLoco.id, speed: newSpeed }
+      });
+      return;
+    }
+
+    // Home / KeyX: Soforthalt (0)
+    if (e.code === 'Home' || e.code === 'KeyX') {
+      e.preventDefault();
+      wsClient.send({
+        type: 'SET_LOCO_SPEED',
+        payload: { locoId: currentLoco.id, speed: 0 }
+      });
+      return;
+    }
+
+    // KeyR: Richtung umkehren (FWD <-> REV)
+    if (e.code === 'KeyR') {
+      e.preventDefault();
+      const newDir = currentLoco.direction === 'FWD' ? 'REV' : 'FWD';
+      wsClient.send({
+        type: 'SET_LOCO_SPEED',
+        payload: { locoId: currentLoco.id, speed: currentLoco.speed, direction: newDir }
+      });
+      return;
+    }
+
+    // KeyL oder Digit0: F0 (Licht)
+    if (e.code === 'KeyL' || e.code === 'Digit0' || e.code === 'Numpad0') {
+      e.preventDefault();
+      const curState = !!currentLoco.functions?.[0];
+      wsClient.send({
+        type: 'SET_LOCO_FUNCTION',
+        payload: { locoId: currentLoco.id, functionIndex: 0, active: !curState }
+      });
+      return;
+    }
+
+    // Digit1 .. Digit9 / Numpad1 .. Numpad9: F1 .. F9
+    let num = -1;
+    if (e.code.startsWith('Digit')) num = parseInt(e.code.replace('Digit', ''), 10);
+    else if (e.code.startsWith('Numpad')) num = parseInt(e.code.replace('Numpad', ''), 10);
+
+    if (!isNaN(num) && num >= 1 && num <= 9) {
+      e.preventDefault();
+      const curState = !!currentLoco.functions?.[num];
+      wsClient.send({
+        type: 'SET_LOCO_FUNCTION',
+        payload: { locoId: currentLoco.id, functionIndex: num, active: !curState }
+      });
+      return;
     }
   });
 
