@@ -34,17 +34,20 @@ Wir haben ein natives **Elgato Stream Deck Plugin** (`com.etsreac.trainmaster.sd
 1. **⚡ Gleisstrom (Power)**: Zeigt live an, ob Fahrstrom auf den Schienen ist (Grün = AN, Grau = AUS). Ein Klick schaltet den Strom um.
 2. **🛑 Not-Aus (E-Stop)**: Rote Taste mit Warn-Status. Ein Klick friert alle Züge sofort ein!
 3. **🤖 Automatik-Modus**: Schaltet den vollautomatischen Zugsicherungs- und Fahrbetrieb (Aquarium-Modus) an/aus.
-4. **🚂 Lokomotive auswählen**: Zeigt Lokname, DCC-Adresse, Fahrtrichtungspfeil und Live-Geschwindigkeit (z. B. `BR 101\n▲ 85 km/h`). Klick wählt diese Lok als aktive Lokomotive für den Drehregler aus (wird mit blauem Rand hervorgehoben!).
+4. **🚂 Lokomotive auswählen**: Zeigt Lokname, DCC-Adresse, Fahrtrichtungspfeil und Live-Geschwindigkeit (z. B. `BR 101\n▲ 85 km/h`). Klick wählt diese Lok als aktive Lokomotive aus (wird mit blauem Rand hervorgehoben!).
 5. **💡 Lok-Funktion (F0 - F28)**: Schaltet Spitzenlicht (F0), Motor-Sound (F1), Horn (F2), Glocke (F3), etc. Taste leuchtet bernsteinfarben auf, wenn aktiv!
 6. **🔄 Fahrtrichtung**: Schaltet die Fahrtrichtung der aktiven Lok zwischen Vorwärts und Rückwärts um.
 7. **🔀 Weiche stellen**: Zeigt die Lage einer Weiche an (Gerade / Abzweig) und schaltet sie per Tastendruck um.
+8. **➕ Beschleunigen (+)**: Erhöht die Fahrstufe der aktiven Lok (+1, +5, +10, +20 im Property Inspector wählbar) mit dynamischer Live-Tachoanzeige `+5 [45]`.
+9. **➖ Bremsen (-)**: Verringert die Fahrstufe der aktiven Lok (-1, -5, -10, -20 im Property Inspector wählbar) mit dynamischer Live-Tachoanzeige `-5 [45]`.
+10. **⏹️ Halt (0 km/h)**: Sofortiger Zughalt der aktiven Lok auf Fahrstufe 0 (leuchtet rot bei Fahrt, grau bei Stillstand `HALT [0]`).
+11. **🚀 Geschwindigkeits-Preset**: Springt sofort auf vMin (Rangiergang), vMid (Reisefahrt), vMax (Höchstgeschwindigkeit) oder benutzerdefinierte Stufen (50, 100, 128). Taste leuchtet blau auf, wenn der Zug exakt dieses Tempo fährt!
 
 ---
 
-## 📋 3. Empfohlene 32-Tasten Belegung (Stream Deck XL Layout)
+## 📋 3. Empfohlene Tastenbelegungen (Stream Deck XL Layouts)
 
-Mit 32 Tasten (4 Reihen à 8 Tasten) hast du die maximale Übersicht:
-
+### Layout A: Mit Brimford Drehregler-Puck (Knob steuert Speed)
 ```text
 ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
 │ ⚡ POWER │ 🛑 NOTAUS│ 🤖 AUTO  │ 🔄 RICHT │ 🚂 LOK 1 │ 🚂 LOK 2 │ 🚂 LOK 3 │ 🚂 LOK 4 │ <-- System & Loks
@@ -54,6 +57,20 @@ Mit 32 Tasten (4 Reihen à 8 Tasten) hast du die maximale Übersicht:
 │ ⚡ F4 LÜF│ 🎺 F5 PFF│ 🛋️ F6 KAB│ 🔗 F7 KUP│ 🔀 W 1   │ 🔀 W 2   │ 🔀 W 3   │ 🔀 W 4   │ <-- F-Tasten & Weichen
 ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
 │ 💡 F8 FRN│ 🚂 F9 KRV│ 🗣️ F10ANS│ ⏹️ STOP 0│ 🔀 W 5   │ 🔀 W 6   │ 🔀 W 7   │ 🔀 W 8   │ <-- Weichen & Stop
+└──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
+```
+
+### Layout B: Pure Fahrertasten (OHNE Drehregler – Alles direkt auf dem Stream Deck)
+Für alle, die keinen externen Drehregler anschließen möchten, bieten die 4 Fahrtasten vollwertige Führerstandskontrolle:
+```text
+┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
+│ ⚡ POWER │ 🛑 NOTAUS│ 🤖 AUTO  │ 🔄 RICHT │ ➕ FAHRT+│ 🚀 REISE │ 🚂 LOK 1 │ 🚂 LOK 2 │ <-- Fahrschalter & Loks
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+│ 💡 F0 LCT│ 🔊 F1 SND│ 📢 F2 HRN│ ⏹️ HALT 0│ ➖ FAHRT-│ 🚀 MAX   │ 🚂 LOK 3 │ 🚂 LOK 4 │ <-- Fahrschalter & Loks
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+│ ⚡ F4 LÜF│ 🎺 F5 PFF│ 🛋️ F6 KAB│ 🔗 F7 KUP│ 🔀 W 1   │ 🔀 W 2   │ 🔀 W 3   │ 🔀 W 4   │ <-- F-Tasten & Weichen
+├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+│ 💡 F8 FRN│ 🚂 F9 KRV│ 🗣️ F10ANS│ 🔔 F3 GLC│ 🔀 W 5   │ 🔀 W 6   │ 🔀 W 7   │ 🔀 W 8   │ <-- Weichen & Sound
 └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
 

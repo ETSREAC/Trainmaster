@@ -196,6 +196,10 @@ function handleTrainMasterMessage(msg) {
       updateKeysByAction("com.etsreac.trainmaster.locoselect");
       updateKeysByAction("com.etsreac.trainmaster.locodir");
       updateKeysByAction("com.etsreac.trainmaster.locofunc");
+      updateKeysByAction("com.etsreac.trainmaster.speedup");
+      updateKeysByAction("com.etsreac.trainmaster.speeddown");
+      updateKeysByAction("com.etsreac.trainmaster.speedstop");
+      updateKeysByAction("com.etsreac.trainmaster.speedpreset");
       break;
 
     case "LOCO_DELETED":
@@ -332,6 +336,101 @@ function handleKeyDown(context, action, settings) {
       }
       break;
     }
+
+    case "com.etsreac.trainmaster.speedup": {
+      if (activeLoco) {
+        const step = parseInt(settings.step !== undefined ? settings.step : 5, 10);
+        const curSpeed = activeLoco.speed || 0;
+        const newSpeed = Math.min(128, curSpeed + step);
+        activeLoco.speed = newSpeed;
+        updateKeysByAction("com.etsreac.trainmaster.speedup");
+        updateKeysByAction("com.etsreac.trainmaster.speeddown");
+        updateKeysByAction("com.etsreac.trainmaster.speedstop");
+        updateKeysByAction("com.etsreac.trainmaster.speedpreset");
+        updateKeysByAction("com.etsreac.trainmaster.locoselect");
+        sendToTrainMaster("SET_LOCO_SPEED", {
+          locoId: activeLoco.id,
+          speed: newSpeed,
+          direction: activeLoco.direction || "FWD"
+        });
+      } else {
+        sendToStreamDeck("showAlert", context);
+      }
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speeddown": {
+      if (activeLoco) {
+        const step = parseInt(settings.step !== undefined ? settings.step : 5, 10);
+        const curSpeed = activeLoco.speed || 0;
+        const newSpeed = Math.max(0, curSpeed - step);
+        activeLoco.speed = newSpeed;
+        updateKeysByAction("com.etsreac.trainmaster.speedup");
+        updateKeysByAction("com.etsreac.trainmaster.speeddown");
+        updateKeysByAction("com.etsreac.trainmaster.speedstop");
+        updateKeysByAction("com.etsreac.trainmaster.speedpreset");
+        updateKeysByAction("com.etsreac.trainmaster.locoselect");
+        sendToTrainMaster("SET_LOCO_SPEED", {
+          locoId: activeLoco.id,
+          speed: newSpeed,
+          direction: activeLoco.direction || "FWD"
+        });
+      } else {
+        sendToStreamDeck("showAlert", context);
+      }
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speedstop": {
+      if (activeLoco) {
+        activeLoco.speed = 0;
+        updateKeysByAction("com.etsreac.trainmaster.speedup");
+        updateKeysByAction("com.etsreac.trainmaster.speeddown");
+        updateKeysByAction("com.etsreac.trainmaster.speedstop");
+        updateKeysByAction("com.etsreac.trainmaster.speedpreset");
+        updateKeysByAction("com.etsreac.trainmaster.locoselect");
+        sendToTrainMaster("SET_LOCO_SPEED", {
+          locoId: activeLoco.id,
+          speed: 0,
+          direction: activeLoco.direction || "FWD"
+        });
+      } else {
+        sendToStreamDeck("showAlert", context);
+      }
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speedpreset": {
+      if (activeLoco) {
+        const presetKey = settings.preset || "vmid";
+        let targetSpeed = 60;
+        if (presetKey === "vmin") {
+          targetSpeed = activeLoco.vMin || 20;
+        } else if (presetKey === "vmid") {
+          targetSpeed = activeLoco.vMid || 60;
+        } else if (presetKey === "vmax") {
+          targetSpeed = activeLoco.vMax || 100;
+        } else {
+          targetSpeed = parseInt(presetKey, 10);
+          if (isNaN(targetSpeed)) targetSpeed = 60;
+        }
+        targetSpeed = Math.max(0, Math.min(128, targetSpeed));
+        activeLoco.speed = targetSpeed;
+        updateKeysByAction("com.etsreac.trainmaster.speedup");
+        updateKeysByAction("com.etsreac.trainmaster.speeddown");
+        updateKeysByAction("com.etsreac.trainmaster.speedstop");
+        updateKeysByAction("com.etsreac.trainmaster.speedpreset");
+        updateKeysByAction("com.etsreac.trainmaster.locoselect");
+        sendToTrainMaster("SET_LOCO_SPEED", {
+          locoId: activeLoco.id,
+          speed: targetSpeed,
+          direction: activeLoco.direction || "FWD"
+        });
+      } else {
+        sendToStreamDeck("showAlert", context);
+      }
+      break;
+    }
   }
 }
 
@@ -440,6 +539,66 @@ function updateKey(context) {
       setKeyImage(context, createSvgIcon(bg, "#ffffff", "🔀"));
       break;
     }
+
+    case "com.etsreac.trainmaster.speedup": {
+      const step = parseInt(settings.step !== undefined ? settings.step : 5, 10);
+      const curSpeed = activeLoco ? (activeLoco.speed || 0) : 0;
+      const title = `+${step}\n[${curSpeed}]`;
+      const bg = "#065f46";
+      setKeyTitle(context, title);
+      setKeyImage(context, createSvgIcon(bg, "#34d399", "➕"));
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speeddown": {
+      const step = parseInt(settings.step !== undefined ? settings.step : 5, 10);
+      const curSpeed = activeLoco ? (activeLoco.speed || 0) : 0;
+      const title = `-${step}\n[${curSpeed}]`;
+      const bg = "#831843";
+      setKeyTitle(context, title);
+      setKeyImage(context, createSvgIcon(bg, "#f472b6", "➖"));
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speedstop": {
+      const curSpeed = activeLoco ? (activeLoco.speed || 0) : 0;
+      const isStopped = curSpeed === 0;
+      const title = isStopped ? "HALT\n[0]" : `STOPP!\n[${curSpeed}]`;
+      const bg = isStopped ? "#334155" : "#dc2626";
+      setKeyTitle(context, title);
+      setKeyImage(context, createSvgIcon(bg, isStopped ? "#94a3b8" : "#ffffff", "⏹️"));
+      break;
+    }
+
+    case "com.etsreac.trainmaster.speedpreset": {
+      const presetKey = settings.preset || "vmid";
+      let presetLabel = "vMid";
+      let targetVal = 60;
+      if (activeLoco) {
+        if (presetKey === "vmin") {
+          presetLabel = "vMin";
+          targetVal = activeLoco.vMin || 20;
+        } else if (presetKey === "vmid") {
+          presetLabel = "vMid";
+          targetVal = activeLoco.vMid || 60;
+        } else if (presetKey === "vmax") {
+          presetLabel = "vMax";
+          targetVal = activeLoco.vMax || 100;
+        } else {
+          targetVal = parseInt(presetKey, 10) || 60;
+          presetLabel = `v${targetVal}`;
+        }
+      } else {
+        presetLabel = presetKey.toUpperCase();
+      }
+      const curSpeed = activeLoco ? (activeLoco.speed || 0) : 0;
+      const isAtPreset = curSpeed === targetVal;
+      const title = `${presetLabel} (${targetVal})\n[${curSpeed}]`;
+      const bg = isAtPreset ? "#1d4ed8" : "#1e293b";
+      setKeyTitle(context, title);
+      setKeyImage(context, createSvgIcon(bg, isAtPreset ? "#60a5fa" : "#38bdf8", "🚀", isAtPreset));
+      break;
+    }
   }
 }
 
@@ -449,7 +608,7 @@ function createSvgIcon(bgColor, fgColor, iconChar, isBordered = false) {
     <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
       <rect x="2" y="2" width="140" height="140" rx="26" fill="${bgColor}"/>
       ${borderSvg}
-      <text x="72" y="86" font-size="52" text-anchor="middle" dominant-baseline="central">${iconChar}</text>
+      <text x="72" y="66" font-size="52" fill="${fgColor || '#ffffff'}" font-family="sans-serif" text-anchor="middle" dominant-baseline="central">${iconChar}</text>
     </svg>
   `.trim();
   return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);

@@ -116,6 +116,61 @@
         }
       ],
       "PropertyInspectorPath": "plugin/pi_turnout.html"
+    },
+    {
+      "Icon": "icons/action_speed_up",
+      "Name": "Beschleunigen (+)",
+      "Tooltip": "Erhöht die Fahrstufe der aktiven Lokomotive",
+      "UUID": "com.etsreac.trainmaster.speedup",
+      "States": [
+        {
+          "Image": "icons/action_speed_up",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_speed.html"
+    },
+    {
+      "Icon": "icons/action_speed_down",
+      "Name": "Bremsen (-)",
+      "Tooltip": "Verringert die Fahrstufe der aktiven Lokomotive",
+      "UUID": "com.etsreac.trainmaster.speeddown",
+      "States": [
+        {
+          "Image": "icons/action_speed_down",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_speed.html"
+    },
+    {
+      "Icon": "icons/action_speed_stop",
+      "Name": "Halt (0 km/h)",
+      "Tooltip": "Stoppt die aktive Lokomotive sofort auf Fahrstufe 0",
+      "UUID": "com.etsreac.trainmaster.speedstop",
+      "States": [
+        {
+          "Image": "icons/action_speed_stop",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ]
+    },
+    {
+      "Icon": "icons/action_speed_preset",
+      "Name": "Geschwindigkeits-Preset",
+      "Tooltip": "Setzt die Lok direkt auf Rangiergang, Reise- oder Höchstgeschwindigkeit",
+      "UUID": "com.etsreac.trainmaster.speedpreset",
+      "States": [
+        {
+          "Image": "icons/action_speed_preset",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_speed.html"
     }
   ]
 }

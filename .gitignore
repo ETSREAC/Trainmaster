@@ -30,3 +30,7 @@ Desktop.ini
 # Environment & Local Secrets
 .env
 .env.local
+
+# Scratch & Temporary test scripts
+scratch/
+

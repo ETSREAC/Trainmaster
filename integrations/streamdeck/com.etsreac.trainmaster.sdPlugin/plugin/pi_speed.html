@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Geschwindigkeit Einstellungen</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #d8d8d8; background: #2d2d2d; padding: 12px; margin: 0; }
+    .sdpi-item { margin-bottom: 12px; }
+    .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
+    select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="sdpi-item" id="item-step">
+    <div class="sdpi-heading">Schrittweite / Fahrstufen</div>
+    <select id="step-select">
+      <option value="1">+ / - 1 Fahrstufe (Feinregelung)</option>
+      <option value="5" selected>+ / - 5 Fahrstufen (Standard)</option>
+      <option value="10">+ / - 10 Fahrstufen (Schnell)</option>
+      <option value="20">+ / - 20 Fahrstufen (Sehr schnell)</option>
+    </select>
+  </div>
+  <div class="sdpi-item" id="item-preset">
+    <div class="sdpi-heading">Preset-Zielwert (Geschwindigkeit)</div>
+    <select id="preset-select">
+      <option value="vmin">Rangiergang (vMin der Lok)</option>
+      <option value="vmid" selected>Reisegeschwindigkeit (vMid der Lok)</option>
+      <option value="vmax">Höchstgeschwindigkeit (vMax der Lok)</option>
+      <option value="50">Fahrstufe 50</option>
+      <option value="100">Fahrstufe 100</option>
+      <option value="128">Fahrstufe 128 (Vollgas)</option>
+    </select>
+  </div>
+
+  <script>
+    let websocket = null;
+    let uuid = null;
+    let actionInfo = {};
+
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      actionInfo = JSON.parse(inActionInfo);
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = function() {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        loadSettings();
+      };
+    }
+
+    function loadSettings() {
+      const settings = actionInfo.payload?.settings || {};
+      const action = actionInfo.action || "";
+      const stepItem = document.getElementById("item-step");
+      const presetItem = document.getElementById("item-preset");
+      const stepSel = document.getElementById("step-select");
+      const presetSel = document.getElementById("preset-select");
+
+      // Wenn Preset-Aktion: Schrittweite ausblenden; sonst Preset-Auswahl ausblenden
+      if (action.includes("preset")) {
+        stepItem.style.display = "none";
+        presetItem.style.display = "block";
+      } else {
+        stepItem.style.display = "block";
+        presetItem.style.display = "none";
+      }
+
+      if (settings.step !== undefined) stepSel.value = `${settings.step}`;
+      if (settings.preset !== undefined) presetSel.value = `${settings.preset}`;
+
+      function save() {
+        saveSettings({
+          step: parseInt(stepSel.value, 10),
+          preset: presetSel.value
+        });
+      }
+
+      stepSel.addEventListener("change", save);
+      presetSel.addEventListener("change", save);
+    }
+
+    function saveSettings(settings) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          event: "setSettings",
+          context: uuid,
+          payload: settings
+        }));
+      }
+    }
+  </script>
+</body>
+</html>

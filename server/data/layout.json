@@ -110,7 +110,7 @@
       "dccAddress": 9,
       "speed": 0,
       "targetSpeed": 0,
-      "direction": "FWD",
+      "direction": "REV",
       "functions": {
         "0": false,
         "1": false,
@@ -120,6 +120,26 @@
       "vMin": 5,
       "vMid": 40,
       "vMax": 65,
+      "lengthCm": 20,
+      "trainType": "PASSENGER",
+      "currentBlockId": null
+    },
+    {
+      "id": "loco-1789911657287",
+      "name": "ET425",
+      "dccAddress": 11,
+      "speed": 0,
+      "targetSpeed": 0,
+      "direction": "FWD",
+      "functions": {
+        "0": false,
+        "1": false,
+        "2": false,
+        "3": false
+      },
+      "vMin": 10,
+      "vMid": 35,
+      "vMax": 70,
       "lengthCm": 20,
       "trainType": "PASSENGER",
       "currentBlockId": null
