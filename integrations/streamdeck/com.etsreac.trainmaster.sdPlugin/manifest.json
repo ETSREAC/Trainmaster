@@ -1,0 +1,121 @@
+{
+  "Author": "ETSREAC",
+  "Description": "Steuere deine Modellbahn, Lokomotiven, Weichen und Not-Aus direkt über das Elgato Stream Deck mit TrainMaster!",
+  "Name": "TrainMaster",
+  "Icon": "icons/pluginIcon",
+  "URL": "https://github.com/ETSREAC/Trainmaster",
+  "Version": "1.4.0",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "6.0"
+  },
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "11"
+    }
+  ],
+  "Category": "TrainMaster",
+  "CategoryIcon": "icons/categoryIcon",
+  "CodePath": "plugin/main.html",
+  "Actions": [
+    {
+      "Icon": "icons/action_power",
+      "Name": "Gleisstrom (Power)",
+      "Tooltip": "Gleisstrom ein- oder ausschalten (mit Live-Statusanzeige)",
+      "UUID": "com.etsreac.trainmaster.power",
+      "States": [
+        {
+          "Image": "icons/action_power",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ]
+    },
+    {
+      "Icon": "icons/action_estop",
+      "Name": "Not-Aus (E-Stop)",
+      "Tooltip": "Sofortiger Nothalt für die gesamte Modellbahnanlage",
+      "UUID": "com.etsreac.trainmaster.estop",
+      "States": [
+        {
+          "Image": "icons/action_estop",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ]
+    },
+    {
+      "Icon": "icons/action_auto",
+      "Name": "Automatik-Modus",
+      "Tooltip": "Automatik-/Aquarium-Fahrbetrieb aktivieren oder pausieren",
+      "UUID": "com.etsreac.trainmaster.automode",
+      "States": [
+        {
+          "Image": "icons/action_auto",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ]
+    },
+    {
+      "Icon": "icons/action_loco",
+      "Name": "Lokomotive auswählen",
+      "Tooltip": "Wählt eine Lokomotive aus und zeigt Live-Geschwindigkeit & Richtung",
+      "UUID": "com.etsreac.trainmaster.locoselect",
+      "States": [
+        {
+          "Image": "icons/action_loco",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_loco.html"
+    },
+    {
+      "Icon": "icons/action_func",
+      "Name": "Lok-Funktion (F0 - F28)",
+      "Tooltip": "Schaltet Spitzenlicht (F0), Sound (F1), Horn (F2) oder andere Funktionen",
+      "UUID": "com.etsreac.trainmaster.locofunc",
+      "States": [
+        {
+          "Image": "icons/action_func",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_func.html"
+    },
+    {
+      "Icon": "icons/action_dir",
+      "Name": "Fahrtrichtung",
+      "Tooltip": "Kehrt die Fahrtrichtung der aktiven Lokomotive um (Vorwärts / Rückwärts)",
+      "UUID": "com.etsreac.trainmaster.locodir",
+      "States": [
+        {
+          "Image": "icons/action_dir",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ]
+    },
+    {
+      "Icon": "icons/action_turnout",
+      "Name": "Weiche stellen",
+      "Tooltip": "Schaltet eine Weiche zwischen Gerade und Abzweig um",
+      "UUID": "com.etsreac.trainmaster.turnout",
+      "States": [
+        {
+          "Image": "icons/action_turnout",
+          "TitleAlignment": "bottom",
+          "FontSize": "11"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_turnout.html"
+    }
+  ]
+}

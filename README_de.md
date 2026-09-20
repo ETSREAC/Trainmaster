@@ -116,6 +116,7 @@ Der Browser öffnet sich automatisch unter:
 ## 🎮 Hardware & 3D-Druck
 
 TrainMaster enthält vollständige Open-Source-Hardware-Designs für kabellose Komponenten:
+- **[Stream Deck XL & Drehregler-Stellpult](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Verwandle dein Elgato Stream Deck XL + kabellosen Drehregler-Puck in ein High-End-Stellpult mit Live-Tacho, Lok-Auswahl, Sound-Funktionen & Weichenstellung (Natives Plugin in `integrations/streamdeck/` + 3D-Druck-Konsole in `hardware/enclosure/streamdeck_xl_dock/`).
 - **[TrainMaster ThrottleOne Konzept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 Handregler mit 1.54" IPS-Farbdisplay, mechanischen Switches und LED-Status-Halo.
 - **[CAD Blueprint & Maßzeichnung](docs/BLUEPRINT_THROTTLEONE_CAD.md)**: Exakte technische Orthogonalzeichnungen, 14° Keilkopfwinkel und Schritt-für-Schritt CAD-Anleitung zum Nachbau des Mockups.
 - **[Einkaufsliste / Stückliste (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Komplette Teileliste mit exakten AliExpress-Suchbegriffen (~27 € Gesamtpreis).

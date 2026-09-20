@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Lok-Funktion</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #d8d8d8; background: #2d2d2d; padding: 12px; margin: 0; }
+    .sdpi-item { margin-bottom: 12px; }
+    .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
+    select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Funktion (F-Taste)</div>
+    <select id="func-select">
+      <option value="0">F0: Spitzenlicht / Fahrlicht</option>
+      <option value="1">F1: Fahrsound / Motor</option>
+      <option value="2">F2: Horn / Pfeife / Hupe</option>
+      <option value="3">F3: Glocke / Rangierlicht</option>
+      <option value="4">F4: Lüfter / Kompressor</option>
+      <option value="5">F5: Schaffnerpfiff</option>
+      <option value="6">F6: Führerstandsbeleuchtung</option>
+      <option value="7">F7: Digitalkupplung</option>
+      <option value="8">F8: Fernlicht</option>
+      <option value="9">F9: Kurvenquietschen</option>
+      <option value="10">F10: Bahnhofsansage</option>
+      <option value="11">F11: Bremsenquietschen aus</option>
+      <option value="12">F12: Rangiergang</option>
+    </select>
+  </div>
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Eigene Beschriftung (Optional)</div>
+    <input type="text" id="func-name" placeholder="z. B. Horn, Licht, Sound">
+  </div>
+
+  <script>
+    let websocket = null;
+    let uuid = null;
+    let actionInfo = {};
+
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      actionInfo = JSON.parse(inActionInfo);
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = function() {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        loadSettings();
+      };
+    }
+
+    function loadSettings() {
+      const settings = actionInfo.payload?.settings || {};
+      const sel = document.getElementById("func-select");
+      const nameInput = document.getElementById("func-name");
+
+      if (settings.funcIndex !== undefined) sel.value = `${settings.funcIndex}`;
+      if (settings.funcName) nameInput.value = settings.funcName;
+
+      function save() {
+        saveSettings({
+          funcIndex: parseInt(sel.value, 10),
+          funcName: nameInput.value.trim()
+        });
+      }
+
+      sel.addEventListener("change", save);
+      nameInput.addEventListener("input", save);
+    }
+
+    function saveSettings(settings) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          event: "setSettings",
+          context: uuid,
+          payload: settings
+        }));
+      }
+    }
+  </script>
+</body>
+</html>

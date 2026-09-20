@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Weiche stellen</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #d8d8d8; background: #2d2d2d; padding: 12px; margin: 0; }
+    .sdpi-item { margin-bottom: 12px; }
+    .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
+    select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Weiche auswählen</div>
+    <select id="turnout-select">
+      <option value="">(Wähle eine Weiche)</option>
+    </select>
+  </div>
+
+  <script>
+    let websocket = null;
+    let uuid = null;
+    let actionInfo = {};
+
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      actionInfo = JSON.parse(inActionInfo);
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = function() {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        loadSettings();
+      };
+
+      fetchTurnouts();
+    }
+
+    function loadSettings() {
+      const settings = actionInfo.payload?.settings || {};
+      const sel = document.getElementById("turnout-select");
+      if (settings.turnoutId) sel.value = settings.turnoutId;
+
+      sel.addEventListener("change", () => {
+        saveSettings({ turnoutId: sel.value });
+      });
+    }
+
+    function fetchTurnouts() {
+      const ws = new WebSocket("ws://localhost:3001");
+      ws.onmessage = function(evt) {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === "SYNC_STATE" && msg.payload?.turnouts) {
+            const sel = document.getElementById("turnout-select");
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">(Wähle eine Weiche)</option>';
+            msg.payload.turnouts.forEach(t => {
+              const opt = document.createElement("option");
+              opt.value = t.id;
+              opt.textContent = `${t.name || t.id} (DCC #${t.dccAddress || '-'})`;
+              sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+            ws.close();
+          }
+        } catch(_) {}
+      };
+    }
+
+    function saveSettings(settings) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          event: "setSettings",
+          context: uuid,
+          payload: settings
+        }));
+      }
+    }
+  </script>
+</body>
+</html>

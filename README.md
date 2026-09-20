@@ -116,6 +116,7 @@ The browser will open automatically at:
 ## 🎮 Hardware & 3D Printing
 
 TrainMaster includes complete open-source designs for dedicated wireless hardware:
+- **[Stream Deck XL & Rotary Controller Guide](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Turn your Elgato Stream Deck XL + wireless rotary knob into a model railroad control desk with live locomotive icons, speed, and turnout feedback (Plugin in `integrations/streamdeck/` + 3D printable console mount in `hardware/enclosure/streamdeck_xl_dock/`).
 - **[TrainMaster ThrottleOne Concept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 handheld controller with 1.54" IPS display, mechanical switches, and LED status halo.
 - **[CAD Blueprint & Dimension Guide](docs/BLUEPRINT_THROTTLEONE_CAD.md)**: Exact orthogonal drawings, 14° wedge head angles, and step-by-step CAD tutorial matching the reference mockup.
 - **[Bill of Materials (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Complete part list with exact AliExpress search terms (~27 € total).

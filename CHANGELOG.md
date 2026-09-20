@@ -23,6 +23,12 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
   - **Funktionen & Richtung**: `L` / `0` für Licht (F0), `1`–`9` für Sonderfunktionen F1–F9, `R` für Fahrtrichtungsumkehr (FWD/REV), `P` für Gleisstrom ein/aus.
   - **Lok-Auswahl & Not-Aus**: `Tab` zum schnellen Durchwechseln der Lokomotiven, `Leertaste` für sofortigen Not-Aus.
   - Eingabefelder (`<input>`, `<textarea>`) sind geschützt, sodass beim Tippen von Namen oder IPs keine Hotkeys versehentlich auslösen.
+- **Natives Elgato Stream Deck Plugin (`com.etsreac.trainmaster.sdPlugin`)**:
+  - Volle Zwei-Wege-WebSocket-Integration mit TrainMaster (`ws://localhost:3001`).
+  - **7 Aktionen**: Gleisstrom (Power mit Live-Status ⚡), Not-Aus (🛑), Automatik-Modus (🤖), Lokomotive auswählen (mit Live-Geschwindigkeit & Richtung 🚂), Lok-Funktionen (F0–F28 mit Statusrückmeldung 💡/🔊), Fahrtrichtungsumkehr (🔄), Weichen stellen (🔀).
+  - Automatische 1-Klick-Installation via `install_streamdeck_plugin.bat` direkt in `%APPDATA%\Elgato\StreamDeck\Plugins\`.
+  - **3D-Druck-Konsole für Stream Deck XL + Brimford Drehregler**: Angewinkelte Pult-Halterung (`sd_xl_puck_console.stl` in `hardware/enclosure/streamdeck_xl_dock/`) mit integrierter Kabelführung.
+  - Dokumentation: [`docs/STREAMDECK_STELLPULT_KONZEPT.md`](docs/STREAMDECK_STELLPULT_KONZEPT.md).
 
 ---
 

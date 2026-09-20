@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Lokomotive auswählen</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #d8d8d8; background: #2d2d2d; padding: 12px; margin: 0; }
+    .sdpi-item { margin-bottom: 12px; }
+    .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
+    select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Lokomotive</div>
+    <select id="loco-select">
+      <option value="">(Aktive Lokomotive)</option>
+    </select>
+  </div>
+  <p style="color:#888;font-size:10px;">Tipp: Wenn du "(Aktive Lokomotive)" wählst, wechselt diese Taste beim Drücken zur nächsten Lok im Fuhrpark durch.</p>
+
+  <script>
+    let websocket = null;
+    let uuid = null;
+    let actionInfo = {};
+
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      actionInfo = JSON.parse(inActionInfo);
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = function() {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        loadSettings();
+      };
+
+      // Load available locos from TrainMaster backend
+      fetchLocos();
+    }
+
+    function loadSettings() {
+      const settings = actionInfo.payload?.settings || {};
+      const sel = document.getElementById("loco-select");
+      if (settings.locoId) sel.value = settings.locoId;
+
+      sel.addEventListener("change", () => {
+        saveSettings({ locoId: sel.value });
+      });
+    }
+
+    function fetchLocos() {
+      const ws = new WebSocket("ws://localhost:3001");
+      ws.onmessage = function(evt) {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === "SYNC_STATE" && msg.payload?.locos) {
+            const sel = document.getElementById("loco-select");
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">(Aktive Lokomotive durchwechseln)</option>';
+            msg.payload.locos.forEach(l => {
+              const opt = document.createElement("option");
+              opt.value = l.id;
+              opt.textContent = `${l.name} (DCC #${l.dccAddress})`;
+              sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+            ws.close();
+          }
+        } catch(_) {}
+      };
+    }
+
+    function saveSettings(settings) {
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          event: "setSettings",
+          context: uuid,
+          payload: settings
+        }));
+      }
+    }
+  </script>
+</body>
+</html>
