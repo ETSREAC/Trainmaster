@@ -113,6 +113,17 @@ The browser will open automatically at:
 
 ---
 
+## 🎮 Hardware & 3D Printing
+
+TrainMaster includes complete open-source designs for dedicated wireless hardware:
+- **[TrainMaster ThrottleOne Concept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 handheld controller with 1.54" IPS display, mechanical switches, and LED status halo.
+- **[Bill of Materials (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Complete part list with exact AliExpress search terms (~27 € total).
+- **[3D Print & Enclosure Guide](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md)**: FDM printing tolerances, Bambu Studio settings, and assembly guide.
+- **[3D Printable Models (STL)](hardware/enclosure/stl/)**: Ready-to-slice STL models (`throttle_top.stl`, `throttle_bottom.stl`, `keycap_stop.stl`, `keycap_function.stl`) and [parametric OpenSCAD file](hardware/enclosure/TrainMaster_ThrottleOne.scad).
+- **[SpotWIO Wireless Feedback](docs/RUECKMELDE_KONZEPT_KABELLOS.md)**: Zero-cable optical / Hall track occupancy sensors over ESP-NOW.
+
+---
+
 ## 📝 Version History
 
 For release details and changes, see [**CHANGELOG.md**](CHANGELOG.md).

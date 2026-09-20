@@ -113,6 +113,17 @@ Der Browser öffnet sich automatisch unter:
 
 ---
 
+## 🎮 Hardware & 3D-Druck
+
+TrainMaster enthält vollständige Open-Source-Hardware-Designs für kabellose Komponenten:
+- **[TrainMaster ThrottleOne Konzept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 Handregler mit 1.54" IPS-Farbdisplay, mechanischen Switches und LED-Status-Halo.
+- **[Einkaufsliste / Stückliste (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Komplette Teileliste mit exakten AliExpress-Suchbegriffen (~27 € Gesamtpreis).
+- **[3D-Druck & Gehäuse-Leitfaden](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md)**: FDM-Drucktoleranzen, Bambu Studio Einstellungen und 5-Minuten-Montageanleitung.
+- **[Druckfertige 3D-Modelle (STL)](hardware/enclosure/stl/)**: Sofort druckbare STL-Dateien (`throttle_top.stl`, `throttle_bottom.stl`, `keycap_stop.stl`, `keycap_function.stl`) sowie [parametrisches OpenSCAD-Modell](hardware/enclosure/TrainMaster_ThrottleOne.scad).
+- **[SpotWIO Kabellose Rückmelder](docs/RUECKMELDE_KONZEPT_KABELLOS.md)**: Null-Kabel-Gleisbesetztmelder mit Hall-/Opto-Sensoren via ESP-NOW.
+
+---
+
 ## 📝 Versionsverlauf
 
 Details zu allen Releases und Neuerungen findest du in der [**CHANGELOG.md**](CHANGELOG.md).

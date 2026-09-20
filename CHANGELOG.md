@@ -8,6 +8,21 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ## [Unreleased]
 
+### 🎮 Hardware & 3D-Druck (TrainMaster ThrottleOne Handregler)
+- **Druckfertiges 3D-Gehäuse (v2 Architektur)**:
+  - **Massiver Drehregler-Montagesockel**: Stabiler 26mm Mitteldom mit 7.2mm Kernbohrung und M7-Mutter-Klemmung für den EC11-Encoder. Kein offenes Loch mehr – der Encoder sitzt bombenfest.
+  - **Status-Halo Lichtkanal**: Umlaufender Ringschlitz (34–42 mm) um den 33mm Drehknopf, getragen von 4 diagonalen Versteifungsstegen und 50.4 mm rückseitiger Tasche für den WS2812B 12-Bit LED-Ring.
+  - **Kollisionsfreie Innenraum-Zonierung (34 mm Gesamthöhe, 29.2 mm Hohlraum)**:
+    - **Obere Zone**: ESP32-S3 DevKitC auf integrierten Standoffs unter dem 1.54" Display (über 20 mm freier vertikaler Spielraum für Leitungen).
+    - **Mittlere Zone**: EC11-Encoder und MTS-103 Kippschalter mit komplett freiem Verkabelungsraum darunter.
+    - **Untere Zone**: 18650 Akkuhalter mittig in Führungsschienen, flankiert von den MX-Tastatur-Switches (26 mm freier Mittelkorridor).
+  - **FDM-Drucktoleranzen ab Werk**: MX Plate Mount (14.10 × 14.10 mm, 1.5 mm Kantenstärke), M3 Einschmelzgewinde-Bohrungen (4.20 mm Schmelzpassung), USB-C Schacht (11.0 × 6.0 mm mit Fase).
+- **Dateien & Tools**:
+  - Druckfertige STLs in [`hardware/enclosure/stl/`](hardware/enclosure/stl/): `throttle_top.stl`, `throttle_bottom.stl`, `keycap_function.stl`, `keycap_stop.stl`.
+  - Parametrisches CAD-Modell: [`hardware/enclosure/TrainMaster_ThrottleOne.scad`](hardware/enclosure/TrainMaster_ThrottleOne.scad).
+  - Automatischer STL-Generator: [`scripts/generate_enclosure.py`](scripts/generate_enclosure.py).
+  - Umfassende Druck- und Montageanleitung: [`docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md`](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md).
+
 ---
 
 ## [1.3.1] - 2026-09-18
