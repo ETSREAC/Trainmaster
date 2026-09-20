@@ -28,14 +28,13 @@ function connectElgatoStreamDeckSocket(inPort, inPluginUUID, inRegisterEvent, in
   sdSocket = new WebSocket(`ws://127.0.0.1:${inPort}`);
 
   sdSocket.onopen = function () {
-    // Register plugin with Stream Deck
     const registerJson = {
       event: inRegisterEvent,
       uuid: inPluginUUID
     };
     sdSocket.send(JSON.stringify(registerJson));
     console.log("[StreamDeck] Registered successfully with Stream Deck host");
-    
+
     // Connect to TrainMaster backend
     connectTrainMaster();
   };
@@ -86,7 +85,6 @@ function handleStreamDeckEvent(msg) {
   }
 }
 
-// Helper to send events back to Stream Deck host
 function sendToStreamDeck(event, context, payload = {}) {
   if (sdSocket && sdSocket.readyState === WebSocket.OPEN) {
     sdSocket.send(JSON.stringify({ event, context, payload }));
@@ -148,11 +146,15 @@ function sendToTrainMaster(type, payload = {}) {
 
 function handleTrainMasterMessage(msg) {
   switch (msg.type) {
+    // Initialer Zustand beim Verbinden
+    case "INITIAL_STATE":
     case "SYNC_STATE":
       if (msg.payload) {
-        tmState.trackPower = !!msg.payload.status?.trackPower;
-        tmState.emergencyStop = !!msg.payload.status?.emergencyStop;
-        tmState.automaticMode = !!msg.payload.status?.automaticMode;
+        if (msg.payload.status) {
+          tmState.trackPower = !!msg.payload.status.trackPower;
+          tmState.emergencyStop = !!msg.payload.status.emergencyStop;
+          tmState.automaticMode = !!msg.payload.status.automaticMode;
+        }
         tmState.locos = msg.payload.locos || [];
         tmState.turnouts = msg.payload.turnouts || [];
         if (!tmState.activeLocoId && tmState.locos.length > 0) {
@@ -162,53 +164,63 @@ function handleTrainMasterMessage(msg) {
       updateAllKeys();
       break;
 
-    case "POWER_CHANGED":
-      tmState.trackPower = !!msg.payload?.active;
+    // Status-Änderungen (Gleisstrom, Not-Aus, Automatik)
+    case "STATUS_UPDATE":
+      if (msg.payload) {
+        if (msg.payload.trackPower !== undefined) {
+          tmState.trackPower = !!msg.payload.trackPower;
+        }
+        if (msg.payload.emergencyStop !== undefined) {
+          tmState.emergencyStop = !!msg.payload.emergencyStop;
+        }
+        if (msg.payload.automaticMode !== undefined) {
+          tmState.automaticMode = !!msg.payload.automaticMode;
+        }
+      }
       updateKeysByAction("com.etsreac.trainmaster.power");
-      break;
-
-    case "EMERGENCY_STOP_TRIGGERED":
-      tmState.emergencyStop = true;
       updateKeysByAction("com.etsreac.trainmaster.estop");
-      break;
-
-    case "RESUME_STOP_TRIGGERED":
-      tmState.emergencyStop = false;
-      updateKeysByAction("com.etsreac.trainmaster.estop");
-      break;
-
-    case "AUTOMATIC_MODE_CHANGED":
-      tmState.automaticMode = !!msg.payload?.active;
       updateKeysByAction("com.etsreac.trainmaster.automode");
       break;
 
-    case "LOCO_SPEED_CHANGED":
-      if (msg.payload && msg.payload.locoId) {
-        const loco = tmState.locos.find(l => l.id === msg.payload.locoId);
-        if (loco) {
-          if (msg.payload.speed !== undefined) loco.speed = msg.payload.speed;
-          if (msg.payload.direction) loco.direction = msg.payload.direction;
+    // Lokomotiven-Änderungen
+    case "LOCO_UPDATED":
+      if (msg.payload && msg.payload.id) {
+        const idx = tmState.locos.findIndex(l => l.id === msg.payload.id);
+        if (idx >= 0) tmState.locos[idx] = msg.payload;
+        else tmState.locos.push(msg.payload);
+
+        if (!tmState.activeLocoId) {
+          tmState.activeLocoId = msg.payload.id;
         }
       }
       updateKeysByAction("com.etsreac.trainmaster.locoselect");
       updateKeysByAction("com.etsreac.trainmaster.locodir");
-      break;
-
-    case "LOCO_FUNCTION_CHANGED":
-      if (msg.payload && msg.payload.locoId) {
-        const loco = tmState.locos.find(l => l.id === msg.payload.locoId);
-        if (loco) {
-          loco.functions = loco.functions || {};
-          loco.functions[msg.payload.functionIndex] = msg.payload.active;
-        }
-      }
       updateKeysByAction("com.etsreac.trainmaster.locofunc");
       break;
 
-    case "TURNOUT_CHANGED":
+    case "LOCO_DELETED":
+      if (msg.payload && msg.payload.locoId) {
+        tmState.locos = tmState.locos.filter(l => l.id !== msg.payload.locoId);
+        if (tmState.activeLocoId === msg.payload.locoId) {
+          tmState.activeLocoId = tmState.locos.length > 0 ? tmState.locos[0].id : null;
+        }
+      }
+      updateAllKeys();
+      break;
+
+    // Weichen-Änderungen
+    case "TURNOUT_UPDATED":
+      if (msg.payload && msg.payload.id) {
+        const idx = tmState.turnouts.findIndex(t => t.id === msg.payload.id);
+        if (idx >= 0) tmState.turnouts[idx] = msg.payload;
+        else tmState.turnouts.push(msg.payload);
+      }
+      updateKeysByAction("com.etsreac.trainmaster.turnout");
+      break;
+
+    case "TURNOUT_DELETED":
       if (msg.payload && msg.payload.turnoutId) {
-        const t = tmState.turnouts.find(item => item.id === msg.payload.turnoutId);
-        if (t) t.state = msg.payload.state;
+        tmState.turnouts = tmState.turnouts.filter(t => t.id !== msg.payload.turnoutId);
       }
       updateKeysByAction("com.etsreac.trainmaster.turnout");
       break;
@@ -234,37 +246,54 @@ function handleKeyDown(context, action, settings) {
   const activeLoco = getActiveLoco();
 
   switch (action) {
-    case "com.etsreac.trainmaster.power":
-      sendToTrainMaster("SET_POWER", { active: !tmState.trackPower });
+    case "com.etsreac.trainmaster.power": {
+      // Optimistischer Wechsel für sofortiges Feedback
+      const nextPower = !tmState.trackPower;
+      tmState.trackPower = nextPower;
+      updateKeysByAction("com.etsreac.trainmaster.power");
+      sendToTrainMaster("SET_POWER", { active: nextPower });
       break;
+    }
 
-    case "com.etsreac.trainmaster.estop":
-      if (tmState.emergencyStop) {
-        sendToTrainMaster("RESUME_STOP");
-      } else {
+    case "com.etsreac.trainmaster.estop": {
+      const nextStop = !tmState.emergencyStop;
+      tmState.emergencyStop = nextStop;
+      updateKeysByAction("com.etsreac.trainmaster.estop");
+      if (nextStop) {
         sendToTrainMaster("EMERGENCY_STOP");
+      } else {
+        sendToTrainMaster("RESUME_STOP");
       }
       break;
+    }
 
-    case "com.etsreac.trainmaster.automode":
-      sendToTrainMaster("TOGGLE_AUTOMATIC_MODE", { active: !tmState.automaticMode });
+    case "com.etsreac.trainmaster.automode": {
+      const nextAuto = !tmState.automaticMode;
+      tmState.automaticMode = nextAuto;
+      updateKeysByAction("com.etsreac.trainmaster.automode");
+      sendToTrainMaster("TOGGLE_AUTOMATIC_MODE", { active: nextAuto });
       break;
+    }
 
-    case "com.etsreac.trainmaster.locoselect":
+    case "com.etsreac.trainmaster.locoselect": {
       if (settings.locoId) {
         tmState.activeLocoId = settings.locoId;
       } else if (tmState.locos.length > 0) {
-        // Cycle through locomotives
-        const idx = tmState.locos.findIndex(l => l.id === tmState.activeLocoId);
-        const nextIdx = (idx + 1) % tmState.locos.length;
+        // Durch alle Loks durchwechseln
+        const curIdx = tmState.locos.findIndex(l => l.id === tmState.activeLocoId);
+        const nextIdx = (curIdx + 1) % tmState.locos.length;
         tmState.activeLocoId = tmState.locos[nextIdx].id;
       }
       updateAllKeys();
       break;
+    }
 
-    case "com.etsreac.trainmaster.locodir":
+    case "com.etsreac.trainmaster.locodir": {
       if (activeLoco) {
         const newDir = activeLoco.direction === "FWD" ? "REV" : "FWD";
+        activeLoco.direction = newDir;
+        updateKeysByAction("com.etsreac.trainmaster.locodir");
+        updateKeysByAction("com.etsreac.trainmaster.locoselect");
         sendToTrainMaster("SET_LOCO_SPEED", {
           locoId: activeLoco.id,
           speed: activeLoco.speed,
@@ -272,11 +301,15 @@ function handleKeyDown(context, action, settings) {
         });
       }
       break;
+    }
 
-    case "com.etsreac.trainmaster.locofunc":
+    case "com.etsreac.trainmaster.locofunc": {
       if (activeLoco) {
         const funcIdx = parseInt(settings.funcIndex !== undefined ? settings.funcIndex : 0, 10);
-        const cur = !!activeLoco.functions?.[funcIdx];
+        activeLoco.functions = activeLoco.functions || {};
+        const cur = !!activeLoco.functions[funcIdx];
+        activeLoco.functions[funcIdx] = !cur;
+        updateKeysByAction("com.etsreac.trainmaster.locofunc");
         sendToTrainMaster("SET_LOCO_FUNCTION", {
           locoId: activeLoco.id,
           functionIndex: funcIdx,
@@ -284,17 +317,21 @@ function handleKeyDown(context, action, settings) {
         });
       }
       break;
+    }
 
-    case "com.etsreac.trainmaster.turnout":
+    case "com.etsreac.trainmaster.turnout": {
       if (settings.turnoutId) {
         const t = tmState.turnouts.find(item => item.id === settings.turnoutId);
         const newState = (t && t.state === "STRAIGHT") ? "TURNOUT" : "STRAIGHT";
+        if (t) t.state = newState;
+        updateKeysByAction("com.etsreac.trainmaster.turnout");
         sendToTrainMaster("SET_TURNOUT", {
           turnoutId: settings.turnoutId,
           state: newState
         });
       }
       break;
+    }
   }
 }
 
@@ -327,7 +364,7 @@ function updateKey(context) {
   switch (action) {
     case "com.etsreac.trainmaster.power": {
       const on = tmState.trackPower;
-      const title = on ? "⚡ STROM\nAN" : "⚡ STROM\nAUS";
+      const title = on ? "STROM\nAN" : "STROM\nAUS";
       const bg = on ? "#15803d" : "#334155";
       setKeyTitle(context, title);
       setKeyImage(context, createSvgIcon(bg, on ? "#fde047" : "#94a3b8", "⚡"));
@@ -336,7 +373,7 @@ function updateKey(context) {
 
     case "com.etsreac.trainmaster.estop": {
       const active = tmState.emergencyStop;
-      const title = active ? "🛑 NOT-AUS\nAKTIV!" : "🛑 NOT-AUS";
+      const title = active ? "HALT\nAKTIV!" : "NOT-AUS";
       const bg = active ? "#dc2626" : "#7f1d1d";
       setKeyTitle(context, title);
       setKeyImage(context, createSvgIcon(bg, "#ffffff", "🛑"));
@@ -345,7 +382,7 @@ function updateKey(context) {
 
     case "com.etsreac.trainmaster.automode": {
       const on = tmState.automaticMode;
-      const title = on ? "🤖 AUTO\nAKTIV" : "🤖 AUTO\nAUS";
+      const title = on ? "AUTO\nAKTIV" : "AUTO\nAUS";
       const bg = on ? "#4338ca" : "#334155";
       setKeyTitle(context, title);
       setKeyImage(context, createSvgIcon(bg, on ? "#a5b4fc" : "#94a3b8", "🤖"));
@@ -358,22 +395,23 @@ function updateKey(context) {
         : activeLoco;
 
       if (!targetLoco) {
-        setKeyTitle(context, "Keine Lok");
+        setKeyTitle(context, "Keine Lok\nim Depot");
+        setKeyImage(context, createSvgIcon("#1e293b", "#64748b", "🚂"));
         return;
       }
 
       const isSelected = activeLoco && activeLoco.id === targetLoco.id;
       const dirArrow = targetLoco.direction === "FWD" ? "▲" : "▼";
-      const title = `${targetLoco.name}\n${dirArrow} ${targetLoco.speed}\nDCC #${targetLoco.dccAddress}`;
-      const bg = isSelected ? "#1e3a8a" : "#1e293b";
+      const title = `${targetLoco.name}\n${dirArrow} ${targetLoco.speed}\n#${targetLoco.dccAddress}`;
+      const bg = isSelected ? "#1d4ed8" : "#1e293b";
       setKeyTitle(context, title);
-      setKeyImage(context, createSvgIcon(bg, isSelected ? "#60a5fa" : "#94a3b8", "🚂", isSelected));
+      setKeyImage(context, createSvgIcon(bg, isSelected ? "#93c5fd" : "#94a3b8", "🚂", isSelected));
       break;
     }
 
     case "com.etsreac.trainmaster.locodir": {
       const dir = activeLoco ? activeLoco.direction : "FWD";
-      const title = dir === "FWD" ? "▲ VORWÄRTS" : "▼ RÜCKWÄRTS";
+      const title = dir === "FWD" ? "▲ VOR" : "▼ ZURÜCK";
       const bg = dir === "FWD" ? "#1e40af" : "#9a3412";
       setKeyTitle(context, title);
       setKeyImage(context, createSvgIcon(bg, "#ffffff", dir === "FWD" ? "▲" : "▼"));
@@ -394,7 +432,7 @@ function updateKey(context) {
 
     case "com.etsreac.trainmaster.turnout": {
       const t = tmState.turnouts.find(item => item.id === settings.turnoutId);
-      const name = t ? t.name : (settings.turnoutId || "Weiche");
+      const name = t ? (t.name || t.id) : (settings.turnoutId || "Weiche");
       const state = t ? t.state : "STRAIGHT";
       const title = `${name}\n[${state === "STRAIGHT" ? "Gerade" : "Abzweig"}]`;
       const bg = state === "STRAIGHT" ? "#334155" : "#7c2d12";
@@ -405,7 +443,6 @@ function updateKey(context) {
   }
 }
 
-// Generate an SVG Data-URL for crisp Stream Deck key backgrounds
 function createSvgIcon(bgColor, fgColor, iconChar, isBordered = false) {
   const borderSvg = isBordered ? `<rect x="4" y="4" width="136" height="136" rx="24" fill="none" stroke="#60a5fa" stroke-width="8"/>` : "";
   const svg = `

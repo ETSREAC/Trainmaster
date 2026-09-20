@@ -1,6 +1,6 @@
 import { wsClient } from './wsClient.js';
 import { TrackCanvas } from './components/TrackCanvas.js';
-import { Throttle } from './components/Throttle.js';
+import { Throttle, getActiveLoco, cycleActiveLoco } from './components/Throttle.js';
 import { SensorMonitor } from './components/SensorMonitor.js';
 import { BBTMonitor } from './components/BBTMonitor.js';
 import { SettingsTab } from './components/SettingsTab.js';
@@ -169,8 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
   btnEstop?.addEventListener('click', toggleEstop);
 
   // --- Globale Tastatur- & Macropad-Steuerung (USB Rotary Knobs & Keypads) ---
-  let activeLocoIndex = 0;
-
   window.addEventListener('keydown', (e) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
@@ -191,16 +189,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const locos = wsClient.locos;
-    if (!locos || locos.length === 0) return;
-
-    if (activeLocoIndex >= locos.length) activeLocoIndex = 0;
-    const currentLoco = locos[activeLocoIndex];
+    const currentLoco = getActiveLoco();
+    if (!currentLoco) return;
 
     // Tab: Nächste Lokomotive auswählen
     if (e.code === 'Tab') {
       e.preventDefault();
-      activeLocoIndex = (activeLocoIndex + 1) % locos.length;
+      cycleActiveLoco();
       return;
     }
 

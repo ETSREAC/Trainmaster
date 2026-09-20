@@ -1,6 +1,27 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 
+export let activeLocoId: string | null = null;
+
+export function getActiveLoco(): Locomotive | null {
+  if (!wsClient.locos || wsClient.locos.length === 0) return null;
+  const found = wsClient.locos.find((l) => l.id === activeLocoId);
+  return found || wsClient.locos[0];
+}
+
+export function setActiveLocoId(id: string | null): void {
+  activeLocoId = id;
+  wsClient.notify();
+}
+
+export function cycleActiveLoco(): void {
+  if (!wsClient.locos || wsClient.locos.length === 0) return;
+  const curIdx = wsClient.locos.findIndex((l) => l.id === activeLocoId);
+  const nextIdx = (curIdx + 1) % wsClient.locos.length;
+  activeLocoId = wsClient.locos[nextIdx].id;
+  wsClient.notify();
+}
+
 export class Throttle {
   private container: HTMLElement;
 
@@ -195,14 +216,27 @@ export class Throttle {
 
   private createLocoCard(loco: Locomotive): HTMLElement {
     const card = document.createElement('div');
-    card.className = 'throttle-card';
+    const isActive = getActiveLoco()?.id === loco.id;
+    card.className = `throttle-card ${isActive ? 'active-throttle' : ''}`;
+    if (isActive) {
+      card.style.borderColor = '#3b82f6';
+      card.style.boxShadow = '0 0 16px rgba(59, 130, 246, 0.4)';
+    }
+
+    card.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
+      setActiveLocoId(loco.id);
+    });
 
     // Header mit Name, Typ, DCC-Adresse und Bearbeiten-Stift
     const header = document.createElement('div');
     header.className = 'throttle-header';
     header.innerHTML = `
       <div>
-        <div class="loco-name">🚂 ${loco.name}</div>
+        <div class="loco-name">
+          🚂 ${loco.name}
+          ${isActive ? '<span style="background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;">⭐ AKTIV</span>' : ''}
+        </div>
         <span style="font-size:12px;color:#8b949e;">Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
