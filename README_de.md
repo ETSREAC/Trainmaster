@@ -117,6 +117,7 @@ Der Browser öffnet sich automatisch unter:
 
 TrainMaster enthält vollständige Open-Source-Hardware-Designs für kabellose Komponenten:
 - **[TrainMaster ThrottleOne Konzept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 Handregler mit 1.54" IPS-Farbdisplay, mechanischen Switches und LED-Status-Halo.
+- **[CAD Blueprint & Maßzeichnung](docs/BLUEPRINT_THROTTLEONE_CAD.md)**: Exakte technische Orthogonalzeichnungen, 14° Keilkopfwinkel und Schritt-für-Schritt CAD-Anleitung zum Nachbau des Mockups.
 - **[Einkaufsliste / Stückliste (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Komplette Teileliste mit exakten AliExpress-Suchbegriffen (~27 € Gesamtpreis).
 - **[3D-Druck & Gehäuse-Leitfaden](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md)**: FDM-Drucktoleranzen, Bambu Studio Einstellungen und 5-Minuten-Montageanleitung.
 - **[Druckfertige 3D-Modelle (STL)](hardware/enclosure/stl/)**: Sofort druckbare STL-Dateien (`throttle_top.stl`, `throttle_bottom.stl`, `keycap_stop.stl`, `keycap_function.stl`) sowie [parametrisches OpenSCAD-Modell](hardware/enclosure/TrainMaster_ThrottleOne.scad).
