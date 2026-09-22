@@ -41,14 +41,10 @@
 - **Precision Braking with BBT (Block Brake Timer)**: Calculates and adapts dynamic deceleration curves between `enter` and `in` feedback sensors.
 - **Ghost Train Detection**: Detects unauthorized occupancy on unreserved blocks and triggers an immediate emergency stop.
 
-### 🔌 Multi-Command Station & ESP32 TrainMasterNode Firmware
+### 🔌 Multi-Command Station & Hardware Integration
 - **Z21 / DR5000 / YD9001**: High-speed UDP communication with Roco Z21-compatible command stations.
-- **DCC-EX**: Serial communication over USB/COM port.
-- **ESP32 TrainMasterNode**: Open-source firmware for decentralized nodes:
-  - Turnout control via PCA9685 16-channel servo drivers with smooth easing curves.
-  - Track occupancy detection via MCP23017 I2C port expanders.
-  - Prototype-accurate control of WS2812B NeoPixel signal LEDs.
-  - Integrated WiFiManager with web dashboard and mDNS discovery (`trainmasternode.local`).
+- **DCC-EX**: Serial communication over USB/COM port as well as TCP network connection.
+- **WIO / UDP**: Universal network protocol support for distributed occupancy sensors and turnout servos.
 
 ---
 
@@ -69,9 +65,9 @@ TrainMaster/
 │   │   ├── hal/                # Z21, DCC-EX, WIO/UDP, Virtual Simulator
 │   │   └── storage/            # JSON persistence for track plans, locos & routes
 │   └── data/                   # Track plan & fleet database
-├── firmware/                   # ESP32 TrainMasterNode firmware
-│   └── TrainMasterNode/        # PlatformIO / Arduino IDE source & docs
-├── docs/                       # In-depth wiring & hardware guides
+├── hardware/                   # 3D printable designs (e.g. Stream Deck XL Console)
+├── integrations/               # External controller plugins (e.g. Elgato Stream Deck Plugin)
+├── docs/                       # In-depth guides & documentation
 ├── STEERING.md                 # Project release & versioning policy
 ├── CHANGELOG.md                # Chronological change log
 └── SPECIFICATION.md            # Technical specification
@@ -113,16 +109,11 @@ The browser will open automatically at:
 
 ---
 
-## 🎮 Hardware & 3D Printing
+## 🎮 Hardware & Physical Controls
 
-TrainMaster includes complete open-source designs for dedicated wireless hardware:
-- **[Stream Deck XL & Rotary Controller Guide](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Turn your Elgato Stream Deck XL + wireless rotary knob into a model railroad control desk with live locomotive icons, speed, and turnout feedback (Plugin in `integrations/streamdeck/` + 3D printable console mount in `hardware/enclosure/streamdeck_xl_dock/`).
-- **[TrainMaster ThrottleOne Concept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 handheld controller with 1.54" IPS display, mechanical switches, and LED status halo.
-- **[CAD Blueprint & Dimension Guide](docs/BLUEPRINT_THROTTLEONE_CAD.md)**: Exact orthogonal drawings, 14° wedge head angles, and step-by-step CAD tutorial matching the reference mockup.
-- **[Bill of Materials (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Complete part list with exact AliExpress search terms (~27 € total).
-- **[3D Print & Enclosure Guide](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md)**: FDM printing tolerances, Bambu Studio settings, and assembly guide.
-- **[3D Printable Models (STL)](hardware/enclosure/stl/)**: Ready-to-slice STL models (`throttle_top.stl`, `throttle_bottom.stl`, `keycap_stop.stl`, `keycap_function.stl`) and [parametric OpenSCAD file](hardware/enclosure/TrainMaster_ThrottleOne.scad).
-- **[SpotWIO Wireless Feedback](docs/RUECKMELDE_KONZEPT_KABELLOS.md)**: Zero-cable optical / Hall track occupancy sensors over ESP-NOW.
+TrainMaster features native hardware integrations for physical control desks:
+- **[Stream Deck XL & Rotary Controller Guide](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Turn your Elgato Stream Deck XL + wireless rotary knob into a model railroad control desk with live locomotive icons, speed, and turnout feedback, plus an interactive 7x4 live track plan viewport with D-pad navigation and direct turnout/signal switching (Plugin in `integrations/streamdeck/` + 3D printable console mount in `hardware/enclosure/streamdeck_xl_dock/`).
+- **Global Keyboard & USB Macropad Control**: Full support for standard USB knob keypads and PC keyboard shortcuts to control speed steps, direction, emergency stop, and locomotive functions.
 
 ---
 

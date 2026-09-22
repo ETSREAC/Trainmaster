@@ -1321,57 +1321,67 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .speed-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 16px;
-  border-radius: 8px;
+  height: 18px;
+  border-radius: 9px;
   background: var(--bg-tertiary);
   outline: none;
   border: 1px solid var(--border-color);
   touch-action: none;
   margin: 6px 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .speed-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: #58a6ff;
-  cursor: pointer;
-  box-shadow: 0 0 14px rgba(88, 166, 255, 0.7);
+  cursor: grab;
+  box-shadow: 0 0 14px rgba(88, 166, 255, 0.75);
   border: 3px solid #ffffff;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
   touch-action: none;
 }
 
-.speed-slider::-webkit-slider-thumb:hover,
-.speed-slider::-webkit-slider-thumb:active {
-  transform: scale(1.18);
-  box-shadow: 0 0 20px rgba(88, 166, 255, 0.9);
+.speed-slider:hover::-webkit-slider-thumb,
+.speed-slider.dragging::-webkit-slider-thumb,
+.speed-slider:active::-webkit-slider-thumb {
+  transform: scale(1.16);
+  box-shadow: 0 0 22px rgba(88, 166, 255, 0.95);
+  cursor: grabbing;
 }
 
 .speed-slider::-moz-range-thumb {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: #58a6ff;
-  cursor: pointer;
-  box-shadow: 0 0 14px rgba(88, 166, 255, 0.7);
+  cursor: grab;
+  box-shadow: 0 0 14px rgba(88, 166, 255, 0.75);
   border: 3px solid #ffffff;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
   touch-action: none;
 }
 
-.speed-slider::-moz-range-thumb:hover,
-.speed-slider::-moz-range-thumb:active {
-  transform: scale(1.18);
-  box-shadow: 0 0 20px rgba(88, 166, 255, 0.9);
+.speed-slider:hover::-moz-range-thumb,
+.speed-slider.dragging::-moz-range-thumb,
+.speed-slider:active::-moz-range-thumb {
+  transform: scale(1.16);
+  box-shadow: 0 0 22px rgba(88, 166, 255, 0.95);
+  cursor: grabbing;
 }
 
 .preset-buttons {

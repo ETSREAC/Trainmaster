@@ -42,6 +42,8 @@ Wir haben ein natives **Elgato Stream Deck Plugin** (`com.etsreac.trainmaster.sd
 9. **➖ Bremsen (-)**: Verringert die Fahrstufe der aktiven Lok (-1, -5, -10, -20 im Property Inspector wählbar) mit dynamischer Live-Tachoanzeige `-5 [45]`.
 10. **⏹️ Halt (0 km/h)**: Sofortiger Zughalt der aktiven Lok auf Fahrstufe 0 (leuchtet rot bei Fahrt, grau bei Stillstand `HALT [0]`).
 11. **🚀 Geschwindigkeits-Preset**: Springt sofort auf vMin (Rangiergang), vMid (Reisefahrt), vMax (Höchstgeschwindigkeit) oder benutzerdefinierte Stufen (50, 100, 128). Taste leuchtet blau auf, wenn der Zug exakt dieses Tempo fährt!
+12. **🧭 Gleisplan Navigation (D-Pad)**: Verschiebt das Sichtfenster des Live-Gleisplans auf dem Stream Deck (Hoch ⬆️, Runter ⬇️, Links ⬅️, Rechts ➡️ oder Home 🏠). Zeigt die aktuellen Koordinaten live an.
+13. **🗺️ Gleisplan Kachel (Live-Gitter)**: Stellt eine Kachel des echten Modellbahn-Gleisplans auf dem Tastendisplay dar. Erkennt die Position im Raster automatisch! Zeigt Gleise, Weichenstellung, Signale mit Signalbegriff (🔴 HP0, 🟢 HP1, 🟡 HP2), Rückmelder und belegte Blöcke. **Klick auf eine Weiche schaltet sie sofort um; Klick auf ein Signal wechselt den Signalbegriff!**
 
 ---
 
@@ -73,6 +75,28 @@ Für alle, die keinen externen Drehregler anschließen möchten, bieten die 4 Fa
 │ 💡 F8 FRN│ 🚂 F9 KRV│ 🗣️ F10ANS│ 🔔 F3 GLC│ 🔀 W 5   │ 🔀 W 6   │ 🔀 W 7   │ 🔀 W 8   │ <-- Weichen & Sound
 └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
+
+### Layout C: Interaktives Gleisbildstellpult (Live-Gleisplan mit D-Pad-Navigation)
+Verwandelt dein Stream Deck XL in ein vollinteraktives Fahrdienstleiter-Pult:
+```text
+┌──────────┬──────────────────────────────────────────────────────────────────────┐
+│ Spalte 1 │ Spalte 2 bis 8: Interaktive Live-Gleisplan-Kacheln (7 × 4 Viewport)  │
+├──────────┼──────┬──────┬──────┬──────┬──────┬──────┬────────────────────────────┤
+│  ▲ HOCH  │  ══  │  ══  │  🔀  │  ══  │  🟢  │  ══  │  [Kachel (6, 0)]            │
+├──────────┼──────┼──────┼──────┼──────┼──────┼──────┼────────────────────────────┤
+│  ▼ RUNTER│  ║   │      │  ║   │      │      │  ║   │  [Kachel (6, 1)]            │
+├──────────┼──────┼──────┼──────┼──────┼──────┼──────┼────────────────────────────┤
+│  ◀ LINKS │  ╔══ │  ══  │  ╝   │  ══  │  🔴  │  ══  │  (Block belegt 🔴 ICE 1)    │
+├──────────┼──────┼──────┼──────┼──────┼──────┼──────┼────────────────────────────┤
+│  ▶ RECHTS│  [X,Y] Koordinaten & Weichen schalten per Fingertipp                 │
+└──────────┴──────────────────────────────────────────────────────────────────────┘
+```
+- **Spalte 1 (links)**: Belege alle 4 Tasten mit **`Gleisplan Navigation (D-Pad)`**. Im Auto-Modus sind sie automatisch als **Hoch (Zeile 0)**, **Runter (Zeile 1)**, **Links (Zeile 2)** und **Rechts (Zeile 3)** konfiguriert.
+- **Spalten 2 bis 8 (28 Tasten)**: Belege alle restlichen Tasten mit **`Gleisplan Kachel (Live)`**. Das Plugin erkennt die Spalten und Zeilen automatisch und projiziert den passenden Gleisausschnitt darauf.
+- **Interaktivität**:
+  - Tippe auf eine **Weiche**: Die Weiche schaltet sofort auf deiner Modellbahn um und wechselt ihre Farbe live auf dem Tastendisplay!
+  - Tippe auf ein **Signal**: Schaltet den Signalbegriff durch (Hp0 ⇄ Hp1 ⇄ Hp2).
+  - Tippe auf einen **Block**: Wählt den darin befindlichen Zug als aktive Lokomotive aus.
 
 ---
 

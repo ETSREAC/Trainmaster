@@ -41,14 +41,10 @@
 - **Millimetergenaues Anhalten mit BBT (Block Brake Timer)**: Berechnet und adaptiert dynamische Bremsrampen zwischen `enter`- und `in`-Meldern.
 - **Geisterzug-Erkennung**: Erkennt unangekündigte Belegungen und löst sofortigen Nothalt aus.
 
-### 🔌 Multi-Zentralen & ESP32 TrainMasterNode Firmware
+### 🔌 Multi-Zentralen & Hardware-Schnittstellen
 - **Z21 / DR5000 / YD9001**: Schnelle UDP-Kommunikation mit Roco Z21-kompatiblen Zentralen.
-- **DCC-EX**: Serielle Steuerung über USB/COM-Port.
-- **ESP32 TrainMasterNode**: Eigene Open-Source Firmware für dezentrale Knoten:
-  - Steuerung von Weichen über PCA9685 16-Kanal Servotreiber mit sanfter Stellkurve.
-  - Einlesen von Gleisbelegtmeldern über MCP23017 I2C Porterweiterung.
-  - Vorbildgetreue Ansteuerung von WS2812B NeoPixel Signal-LEDs.
-  - Integrierter WiFiManager mit Web-Dashboard und mDNS-Erkennung (`trainmasternode.local`).
+- **DCC-EX**: Serielle Steuerung über USB/COM-Port sowie TCP-Netzwerkanbindung.
+- **WIO / UDP**: Universelle Netzwerkschnittstelle für dezentrale Belegtmelder und Servo-Antriebe.
 
 ---
 
@@ -69,9 +65,9 @@ TrainMaster/
 │   │   ├── hal/                # Z21, DCC-EX, WIO/UDP, Virtual Simulator
 │   │   └── storage/            # JSON-Persistenz für Gleispläne, Loks & Routen
 │   └── data/                   # Gleisplan- und Fahrzeug-Datenbank
-├── firmware/                   # ESP32 TrainMasterNode Firmware
-│   └── TrainMasterNode/        # PlatformIO / Arduino IDE Quellcode & Doku
-├── docs/                       # Vertiefende Anleitungen & Hardware-Verdrahtung
+├── hardware/                   # 3D-Druck-Konstruktionen (z. B. Stream Deck XL Console)
+├── integrations/               # Externe Steuerungs-Plugins (z. B. Elgato Stream Deck Plugin)
+├── docs/                       # Dokumentationen & Konzepte
 ├── STEERING.md                 # Verbindliche Release- und Versionierungs-Richtlinie
 ├── CHANGELOG.md                # Chronologische Versionshistorie
 └── SPECIFICATION.md            # Architektur-Spezifikation
@@ -113,16 +109,11 @@ Der Browser öffnet sich automatisch unter:
 
 ---
 
-## 🎮 Hardware & 3D-Druck
+## 🎮 Hardware & Bedienelemente
 
-TrainMaster enthält vollständige Open-Source-Hardware-Designs für kabellose Komponenten:
-- **[Stream Deck XL & Drehregler-Stellpult](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Verwandle dein Elgato Stream Deck XL + kabellosen Drehregler-Puck in ein High-End-Stellpult mit Live-Tacho, Lok-Auswahl, Sound-Funktionen & Weichenstellung (Natives Plugin in `integrations/streamdeck/` + 3D-Druck-Konsole in `hardware/enclosure/streamdeck_xl_dock/`).
-- **[TrainMaster ThrottleOne Konzept](docs/TRAINMASTER_HANDREGLER_KONZEPT.md)**: ESP32-S3 Handregler mit 1.54" IPS-Farbdisplay, mechanischen Switches und LED-Status-Halo.
-- **[CAD Blueprint & Maßzeichnung](docs/BLUEPRINT_THROTTLEONE_CAD.md)**: Exakte technische Orthogonalzeichnungen, 14° Keilkopfwinkel und Schritt-für-Schritt CAD-Anleitung zum Nachbau des Mockups.
-- **[Einkaufsliste / Stückliste (BOM)](docs/BAUTEILE_HANDREGLER_BOM.md)**: Komplette Teileliste mit exakten AliExpress-Suchbegriffen (~27 € Gesamtpreis).
-- **[3D-Druck & Gehäuse-Leitfaden](docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md)**: FDM-Drucktoleranzen, Bambu Studio Einstellungen und 5-Minuten-Montageanleitung.
-- **[Druckfertige 3D-Modelle (STL)](hardware/enclosure/stl/)**: Sofort druckbare STL-Dateien (`throttle_top.stl`, `throttle_bottom.stl`, `keycap_stop.stl`, `keycap_function.stl`) sowie [parametrisches OpenSCAD-Modell](hardware/enclosure/TrainMaster_ThrottleOne.scad).
-- **[SpotWIO Kabellose Rückmelder](docs/RUECKMELDE_KONZEPT_KABELLOS.md)**: Null-Kabel-Gleisbesetztmelder mit Hall-/Opto-Sensoren via ESP-NOW.
+TrainMaster bietet native Integrationen für physische Pult-Hardware:
+- **[Stream Deck XL & Drehregler-Stellpult](docs/STREAMDECK_STELLPULT_KONZEPT.md)**: Verwandle dein Elgato Stream Deck XL + kabellosen Drehregler-Puck in ein High-End-Stellpult mit Live-Tacho, Lok-Auswahl, Sound-Funktionen, Weichenstellung sowie einem interaktiven 7x4 Gleisbildstellpult mit D-Pad-Kamerafahrt und Direktbedienung (Natives Plugin in `integrations/streamdeck/` + 3D-Druck-Konsole in `hardware/enclosure/streamdeck_xl_dock/`).
+- **Globale Tastatur- & USB-Macropad-Steuerung**: Volle Unterstützung für handelsübliche programmierbare USB-Knob-Keypads und PC-Tastaturkürzel zum Steuern von Fahrstufen, Richtungswechsel, Not-Aus und Lok-Funktionen.
 
 ---
 

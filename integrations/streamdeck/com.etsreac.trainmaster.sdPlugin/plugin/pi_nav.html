@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Gleisplan Navigation</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; color: #d8d8d8; background: #2d2d2d; padding: 12px; margin: 0; }
+    .sdpi-item { margin-bottom: 12px; }
+    .sdpi-heading { font-weight: bold; margin-bottom: 4px; color: #8b949e; text-transform: uppercase; font-size: 9px; }
+    select, input { width: 100%; background: #1e1e1e; border: 1px solid #444; color: #fff; padding: 6px; border-radius: 4px; box-sizing: border-box; }
+    .status-hint { margin-top: 6px; font-size: 10px; color: #888; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Richtung / Funktion</div>
+    <select id="dir-select">
+      <option value="AUTO">🔄 Auto (Zeile 0=Hoch, 1=Runter, 2=Links, 3=Rechts)</option>
+      <option value="UP">⬆️ Hoch (Kamera nach oben)</option>
+      <option value="DOWN">⬇️ Runter (Kamera nach unten)</option>
+      <option value="LEFT">⬅️ Links (Kamera nach links)</option>
+      <option value="RIGHT">➡️ Rechts (Kamera nach rechts)</option>
+      <option value="HOME">🏠 Home / Ursprung (0, 0)</option>
+    </select>
+    <div class="status-hint">
+      <strong>Tipp:</strong> Auf dem Stream Deck XL platziere diese Aktion einfach auf den 4 Tasten der linken Spalte. Im Auto-Modus sind sie automatisch als ⬆️ Hoch, ⬇️ Runter, ⬅️ Links und ➡️ Rechts konfiguriert.
+    </div>
+  </div>
+
+  <div class="sdpi-item">
+    <div class="sdpi-heading">Schrittweite (Kacheln pro Klick)</div>
+    <select id="step-select">
+      <option value="1">1 Kachel (Feinjustierung)</option>
+      <option value="2">2 Kacheln</option>
+      <option value="4">4 Kacheln (Halbe Seite)</option>
+      <option value="7">7 Kacheln (Ganze XL-Seite)</option>
+    </select>
+  </div>
+
+  <script>
+    let websocket = null;
+    let uuid = null;
+    let actionInfo = {};
+
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      actionInfo = JSON.parse(inActionInfo);
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = function() {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        initUI();
+      };
+    }
+
+    function initUI() {
+      const dirSel = document.getElementById("dir-select");
+      const stepSel = document.getElementById("step-select");
+
+      const savedSettings = actionInfo.payload?.settings || {};
+      if (savedSettings.direction) {
+        dirSel.value = savedSettings.direction;
+      }
+      if (savedSettings.step) {
+        stepSel.value = String(savedSettings.step);
+      }
+
+      const save = () => {
+        const payload = {
+          direction: dirSel.value,
+          step: parseInt(stepSel.value, 10) || 1
+        };
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(JSON.stringify({
+            event: "setSettings",
+            context: uuid,
+            payload: payload
+          }));
+        }
+      };
+
+      dirSel.addEventListener("change", save);
+      stepSel.addEventListener("change", save);
+    }
+  </script>
+</body>
+</html>

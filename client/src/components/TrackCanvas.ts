@@ -1582,7 +1582,7 @@ export class TrackCanvas {
   private renderTurnout(g: SVGGElement, elem: TrackElement, to?: Turnout): void {
     const half = this.cellSize / 2; // 40
     const isRight = elem.type === 'TURNOUT_RIGHT';
-    const isDivergent = to?.state === 'DIVERGENT';
+    const isDivergent = to?.state === 'DIVERGENT' || (to?.state as any) === 'TURNOUT';
 
     // 1. Schotterbett (Ballast bed)
     // Gerade

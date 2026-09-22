@@ -25,6 +25,7 @@ import {
   WSServerMessage,
   LayoutInspectionResult,
   Route,
+  TurnoutState,
   getSignalSupportedAspects
 } from './types.js';
 
@@ -468,11 +469,15 @@ wss.on('connection', (ws) => {
           locoManager.setFunction(action.payload.locoId, action.payload.functionIndex, action.payload.active);
           break;
 
-        case 'SET_TURNOUT':
-          turnoutManager.setTurnoutState(action.payload.turnoutId, action.payload.state);
+        case 'SET_TURNOUT': {
+          const rawState = action.payload.state;
+          const targetState: TurnoutState = (rawState === 'TURNOUT' || rawState === 'DIVERGENT') ? 'DIVERGENT' : 'STRAIGHT';
+          turnoutManager.setTurnoutState(action.payload.turnoutId, targetState);
           break;
+        }
 
-        case 'SET_SIGNAL': {
+        case 'SET_SIGNAL':
+        case 'SET_SIGNAL_ASPECT': {
           const sig = data.signals.find((s) => s.id === action.payload.signalId);
           if (sig) {
             setSignalState(sig, action.payload.aspect);
@@ -512,10 +517,10 @@ wss.on('connection', (ws) => {
         }
 
         case 'TRIGGER_SENSOR': {
-          const { sensorId, state, autoReset } = action.payload;
+          const { sensorId, state, active, autoReset } = action.payload;
           const sensor = data.sensors.find((s) => s.id === sensorId);
           if (sensor) {
-            const targetState = state !== undefined ? state : !sensor.active;
+            const targetState = state !== undefined ? state : (active !== undefined ? active : !sensor.active);
             const reset = autoReset !== undefined ? autoReset : (targetState === true);
             triggerSensor(sensorId, targetState, reset);
             addLog(`⚡ Rückmelder "${sensor.name}" manuell ausgelöst (${targetState ? 'BELEGT' : 'FREI'}${reset ? ' - Impuls' : ''}).`, 'info');

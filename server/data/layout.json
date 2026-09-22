@@ -3,7 +3,7 @@
     {
       "id": "loco-br-218",
       "name": "DB BR 218 (Diesel)",
-      "dccAddress": 218,
+      "dccAddress": 3,
       "speed": 0,
       "targetSpeed": 0,
       "direction": "FWD",
@@ -149,19 +149,28 @@
     {
       "id": "to-1",
       "name": "Weiche W1 (Einfahrt Ost)",
-      "address": 20,
-      "state": "DIVERGENT",
-      "inverted": false,
+      "address": 26,
+      "state": "STRAIGHT",
+      "inverted": true,
       "locked": false,
       "lockedByRouteId": null
     },
     {
       "id": "to-2",
       "name": "Weiche W2 (Ausfahrt West)",
-      "address": 2,
-      "state": "DIVERGENT",
+      "address": 26,
+      "state": "STRAIGHT",
       "locked": false,
-      "lockedByRouteId": null
+      "lockedByRouteId": null,
+      "inverted": false
+    },
+    {
+      "id": "to-1789913803686-830",
+      "name": "Weiche W3",
+      "address": 27,
+      "state": "STRAIGHT",
+      "inverted": false,
+      "locked": false
     }
   ],
   "signals": [

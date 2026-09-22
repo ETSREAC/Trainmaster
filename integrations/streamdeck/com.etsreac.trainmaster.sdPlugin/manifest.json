@@ -171,6 +171,33 @@
         }
       ],
       "PropertyInspectorPath": "plugin/pi_speed.html"
+    },
+    {
+      "Icon": "icons/action_tracknav",
+      "Name": "Gleisplan Navigation (D-Pad)",
+      "Tooltip": "Verschiebt den sichtbaren Gleisplan-Ausschnitt auf dem Stream Deck (Hoch, Runter, Links, Rechts)",
+      "UUID": "com.etsreac.trainmaster.tracknav",
+      "States": [
+        {
+          "Image": "icons/action_tracknav",
+          "TitleAlignment": "bottom",
+          "FontSize": "10"
+        }
+      ],
+      "PropertyInspectorPath": "plugin/pi_nav.html"
+    },
+    {
+      "Icon": "icons/action_tracktile",
+      "Name": "Gleisplan Kachel (Live)",
+      "Tooltip": "Interaktive Gleisplan-Kachel: Zeigt Gleise, Weichen, Signale und Belegtmelder. Klick schaltet Weichen/Signale.",
+      "UUID": "com.etsreac.trainmaster.tracktile",
+      "States": [
+        {
+          "Image": "icons/action_tracktile",
+          "TitleAlignment": "bottom",
+          "FontSize": "9"
+        }
+      ]
     }
   ]
 }

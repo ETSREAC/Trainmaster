@@ -16,7 +16,12 @@ const tmState = {
   automaticMode: false,
   locos: [],
   activeLocoId: null,
-  turnouts: []
+  turnouts: [],
+  signals: [],
+  sensors: [],
+  blocks: [],
+  layout: [],
+  viewport: { cameraX: 0, cameraY: 0 }
 };
 
 // ==============================================================================
@@ -63,7 +68,8 @@ function handleStreamDeckEvent(msg) {
     case "willAppear":
       visibleKeys.set(context, {
         action: action,
-        settings: payload.settings || {}
+        settings: payload.settings || {},
+        coordinates: payload.coordinates || { column: 0, row: 0 }
       });
       updateKey(context);
       break;
@@ -74,7 +80,9 @@ function handleStreamDeckEvent(msg) {
 
     case "didReceiveSettings":
       if (visibleKeys.has(context)) {
-        visibleKeys.get(context).settings = payload.settings || {};
+        const item = visibleKeys.get(context);
+        item.settings = payload.settings || {};
+        if (payload.coordinates) item.coordinates = payload.coordinates;
         updateKey(context);
       }
       break;
@@ -157,6 +165,10 @@ function handleTrainMasterMessage(msg) {
         }
         tmState.locos = msg.payload.locos || [];
         tmState.turnouts = msg.payload.turnouts || [];
+        tmState.signals = msg.payload.signals || [];
+        tmState.sensors = msg.payload.sensors || [];
+        tmState.blocks = msg.payload.blocks || [];
+        tmState.layout = msg.payload.layout || [];
         if (!tmState.activeLocoId && tmState.locos.length > 0) {
           tmState.activeLocoId = tmState.locos[0].id;
         }
@@ -200,6 +212,7 @@ function handleTrainMasterMessage(msg) {
       updateKeysByAction("com.etsreac.trainmaster.speeddown");
       updateKeysByAction("com.etsreac.trainmaster.speedstop");
       updateKeysByAction("com.etsreac.trainmaster.speedpreset");
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
       break;
 
     case "LOCO_DELETED":
@@ -220,6 +233,7 @@ function handleTrainMasterMessage(msg) {
         else tmState.turnouts.push(msg.payload);
       }
       updateKeysByAction("com.etsreac.trainmaster.turnout");
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
       break;
 
     case "TURNOUT_DELETED":
@@ -227,6 +241,42 @@ function handleTrainMasterMessage(msg) {
         tmState.turnouts = tmState.turnouts.filter(t => t.id !== msg.payload.turnoutId);
       }
       updateKeysByAction("com.etsreac.trainmaster.turnout");
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
+      break;
+
+    // Gleisplan-, Signal-, Sensor- & Block-Änderungen
+    case "LAYOUT_UPDATED":
+      if (msg.payload) {
+        tmState.layout = msg.payload.elements || msg.payload.layout || [];
+      }
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
+      break;
+
+    case "SIGNAL_UPDATED":
+      if (msg.payload && msg.payload.id) {
+        const idx = tmState.signals.findIndex(s => s.id === msg.payload.id);
+        if (idx >= 0) tmState.signals[idx] = msg.payload;
+        else tmState.signals.push(msg.payload);
+      }
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
+      break;
+
+    case "SENSOR_UPDATED":
+      if (msg.payload && msg.payload.id) {
+        const idx = tmState.sensors.findIndex(s => s.id === msg.payload.id);
+        if (idx >= 0) tmState.sensors[idx] = msg.payload;
+        else tmState.sensors.push(msg.payload);
+      }
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
+      break;
+
+    case "BLOCK_UPDATED":
+      if (msg.payload && msg.payload.id) {
+        const idx = tmState.blocks.findIndex(b => b.id === msg.payload.id);
+        if (idx >= 0) tmState.blocks[idx] = msg.payload;
+        else tmState.blocks.push(msg.payload);
+      }
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
       break;
   }
 }
@@ -326,9 +376,11 @@ function handleKeyDown(context, action, settings) {
     case "com.etsreac.trainmaster.turnout": {
       if (settings.turnoutId) {
         const t = tmState.turnouts.find(item => item.id === settings.turnoutId);
-        const newState = (t && t.state === "STRAIGHT") ? "TURNOUT" : "STRAIGHT";
+        const isCurrentStraight = !t || t.state === "STRAIGHT";
+        const newState = isCurrentStraight ? "DIVERGENT" : "STRAIGHT";
         if (t) t.state = newState;
         updateKeysByAction("com.etsreac.trainmaster.turnout");
+        updateKeysByAction("com.etsreac.trainmaster.tracktile");
         sendToTrainMaster("SET_TURNOUT", {
           turnoutId: settings.turnoutId,
           state: newState
@@ -428,6 +480,96 @@ function handleKeyDown(context, action, settings) {
         });
       } else {
         sendToStreamDeck("showAlert", context);
+      }
+      break;
+    }
+
+    case "com.etsreac.trainmaster.tracknav": {
+      const keyData = visibleKeys.get(context) || { settings, coordinates: { column: 0, row: 0 } };
+      const dir = getNavDirection(keyData);
+      const step = parseInt(settings.step, 10) || 1;
+
+      switch (dir) {
+        case "UP":
+          tmState.viewport.cameraY = Math.max(0, tmState.viewport.cameraY - step);
+          break;
+        case "DOWN":
+          tmState.viewport.cameraY += step;
+          break;
+        case "LEFT":
+          tmState.viewport.cameraX = Math.max(0, tmState.viewport.cameraX - step);
+          break;
+        case "RIGHT":
+          tmState.viewport.cameraX += step;
+          break;
+        case "HOME":
+          tmState.viewport.cameraX = 0;
+          tmState.viewport.cameraY = 0;
+          break;
+      }
+      updateKeysByAction("com.etsreac.trainmaster.tracknav");
+      updateKeysByAction("com.etsreac.trainmaster.tracktile");
+      break;
+    }
+
+    case "com.etsreac.trainmaster.tracktile": {
+      const keyData = visibleKeys.get(context) || { settings, coordinates: { column: 0, row: 0 } };
+      const worldPos = getTileWorldCoordinates(keyData);
+      const elem = tmState.layout.find(e => e.x === worldPos.x && e.y === worldPos.y);
+      if (!elem) {
+        sendToStreamDeck("showAlert", context);
+        break;
+      }
+
+      if (elem.type === "TURNOUT_LEFT" || elem.type === "TURNOUT_RIGHT" || elem.type === "TURNOUT") {
+        const t = tmState.turnouts.find(item => item.id === elem.linkedId || item.id === elem.id);
+        if (t) {
+          const isCurrentStraight = t.state === "STRAIGHT";
+          const newState = isCurrentStraight ? "DIVERGENT" : "STRAIGHT";
+          t.state = newState;
+          updateKeysByAction("com.etsreac.trainmaster.turnout");
+          updateKeysByAction("com.etsreac.trainmaster.tracktile");
+          sendToTrainMaster("SET_TURNOUT", {
+            turnoutId: t.id,
+            state: newState
+          });
+        }
+      } else if (elem.type === "SIGNAL") {
+        const s = tmState.signals.find(item => item.id === elem.linkedId || item.id === elem.id);
+        if (s) {
+          let aspects = ["HP0", "HP1", "HP2"];
+          if (s.kind === "BLOCK") {
+            aspects = ["HP0", "HP1"];
+          } else if (s.kind === "SHUNTING") {
+            aspects = ["SH0", "SH1"];
+          }
+          const curIdx = aspects.indexOf(s.aspect);
+          const nextAspect = curIdx >= 0 ? aspects[(curIdx + 1) % aspects.length] : aspects[0];
+          s.aspect = nextAspect;
+          updateKeysByAction("com.etsreac.trainmaster.tracktile");
+          sendToTrainMaster("SET_SIGNAL", {
+            signalId: s.id,
+            aspect: nextAspect
+          });
+        }
+      } else if (elem.type === "SENSOR") {
+        const sensor = tmState.sensors.find(item => item.id === elem.linkedId || item.id === elem.id);
+        if (sensor) {
+          const nextActive = !sensor.active;
+          sensor.active = nextActive;
+          updateKeysByAction("com.etsreac.trainmaster.tracktile");
+          sendToTrainMaster("TRIGGER_SENSOR", {
+            sensorId: sensor.id,
+            state: nextActive,
+            active: nextActive
+          });
+        }
+      } else if (elem.type === "BLOCK") {
+        const b = tmState.blocks.find(item => item.id === elem.linkedId || item.id === elem.id);
+        if (b && b.currentLocoId) {
+          tmState.activeLocoId = b.currentLocoId;
+          updateAllKeys();
+        }
       }
       break;
     }
@@ -599,7 +741,314 @@ function updateKey(context) {
       setKeyImage(context, createSvgIcon(bg, isAtPreset ? "#60a5fa" : "#38bdf8", "🚀", isAtPreset));
       break;
     }
+
+    case "com.etsreac.trainmaster.tracknav": {
+      const dir = getNavDirection(data);
+      const iconData = createTrackNavSvg(dir, tmState.viewport.cameraX, tmState.viewport.cameraY);
+      setKeyTitle(context, "");
+      setKeyImage(context, iconData);
+      break;
+    }
+
+    case "com.etsreac.trainmaster.tracktile": {
+      const worldPos = getTileWorldCoordinates(data);
+      const tileData = createTrackTileSvg(worldPos.x, worldPos.y);
+      setKeyTitle(context, "");
+      setKeyImage(context, tileData);
+      break;
+    }
   }
+}
+
+function getNavDirection(keyData) {
+  const settings = keyData.settings || {};
+  if (settings.direction && settings.direction !== "AUTO") {
+    return settings.direction;
+  }
+  const row = keyData.coordinates ? keyData.coordinates.row : 0;
+  switch (row) {
+    case 0: return "UP";
+    case 1: return "DOWN";
+    case 2: return "LEFT";
+    case 3: return "RIGHT";
+    default: return "HOME";
+  }
+}
+
+function getTileWorldCoordinates(keyData) {
+  const coords = keyData.coordinates || { column: 0, row: 0 };
+  const settings = keyData.settings || {};
+
+  if (settings.manualX !== undefined && settings.manualY !== undefined) {
+    return { x: parseInt(settings.manualX, 10), y: parseInt(settings.manualY, 10) };
+  }
+
+  // Prüfen, ob Spalte 0 als Navigationsspalte genutzt wird
+  let navAtCol0 = false;
+  for (const [_, k] of visibleKeys) {
+    if (k.action === "com.etsreac.trainmaster.tracknav" && k.coordinates && k.coordinates.column === 0) {
+      navAtCol0 = true;
+      break;
+    }
+  }
+
+  const startCol = navAtCol0 ? 1 : 0;
+  const colOffset = Math.max(0, coords.column - startCol);
+  const rowOffset = coords.row || 0;
+
+  const worldX = (tmState.viewport.cameraX || 0) + colOffset;
+  const worldY = (tmState.viewport.cameraY || 0) + rowOffset;
+  return { x: worldX, y: worldY };
+}
+
+function createTrackNavSvg(dir, cameraX, cameraY) {
+  let arrow = "▲";
+  let label = "HOCH";
+  let coordText = `Y: ${cameraY}`;
+  let arrowY = 54;
+
+  switch (dir) {
+    case "UP":
+      arrow = "▲";
+      label = "HOCH";
+      coordText = `Y: ${cameraY}`;
+      break;
+    case "DOWN":
+      arrow = "▼";
+      label = "RUNTER";
+      coordText = `Y: ${cameraY}`;
+      break;
+    case "LEFT":
+      arrow = "◀";
+      label = "LINKS";
+      coordText = `X: ${cameraX}`;
+      break;
+    case "RIGHT":
+      arrow = "▶";
+      label = "RECHTS";
+      coordText = `[${cameraX},${cameraY}]`;
+      break;
+    case "HOME":
+      arrow = "🏠";
+      label = "HOME";
+      coordText = "[0,0]";
+      break;
+  }
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+      <rect x="3" y="3" width="138" height="138" rx="24" fill="#161b22" stroke="#388bfd" stroke-width="4"/>
+      <text x="72" y="${arrowY}" font-size="44" fill="#58a6ff" font-family="sans-serif" text-anchor="middle" dominant-baseline="central">${arrow}</text>
+      <text x="72" y="98" font-size="18" font-weight="bold" fill="#ffffff" font-family="sans-serif" text-anchor="middle">${label}</text>
+      <text x="72" y="122" font-size="13" font-weight="bold" fill="#8b949e" font-family="monospace" text-anchor="middle">${coordText}</text>
+    </svg>
+  `.trim();
+
+  return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);
+}
+
+function createTrackTileSvg(worldX, worldY) {
+  const elem = tmState.layout.find(e => e.x === worldX && e.y === worldY);
+
+  if (!elem) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+        <rect width="144" height="144" rx="20" fill="#0b0e14"/>
+        <line x1="68" y1="72" x2="76" y2="72" stroke="#21262d" stroke-width="2"/>
+        <line x1="72" y1="68" x2="72" y2="76" stroke="#21262d" stroke-width="2"/>
+        <text x="12" y="24" font-size="14" fill="#21262d" font-family="monospace" font-weight="bold">${worldX},${worldY}</text>
+      </svg>
+    `.trim();
+    return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);
+  }
+
+  const rot = elem.rotation || 0;
+  let trackBody = "";
+  let badgeSvg = "";
+
+  switch (elem.type) {
+    case "STRAIGHT": {
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-54" y1="-18" x2="-54" y2="18" stroke="#30363d" stroke-width="4"/>
+        <line x1="-27" y1="-18" x2="-27" y2="18" stroke="#30363d" stroke-width="4"/>
+        <line x1="0" y1="-18" x2="0" y2="18" stroke="#30363d" stroke-width="4"/>
+        <line x1="27" y1="-18" x2="27" y2="18" stroke="#30363d" stroke-width="4"/>
+        <line x1="54" y1="-18" x2="54" y2="18" stroke="#30363d" stroke-width="4"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+      `;
+      break;
+    }
+
+    case "CURVE": {
+      trackBody = `
+        <path d="M -72 0 A 72 72 0 0 1 0 72" fill="none" stroke="#161b22" stroke-width="44"/>
+        <path d="M -72 -10 A 82 82 0 0 1 10 72" fill="none" stroke="#8b949e" stroke-width="5"/>
+        <path d="M -72 10 A 62 62 0 0 1 -10 72" fill="none" stroke="#8b949e" stroke-width="5"/>
+      `;
+      break;
+    }
+
+    case "TURNOUT_LEFT":
+    case "TURNOUT_RIGHT":
+    case "TURNOUT": {
+      const t = tmState.turnouts.find(item => item.id === elem.linkedId || item.id === elem.id);
+      const isStraight = !t || t.state === "STRAIGHT";
+      const isLeft = elem.type === "TURNOUT_LEFT";
+
+      const strStroke = isStraight ? "#388bfd" : "#484f58";
+      const strW = isStraight ? "7" : "4";
+      const crvStroke = isStraight ? "#484f58" : "#2ea043";
+      const crvW = isStraight ? "4" : "7";
+
+      const crvPath1 = isLeft ? "M -72 -10 A 62 62 0 0 0 -10 -72" : "M -72 -10 A 82 82 0 0 1 10 72";
+      const crvPath2 = isLeft ? "M -72 10 A 82 82 0 0 0 10 -72" : "M -72 10 A 62 62 0 0 1 -10 72";
+
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="${strStroke}" stroke-width="${strW}"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="${strStroke}" stroke-width="${strW}"/>
+        <path d="${crvPath1}" fill="none" stroke="${crvStroke}" stroke-width="${crvW}"/>
+        <path d="${crvPath2}" fill="none" stroke="${crvStroke}" stroke-width="${crvW}"/>
+      `;
+
+      const tName = t ? (t.name || t.id) : "W";
+      const stateLabel = isStraight ? "GERADE" : "ABZWEIG";
+      const pillBg = isStraight ? "rgba(56,139,253,0.3)" : "rgba(46,160,67,0.35)";
+      const pillBorder = isStraight ? "#388bfd" : "#2ea043";
+
+      badgeSvg = `
+        <rect x="8" y="106" width="128" height="28" rx="6" fill="${pillBg}" stroke="${pillBorder}" stroke-width="1.5"/>
+        <text x="72" y="124" font-size="12" fill="#ffffff" font-family="sans-serif" font-weight="bold" text-anchor="middle">${tName} • ${stateLabel}</text>
+      `;
+      break;
+    }
+
+    case "SIGNAL": {
+      const sig = tmState.signals.find(s => s.id === elem.linkedId || s.id === elem.id);
+      const aspect = sig ? sig.aspect : "HP0";
+      let lampColor = "#f85149";
+      let lampText = "HP0";
+      if (aspect === "HP1") { lampColor = "#2ea043"; lampText = "HP1"; }
+      else if (aspect === "HP2") { lampColor = "#d29922"; lampText = "HP2"; }
+      else if (aspect === "SH1") { lampColor = "#f0f6fc"; lampText = "SH1"; }
+
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+        <line x1="0" y1="-10" x2="0" y2="-32" stroke="#8b949e" stroke-width="4"/>
+        <circle cx="0" cy="-36" r="14" fill="${lampColor}" stroke="#ffffff" stroke-width="3"/>
+      `;
+
+      badgeSvg = `
+        <rect x="12" y="106" width="120" height="26" rx="6" fill="rgba(0,0,0,0.6)" stroke="${lampColor}" stroke-width="2"/>
+        <text x="72" y="123" font-size="12" fill="#ffffff" font-family="sans-serif" font-weight="bold" text-anchor="middle">${sig?.name || 'Sig'}: ${lampText}</text>
+      `;
+      break;
+    }
+
+    case "SENSOR": {
+      const s = tmState.sensors.find(item => item.id === elem.linkedId || item.id === elem.id);
+      const isActive = !!(s && s.active);
+      const sensorColor = isActive ? "#f85149" : "#30363d";
+      const sensorBorder = isActive ? "#ffffff" : "#8b949e";
+
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="#8b949e" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="0" cy="0" r="${isActive ? '15' : '9'}" fill="${sensorColor}" stroke="${sensorBorder}" stroke-width="3"/>
+      `;
+
+      badgeSvg = `
+        <rect x="10" y="106" width="124" height="26" rx="6" fill="${isActive ? 'rgba(248,81,73,0.3)' : 'rgba(0,0,0,0.5)'}" stroke="${isActive ? '#f85149' : '#484f58'}" stroke-width="1.5"/>
+        <text x="72" y="123" font-size="12" fill="#ffffff" font-family="sans-serif" font-weight="bold" text-anchor="middle">${s?.name || 'Sensor'} ${isActive ? '🔴 BELEGT' : '⚪ FREI'}</text>
+      `;
+      break;
+    }
+
+    case "BLOCK": {
+      const b = tmState.blocks.find(item => item.id === elem.linkedId || item.id === elem.id);
+      const bState = b ? b.state : "FREE";
+      const loco = b && b.currentLocoId ? tmState.locos.find(l => l.id === b.currentLocoId) : null;
+
+      let bFill = "#161b22";
+      let bStroke = "#388bfd";
+      let bRail = "#8b949e";
+      if (bState === "OCCUPIED") {
+        bFill = "#450a0a";
+        bStroke = "#ef4444";
+        bRail = "#f85149";
+      } else if (bState === "RESERVED") {
+        bFill = "#422006";
+        bStroke = "#f59e0b";
+        bRail = "#fbbf24";
+      } else if (bState === "GHOST") {
+        bFill = "#7f1d1d";
+        bStroke = "#dc2626";
+        bRail = "#ef4444";
+      }
+
+      trackBody = `
+        <rect x="-72" y="-24" width="144" height="48" rx="6" fill="${bFill}" stroke="${bStroke}" stroke-width="2.5"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="${bRail}" stroke-width="6"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="${bRail}" stroke-width="6"/>
+      `;
+
+      const label = loco ? `🚂 ${loco.name}` : (b ? b.name : "Block");
+      badgeSvg = `
+        <rect x="6" y="104" width="132" height="30" rx="6" fill="${bFill}" stroke="${bStroke}" stroke-width="2"/>
+        <text x="72" y="123" font-size="13" fill="#ffffff" font-family="sans-serif" font-weight="bold" text-anchor="middle">${label}</text>
+      `;
+      break;
+    }
+
+    case "CROSSING": {
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <rect x="-22" y="-72" width="44" height="144" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="#8b949e" stroke-width="5"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="#8b949e" stroke-width="5"/>
+        <line x1="-10" y1="-72" x2="-10" y2="72" stroke="#8b949e" stroke-width="5"/>
+        <line x1="10" y1="-72" x2="10" y2="72" stroke="#8b949e" stroke-width="5"/>
+      `;
+      break;
+    }
+
+    case "BUFFER": {
+      trackBody = `
+        <rect x="-72" y="-22" width="90" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="0" y2="-10" stroke="#8b949e" stroke-width="5"/>
+        <line x1="-72" y1="10" x2="0" y2="10" stroke="#8b949e" stroke-width="5"/>
+        <rect x="-4" y="-22" width="10" height="44" rx="2" fill="#dc2626" stroke="#ffffff" stroke-width="2"/>
+      `;
+      break;
+    }
+
+    default: {
+      trackBody = `
+        <rect x="-72" y="-22" width="144" height="44" rx="4" fill="#161b22" stroke="#21262d" stroke-width="2"/>
+        <line x1="-72" y1="-10" x2="72" y2="-10" stroke="#8b949e" stroke-width="5"/>
+        <line x1="-72" y1="10" x2="72" y2="10" stroke="#8b949e" stroke-width="5"/>
+      `;
+      break;
+    }
+  }
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+      <rect width="144" height="144" rx="20" fill="#0d1117"/>
+      <g transform="translate(72, 72) rotate(${rot})">
+        ${trackBody}
+      </g>
+      <text x="12" y="24" font-size="13" fill="#484f58" font-family="monospace">${worldX},${worldY}</text>
+      ${badgeSvg}
+    </svg>
+  `.trim();
+
+  return "data:image/svg+xml;charset=utf8," + encodeURIComponent(svg);
 }
 
 function createSvgIcon(bgColor, fgColor, iconChar, isBordered = false) {

@@ -22,8 +22,28 @@ export function cycleActiveLoco(): void {
   wsClient.notify();
 }
 
+interface LocoCardRef {
+  card: HTMLElement;
+  locoId: string;
+  nameEl: HTMLElement;
+  activeBadgeEl: HTMLElement;
+  metaEl: HTMLElement;
+  dccAddrEl: HTMLElement;
+  speedNumEl: HTMLElement;
+  sliderEl: HTMLInputElement;
+  fwdBtn: HTMLButtonElement;
+  revBtn: HTMLButtonElement;
+  fnBox: HTMLElement;
+  fnBtns: Map<number, HTMLButtonElement>;
+  presetBtns: HTMLButtonElement[];
+  isDragging: boolean;
+  pendingSpeed: number | null;
+  throttleTimer: number | null;
+}
+
 export class Throttle {
   private container: HTMLElement;
+  private cards: Map<string, LocoCardRef> = new Map();
 
   // Modal Elemente
   private modal: HTMLElement | null = null;
@@ -101,37 +121,37 @@ export class Throttle {
     });
   }
 
-  private openCreateModal(): void {
+  public openCreateModal(): void {
     if (!this.modal) return;
-    if (this.editIdInput) this.editIdInput.value = '';
-    if (this.modalTitle) this.modalTitle.textContent = '🚂 Neue Lokomotive anlegen';
+    if (this.modalTitle) this.modalTitle.textContent = '➕ Neue Lokomotive anlegen';
     if (this.btnModalDelete) this.btnModalDelete.style.display = 'none';
+    if (this.editIdInput) this.editIdInput.value = '';
 
     if (this.nameInput) this.nameInput.value = '';
     if (this.addressInput) this.addressInput.value = '3';
     if (this.typeSelect) this.typeSelect.value = 'PASSENGER';
-    if (this.vMinInput) this.vMinInput.value = '12';
-    if (this.vMidInput) this.vMidInput.value = '55';
-    if (this.vMaxInput) this.vMaxInput.value = '105';
-    if (this.lengthInput) this.lengthInput.value = '20';
+    if (this.vMinInput) this.vMinInput.value = '10';
+    if (this.vMidInput) this.vMidInput.value = '50';
+    if (this.vMaxInput) this.vMaxInput.value = '100';
+    if (this.lengthInput) this.lengthInput.value = '25';
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
   }
 
-  private openEditModal(loco: Locomotive): void {
+  public openEditModal(loco: Locomotive): void {
     if (!this.modal) return;
-    if (this.editIdInput) this.editIdInput.value = loco.id;
-    if (this.modalTitle) this.modalTitle.textContent = `🚂 Lokomotive "${loco.name}" bearbeiten`;
+    if (this.modalTitle) this.modalTitle.textContent = `✏️ ${loco.name} bearbeiten`;
     if (this.btnModalDelete) this.btnModalDelete.style.display = 'block';
+    if (this.editIdInput) this.editIdInput.value = loco.id;
 
     if (this.nameInput) this.nameInput.value = loco.name;
     if (this.addressInput) this.addressInput.value = `${loco.dccAddress}`;
     if (this.typeSelect) this.typeSelect.value = loco.trainType;
-    if (this.vMinInput) this.vMinInput.value = `${loco.vMin || 12}`;
-    if (this.vMidInput) this.vMidInput.value = `${loco.vMid || 55}`;
-    if (this.vMaxInput) this.vMaxInput.value = `${loco.vMax || 105}`;
-    if (this.lengthInput) this.lengthInput.value = `${loco.lengthCm || 20}`;
+    if (this.vMinInput) this.vMinInput.value = `${loco.vMin || 10}`;
+    if (this.vMidInput) this.vMidInput.value = `${loco.vMid || 50}`;
+    if (this.vMaxInput) this.vMaxInput.value = `${loco.vMax || 100}`;
+    if (this.lengthInput) this.lengthInput.value = `${loco.lengthCm || 25}`;
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
@@ -139,13 +159,13 @@ export class Throttle {
 
   private saveLocoFromForm(): void {
     const editId = this.editIdInput?.value;
-    const name = this.nameInput?.value.trim() || 'Unbenannte Lok';
+    const name = this.nameInput?.value.trim() || 'Neue Lok';
     const dccAddress = parseInt(this.addressInput?.value || '3', 10);
-    const trainType = (this.typeSelect?.value || 'PASSENGER') as any;
-    const vMin = parseInt(this.vMinInput?.value || '12', 10);
-    const vMid = parseInt(this.vMidInput?.value || '55', 10);
-    const vMax = parseInt(this.vMaxInput?.value || '105', 10);
-    const lengthCm = parseFloat(this.lengthInput?.value || '20');
+    const trainType = (this.typeSelect?.value as any) || 'PASSENGER';
+    const vMin = parseInt(this.vMinInput?.value || '10', 10);
+    const vMid = parseInt(this.vMidInput?.value || '50', 10);
+    const vMax = parseInt(this.vMaxInput?.value || '100', 10);
+    const lengthCm = parseInt(this.lengthInput?.value || '25', 10);
 
     if (editId) {
       // Vorhandene Lok bearbeiten
@@ -195,10 +215,19 @@ export class Throttle {
     this.render();
   }
 
-  public render(): void {
-    this.container.innerHTML = '';
+  private sendSpeed(locoId: string, speed: number, direction?: 'FWD' | 'REV'): void {
+    wsClient.send({
+      type: 'SET_LOCO_SPEED',
+      payload: { locoId, speed, ...(direction ? { direction } : {}) }
+    });
+  }
 
+  public render(): void {
     if (wsClient.locos.length === 0) {
+      this.cards.forEach((ref) => {
+        if (ref.throttleTimer !== null) window.clearTimeout(ref.throttleTimer);
+      });
+      this.cards.clear();
       this.container.innerHTML = `
         <div style="color:#8b949e;text-align:center;padding:40px;width:100%;">
           <h3>Noch keine Züge im Fuhrpark vorhanden</h3>
@@ -208,16 +237,40 @@ export class Throttle {
       return;
     }
 
+    // Falls die Leer-Meldung vorher da war, leeren
+    const emptyPlaceholder = this.container.querySelector('div h3');
+    if (emptyPlaceholder) {
+      this.container.innerHTML = '';
+    }
+
+    // Gelöschte Loks entfernen
+    const currentIds = new Set(wsClient.locos.map((l) => l.id));
+    for (const [id, ref] of this.cards.entries()) {
+      if (!currentIds.has(id)) {
+        if (ref.throttleTimer !== null) window.clearTimeout(ref.throttleTimer);
+        ref.card.remove();
+        this.cards.delete(id);
+      }
+    }
+
+    // In-place aktualisieren oder neue Karten erzeugen (in geordneter Reihenfolge)
     for (const loco of wsClient.locos) {
-      const card = this.createLocoCard(loco);
-      this.container.appendChild(card);
+      let ref = this.cards.get(loco.id);
+      if (!ref) {
+        ref = this.createLocoCard(loco);
+        this.cards.set(loco.id, ref);
+        this.container.appendChild(ref.card);
+      } else {
+        this.updateLocoCard(ref, loco);
+      }
     }
   }
 
-  private createLocoCard(loco: Locomotive): HTMLElement {
+  private createLocoCard(loco: Locomotive): LocoCardRef {
     const card = document.createElement('div');
     const isActive = getActiveLoco()?.id === loco.id;
     card.className = `throttle-card ${isActive ? 'active-throttle' : ''}`;
+    card.dataset.locoId = loco.id;
     if (isActive) {
       card.style.borderColor = '#3b82f6';
       card.style.boxShadow = '0 0 16px rgba(59, 130, 246, 0.4)';
@@ -231,33 +284,65 @@ export class Throttle {
     // Header mit Name, Typ, DCC-Adresse und Bearbeiten-Stift
     const header = document.createElement('div');
     header.className = 'throttle-header';
-    header.innerHTML = `
-      <div>
-        <div class="loco-name">
-          🚂 ${loco.name}
-          ${isActive ? '<span style="background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;">⭐ AKTIV</span>' : ''}
-        </div>
-        <span style="font-size:12px;color:#8b949e;">Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <div class="dcc-addr-tag">DCC #${loco.dccAddress}</div>
-        <button class="btn-icon btn-edit-loco" title="Lokomotive bearbeiten" style="font-size:14px;cursor:pointer;">✏️</button>
-      </div>
-    `;
 
-    header.querySelector('.btn-edit-loco')?.addEventListener('click', () => {
-      this.openEditModal(loco);
+    const headerLeft = document.createElement('div');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'loco-name';
+    nameEl.textContent = `🚂 ${loco.name} `;
+
+    const activeBadgeEl = document.createElement('span');
+    activeBadgeEl.style.cssText = 'background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;';
+    activeBadgeEl.textContent = '⭐ AKTIV';
+    activeBadgeEl.style.display = isActive ? 'inline-block' : 'none';
+    nameEl.appendChild(activeBadgeEl);
+
+    const metaEl = document.createElement('span');
+    metaEl.style.cssText = 'font-size:12px;color:#8b949e;';
+    metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
+
+    headerLeft.appendChild(nameEl);
+    headerLeft.appendChild(metaEl);
+
+    const headerRight = document.createElement('div');
+    headerRight.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+    const dccAddrEl = document.createElement('div');
+    dccAddrEl.className = 'dcc-addr-tag';
+    dccAddrEl.textContent = `DCC #${loco.dccAddress}`;
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn-icon btn-edit-loco';
+    btnEdit.title = 'Lokomotive bearbeiten';
+    btnEdit.style.cssText = 'font-size:14px;cursor:pointer;';
+    btnEdit.textContent = '✏️';
+    btnEdit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
+      this.openEditModal(current);
     });
 
+    headerRight.appendChild(dccAddrEl);
+    headerRight.appendChild(btnEdit);
+
+    header.appendChild(headerLeft);
+    header.appendChild(headerRight);
     card.appendChild(header);
 
     // Speed Display
     const speedDisplay = document.createElement('div');
     speedDisplay.className = 'throttle-speed-display';
-    speedDisplay.innerHTML = `
-      <div class="speed-number" id="speed-num-${loco.id}">${loco.speed}</div>
-      <div class="speed-unit">Fahrstufe (0 - 128)</div>
-    `;
+
+    const speedNumEl = document.createElement('div');
+    speedNumEl.className = 'speed-number';
+    speedNumEl.id = `speed-num-${loco.id}`;
+    speedNumEl.textContent = `${loco.speed}`;
+
+    const speedUnit = document.createElement('div');
+    speedUnit.className = 'speed-unit';
+    speedUnit.textContent = 'Fahrstufe (0 - 128)';
+
+    speedDisplay.appendChild(speedNumEl);
+    speedDisplay.appendChild(speedUnit);
     card.appendChild(speedDisplay);
 
     // Slider Box
@@ -270,16 +355,80 @@ export class Throttle {
     slider.max = '128';
     slider.value = `${loco.speed}`;
     slider.className = 'speed-slider';
+    slider.setAttribute('aria-label', `Geschwindigkeit ${loco.name}`);
 
+    const ref: LocoCardRef = {
+      card,
+      locoId: loco.id,
+      nameEl,
+      activeBadgeEl,
+      metaEl,
+      dccAddrEl,
+      speedNumEl,
+      sliderEl: slider,
+      fwdBtn: null as any,
+      revBtn: null as any,
+      fnBox: null as any,
+      fnBtns: new Map(),
+      presetBtns: [],
+      isDragging: false,
+      pendingSpeed: null,
+      throttleTimer: null
+    };
+
+    // Pointer-Capture für flüssiges Draggen ohne Hängenbleiben
+    const handlePointerStart = (e: PointerEvent) => {
+      ref.isDragging = true;
+      slider.classList.add('dragging');
+      try {
+        slider.setPointerCapture(e.pointerId);
+      } catch {}
+    };
+
+    const handlePointerEnd = (e: PointerEvent) => {
+      ref.isDragging = false;
+      slider.classList.remove('dragging');
+      try {
+        if (slider.hasPointerCapture(e.pointerId)) {
+          slider.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
+      if (ref.throttleTimer !== null) {
+        window.clearTimeout(ref.throttleTimer);
+        ref.throttleTimer = null;
+      }
+      const finalVal = parseInt(slider.value, 10);
+      ref.pendingSpeed = null;
+      this.sendSpeed(loco.id, finalVal);
+    };
+
+    slider.addEventListener('pointerdown', handlePointerStart);
+    slider.addEventListener('pointerup', handlePointerEnd);
+    slider.addEventListener('pointercancel', handlePointerEnd);
+
+    // Sofortige visuelle Rückmeldung + gedrosselte WebSocket-Übertragung (25 Updates/s)
     slider.addEventListener('input', (e) => {
       const val = parseInt((e.target as HTMLInputElement).value, 10);
-      const numEl = document.getElementById(`speed-num-${loco.id}`);
-      if (numEl) numEl.textContent = `${val}`;
-      wsClient.send({
-        type: 'SET_LOCO_SPEED',
-        payload: { locoId: loco.id, speed: val }
-      });
+      speedNumEl.textContent = `${val}`;
+      ref.pendingSpeed = val;
+
+      if (ref.throttleTimer === null) {
+        this.sendSpeed(loco.id, val);
+        ref.throttleTimer = window.setTimeout(() => {
+          ref.throttleTimer = null;
+          if (ref.pendingSpeed !== null && ref.pendingSpeed !== val) {
+            this.sendSpeed(loco.id, ref.pendingSpeed);
+          }
+        }, 40);
+      }
     });
+
+    slider.addEventListener('change', () => {
+      const val = parseInt(slider.value, 10);
+      speedNumEl.textContent = `${val}`;
+      this.sendSpeed(loco.id, val);
+    });
+
     sliderBox.appendChild(slider);
 
     // Speed Presets
@@ -300,14 +449,11 @@ export class Throttle {
       btn.addEventListener('click', () => {
         if (navigator.vibrate) navigator.vibrate(p.val === 0 ? 35 : 15);
         slider.value = `${p.val}`;
-        const numEl = document.getElementById(`speed-num-${loco.id}`);
-        if (numEl) numEl.textContent = `${p.val}`;
-        wsClient.send({
-          type: 'SET_LOCO_SPEED',
-          payload: { locoId: loco.id, speed: p.val }
-        });
+        speedNumEl.textContent = `${p.val}`;
+        this.sendSpeed(loco.id, p.val);
       });
       presets.appendChild(btn);
+      ref.presetBtns.push(btn);
     }
     sliderBox.appendChild(presets);
     card.appendChild(sliderBox);
@@ -321,10 +467,8 @@ export class Throttle {
     fwdBtn.innerHTML = '▲ Vorwärts';
     fwdBtn.addEventListener('click', () => {
       if (navigator.vibrate) navigator.vibrate(20);
-      wsClient.send({
-        type: 'SET_LOCO_SPEED',
-        payload: { locoId: loco.id, speed: loco.speed, direction: 'FWD' }
-      });
+      const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
+      this.sendSpeed(loco.id, current.speed, 'FWD');
     });
 
     const revBtn = document.createElement('button');
@@ -332,15 +476,16 @@ export class Throttle {
     revBtn.innerHTML = '▼ Rückwärts';
     revBtn.addEventListener('click', () => {
       if (navigator.vibrate) navigator.vibrate(20);
-      wsClient.send({
-        type: 'SET_LOCO_SPEED',
-        payload: { locoId: loco.id, speed: loco.speed, direction: 'REV' }
-      });
+      const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
+      this.sendSpeed(loco.id, current.speed, 'REV');
     });
 
     dirBox.appendChild(fwdBtn);
     dirBox.appendChild(revBtn);
     card.appendChild(dirBox);
+
+    ref.fwdBtn = fwdBtn;
+    ref.revBtn = revBtn;
 
     // Functions Grid (Dynamisch für alle definierten Funktionen F0 - F28)
     const fnBox = document.createElement('div');
@@ -368,15 +513,56 @@ export class Throttle {
       fnBtn.title = labelsToUse[f] || `F${f}`;
       fnBtn.addEventListener('click', () => {
         if (navigator.vibrate) navigator.vibrate(15);
+        const currentLoco = wsClient.locos.find((l) => l.id === loco.id) || loco;
+        const curActive = !!currentLoco.functions[f];
         wsClient.send({
           type: 'SET_LOCO_FUNCTION',
-          payload: { locoId: loco.id, functionIndex: f, active: !active }
+          payload: { locoId: loco.id, functionIndex: f, active: !curActive }
         });
       });
       fnBox.appendChild(fnBtn);
+      ref.fnBtns.set(f, fnBtn);
     }
     card.appendChild(fnBox);
+    ref.fnBox = fnBox;
 
-    return card;
+    return ref;
+  }
+
+  private updateLocoCard(ref: LocoCardRef, loco: Locomotive): void {
+    const isActive = getActiveLoco()?.id === loco.id;
+
+    // Aktiver Status
+    ref.card.classList.toggle('active-throttle', isActive);
+    if (isActive) {
+      ref.card.style.borderColor = '#3b82f6';
+      ref.card.style.boxShadow = '0 0 16px rgba(59, 130, 246, 0.4)';
+    } else {
+      ref.card.style.borderColor = '';
+      ref.card.style.boxShadow = '';
+    }
+    ref.activeBadgeEl.style.display = isActive ? 'inline-block' : 'none';
+
+    // Textfelder
+    if (ref.nameEl.childNodes[0]) {
+      ref.nameEl.childNodes[0].textContent = `🚂 ${loco.name} `;
+    }
+    ref.metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
+    ref.dccAddrEl.textContent = `DCC #${loco.dccAddress}`;
+
+    // Geschwindigkeits-Slider: NUR aktualisieren, wenn der Nutzer NICHT gerade draggt!
+    if (!ref.isDragging) {
+      ref.sliderEl.value = `${loco.speed}`;
+      ref.speedNumEl.textContent = `${loco.speed}`;
+    }
+
+    // Richtungs-Buttons
+    ref.fwdBtn.classList.toggle('active', loco.direction === 'FWD');
+    ref.revBtn.classList.toggle('active', loco.direction === 'REV');
+
+    // Funktions-Buttons
+    for (const [f, btn] of ref.fnBtns.entries()) {
+      btn.classList.toggle('active', !!loco.functions[f]);
+    }
   }
 }

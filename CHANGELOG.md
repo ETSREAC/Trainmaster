@@ -8,15 +8,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ## [Unreleased]
 
-### 🎮 Hardware & 3D-Druck (TrainMaster ThrottleOne Handregler)
-- **Druckfertiges 3D-Gehäuse (v2 Architektur)**:
-  - **Massiver Drehregler-Montagesockel**: Stabiler 26mm Mitteldom mit 7.2mm Kernbohrung und M7-Mutter-Klemmung für den EC11-Encoder. Kein offenes Loch mehr – der Encoder sitzt bombenfest.
-  - **Status-Halo Lichtkanal**: Umlaufender Ringschlitz (34–42 mm) um den 33mm Drehknopf, getragen von 4 diagonalen Versteifungsstegen und 50.4 mm rückseitiger Tasche für den WS2812B 12-Bit LED-Ring.
-  - **Kollisionsfreie Innenraum-Zonierung (34 mm Gesamthöhe, 29.2 mm Hohlraum)**:
-    - **Obere Zone**: ESP32-S3 DevKitC auf integrierten Standoffs unter dem 1.54" Display (über 20 mm freier vertikaler Spielraum für Leitungen).
-    - **Mittlere Zone**: EC11-Encoder und MTS-103 Kippschalter mit komplett freiem Verkabelungsraum darunter.
-    - **Untere Zone**: 18650 Akkuhalter mittig in Führungsschienen, flankiert von den MX-Tastatur-Switches (26 mm freier Mittelkorridor).
-  - **FDM-Drucktoleranzen ab Werk**: MX Plate Mount (14.10 × 14.10 mm, 1.5 mm Kantenstärke), M3 Einschmelzgewinde-Bohrungen (4.20 mm Schmelzpassung), USB-C Schacht (11.0 × 6.0 mm mit Fase).
+### 🎮 Hardware & Bedienelemente (Stream Deck XL & USB-Macropads)
 - **Globale Tastatur- & Macropad-Steuerung (USB Rotary Knobs & Keypads)**:
   - Volle Unterstützung für handelsübliche programmierbare USB-Macropads mit Drehknopf (z. B. 3-Key / 6-Key / 9-Key Keypads) und Standard-PC-Tastaturen.
   - **Fahrstufen-Regelung**: `BildAuf` / `PfeilHoch` / `W` (+5 Fahrstufen) und `BildAb` / `PfeilRunter` / `S` (-5 Fahrstufen); `Pos1` / `X` für Soforthalt (0).
@@ -25,10 +17,30 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
   - Eingabefelder (`<input>`, `<textarea>`) sind geschützt, sodass beim Tippen von Namen oder IPs keine Hotkeys versehentlich auslösen.
 - **Natives Elgato Stream Deck Plugin (`com.etsreac.trainmaster.sdPlugin`)**:
   - Volle Zwei-Wege-WebSocket-Integration mit TrainMaster (`ws://localhost:3001`).
-  - **7 Aktionen**: Gleisstrom (Power mit Live-Status ⚡), Not-Aus (🛑), Automatik-Modus (🤖), Lokomotive auswählen (mit Live-Geschwindigkeit & Richtung 🚂), Lok-Funktionen (F0–F28 mit Statusrückmeldung 💡/🔊), Fahrtrichtungsumkehr (🔄), Weichen stellen (🔀).
+  - **9 Aktionen**: Gleisstrom (Power mit Live-Status ⚡), Not-Aus (🛑), Automatik-Modus (🤖), Lokomotive auswählen (mit Live-Geschwindigkeit & Richtung 🚂), Lok-Funktionen (F0–F28 mit Statusrückmeldung 💡/🔊), Fahrtrichtungsumkehr (🔄), Weichen stellen (🔀), **Gleisplan D-Pad Kamera-Steuerung (🧭)** und **Interaktive Gleisplan-Kachel (🗺️)**.
+  - **Interaktives Gleisbildstellpult (7x4 Viewport + D-Pad)**:
+    - **D-Pad-Steuerung (`tracknav`)**: Linke Spalte auf Stream Deck XL fungiert als Richtungssteuerung (⬆️ Hoch, ⬇️ Runter, ⬅️ Links, ➡️ Rechts) zum dynamischen Verschieben des Kartenausschnitts mit Live-Koordinatenanzeige.
+    - **Dynamische Vektor-Kacheln (`tracktile`)**: Die verbleibenden 28 Tasten (7x4) rendern den Gleisplan in Echtzeit als hochauflösende Vektor-SVGs (Gleise, Kurven, Kreuzungen, Prellböcke, Signale, Weichen und Belegtmelder).
+    - **Direkte Touch-Interaktion**: Weichen schalten beim Tastendruck direkt um (Gerade/Abzweig) und Signale wechseln das Signalbild per Knopfdruck.
+    - **Live-Zustandsanzeige**: Belegte Blöcke leuchten rot auf und zeigen die Zugbezeichnung/DCC-Adresse.
   - Automatische 1-Klick-Installation via `install_streamdeck_plugin.bat` direkt in `%APPDATA%\Elgato\StreamDeck\Plugins\`.
   - **3D-Druck-Konsole für Stream Deck XL + Brimford Drehregler**: Angewinkelte Pult-Halterung (`sd_xl_puck_console.stl` in `hardware/enclosure/streamdeck_xl_dock/`) mit integrierter Kabelführung.
-  - Dokumentation: [`docs/STREAMDECK_STELLPULT_KONZEPT.md`](docs/STREAMDECK_STELLPULT_KONZEPT.md).
+- **Flüssige Touch- & Maus-Bedienung des Handregler-Sliders**:
+  - **In-Place DOM-Updates statt Re-Render**: Die Throttle-Cards werden bei WebSocket-Updates nicht mehr abgerissen und neu erzeugt (`innerHTML = ''`), sondern gezielt im DOM aktualisiert. Dadurch bricht der Dragging-Vorgang nie wieder mittendrin ab.
+  - **Pointer-Capture**: `setPointerCapture` stellt sicher, dass der Finger oder Mauszeiger auch bei schnellen Wischbewegungen außerhalb des Slider-Bereichs fest mit dem Regler gekoppelt bleibt.
+  - **Eingabe-Schutz vor Server-Echo**: Solange ein Slider aktiv gezogen wird, überschreiben eingehende Server-Telemetriedaten die Reglerposition nicht.
+  - **Event-Drosselung (25 Hz)**: Schnelle Drag-Events werden auf 25 Updates/s gedrosselt, um den WebSocket-Kanal nicht zu überlasten; der Endwert wird beim Loslassen (`pointerup`/`change`) garantiert sofort übertragen.
+
+### 🧹 Bereinigung & Out of Scope (OOS)
+- **TrainMaster ThrottleOne (ESP32-Handregler) [OOS]**: Der DIY-Hardware-Handregler wurde verworfen und aus dem Projektumfang gestrichen. Vollständig entfernt wurden:
+  - Technische CAD-Konstruktionspläne & Maßzeichnungen (`docs/BLUEPRINT_THROTTLEONE_CAD.md`).
+  - Einkaufsliste & Stückliste (`docs/BAUTEILE_HANDREGLER_BOM.md`).
+  - Hardware- und Gehäuse-Konzeptdokumente (`docs/TRAINMASTER_HANDREGLER_KONZEPT.md`, `docs/3D_DRUCK_GEHAEUSE_ANLEITUNG.md`, `docs/assets/throttle_mockup.jpg`).
+  - Parametrisches 3D-Gehäusemodell (`hardware/enclosure/TrainMaster_ThrottleOne.scad`), Generierungsskript (`scripts/generate_enclosure.py`) und alle Handregler-STL-Dateien (`hardware/enclosure/stl/`).
+- **ESP32 Firmware & Flashing-Werkzeuge [OOS]**: Sämtliche Flashing-Bestandteile und Firmware-Dateien wurden als Out of Scope verworfen und entfernt (`firmware/TrainMasterNode/` inkl. `TrainMasterNode.ino`, `README.md`, `platformio.ini` sowie `docs/SIGNALE_ESP32_ANLEITUNG.md`).
+- **Kabelloses Rückmeldekonzept "SpotWIO" [OOS]**: Die Konzeptionsdokumentation zur funkbasierten Rückmeldung (`docs/RUECKMELDE_KONZEPT_KABELLOS.md`) wurde verworfen und entfernt.
+- **CrowPanel 1.28" Rotary Display Konzept [OOS]**: Das experimentelle Display-Konzept (`docs/CROWPANEL_ROTARY_KONZEPT.md`) wurde als Out of Scope entfernt.
+- **Fokus-Ausrichtung**: Physische Steuerung konzentriert sich gezielt auf etablierte Standard-Hardware (Elgato Stream Deck XL und USB-Macropads / Tastaturen) sowie die native Web-Applikation.
 
 ---
 

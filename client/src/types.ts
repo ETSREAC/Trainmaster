@@ -279,15 +279,15 @@ export type WSClientAction =
   | { type: 'RESUME_STOP' }
   | { type: 'SET_LOCO_SPEED'; payload: { locoId: string; speed: number; direction?: Direction } }
   | { type: 'SET_LOCO_FUNCTION'; payload: { locoId: string; functionIndex: number; active: boolean } }
-  | { type: 'SET_TURNOUT'; payload: { turnoutId: string; state: TurnoutState } }
+  | { type: 'SET_TURNOUT'; payload: { turnoutId: string; state: TurnoutState | 'TURNOUT' } }
   | { type: 'CREATE_TURNOUT'; payload: Turnout }
   | { type: 'UPDATE_TURNOUT'; payload: Turnout }
   | { type: 'DELETE_TURNOUT'; payload: { turnoutId: string } }
-  | { type: 'SET_SIGNAL'; payload: { signalId: string; aspect: SignalAspect } }
+  | { type: 'SET_SIGNAL' | 'SET_SIGNAL_ASPECT'; payload: { signalId: string; aspect: SignalAspect } }
   | { type: 'CREATE_SIGNAL'; payload: Signal }
   | { type: 'UPDATE_SIGNAL'; payload: Signal }
   | { type: 'DELETE_SIGNAL'; payload: { signalId: string } }
-  | { type: 'TRIGGER_SENSOR'; payload: { sensorId: string; state?: boolean; autoReset?: boolean } }
+  | { type: 'TRIGGER_SENSOR'; payload: { sensorId: string; state?: boolean; active?: boolean; autoReset?: boolean } }
   | { type: 'CREATE_SENSOR'; payload: Sensor }
   | { type: 'UPDATE_SENSOR'; payload: Sensor }
   | { type: 'DELETE_SENSOR'; payload: { sensorId: string } }
