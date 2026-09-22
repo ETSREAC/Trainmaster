@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TrainMaster - Digitale Modellbahn-Steuerung</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -14,10 +15,10 @@
     <!-- Top Header & Global Status -->
     <header class="top-header">
       <div class="brand">
-        <span class="logo-icon">🚂</span>
+        <img src="/logo.png" alt="TrainMaster" class="brand-logo">
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.3.1 • DCC-EX Port Fix</span>
+          <span class="version-tag">v1.5.0 • Cyber-Neon Edition</span>
         </div>
       </div>
 
@@ -30,19 +31,19 @@
           <span class="text" data-i18n="status.connecting">Verbinde...</span>
         </div>
         <div class="status-badge" id="badge-cs">
-          <span class="icon">🔌</span>
+          <span class="icon"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
           <span class="text">Simulator</span>
         </div>
         <button id="btn-power" class="btn btn-power on" title="Gleisspannung ein/ausschalten">
-          <span class="icon">⚡</span>
+          <span class="icon"><svg class="svg-icon icon-power active" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
           <span class="text" data-i18n="status.power_on">Gleisstrom EIN</span>
         </button>
         <button id="btn-auto" class="btn btn-auto" title="Aquarium / Automatikmodus starten">
-          <span class="icon">🔄</span>
+          <span class="icon"><svg class="svg-icon icon-auto" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16M16 21h5v-5"/></svg></span>
           <span class="text" data-i18n="status.auto_off">Automatik: AUS</span>
         </button>
         <button id="btn-estop" class="btn btn-estop" title="NOT-HALT für alle Züge (Leertaste)">
-          <span class="icon">🛑</span>
+          <span class="icon"><svg class="svg-icon icon-estop" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor"/></svg></span>
           <span class="text" data-i18n="status.estop">NOT-HALT [Space]</span>
         </button>
       </div>
@@ -51,22 +52,22 @@
     <!-- Main Navigation Bar -->
     <nav class="main-nav">
       <button class="nav-tab active" data-tab="layout" data-i18n="nav.layout">
-        <span class="icon">🗺️</span> Gleisplan & Stellwerk
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18M3 5h6a6 6 0 0 1 6 6v8"/><circle cx="6" cy="19" r="1.5" fill="currentColor"/><circle cx="15" cy="19" r="1.5" fill="currentColor"/><circle cx="6" cy="5" r="1.5" fill="currentColor"/></svg></span> Gleisplan & Stellwerk
       </button>
       <button class="nav-tab" data-tab="throttle" data-i18n="nav.throttle">
-        <span class="icon">🎛️</span> Handregler
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg></span> Handregler
       </button>
       <button class="nav-tab" data-tab="bbt" data-i18n="nav.bbt">
-        <span class="icon">⏱️</span> BBT Bremsrechner
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8"/><path d="M12 10v4l3 2M10 2h4M12 2v4"/></svg></span> BBT Bremsrechner
       </button>
       <button class="nav-tab" data-tab="sensors" data-i18n="nav.sensors">
-        <span class="icon">🚦</span> Signale & Rückmelder
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="15" rx="4"/><circle cx="12" cy="6.5" r="1.75" fill="currentColor"/><circle cx="12" cy="12.5" r="1.75" fill="currentColor"/><line x1="12" y1="17" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg></span> Signale & Rückmelder
       </button>
       <button class="nav-tab" data-tab="logs" data-i18n="nav.logs">
-        <span class="icon">📜</span> System-Log
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M13 15h4"/></svg></span> System-Log
       </button>
       <button class="nav-tab" data-tab="settings" data-i18n="nav.settings">
-        <span class="icon">⚙️</span> Einstellungen
+        <span class="icon"><svg class="svg-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> Einstellungen
       </button>
     </nav>
 
@@ -77,26 +78,30 @@
         <div class="panel-toolbar">
           <div class="toolbar-group">
             <span class="mode-label">Modus:</span>
-            <button id="btn-mode-run" class="tool-btn active" data-i18n="canvas.mode_run">🕹️ Fahrbetrieb</button>
-            <button id="btn-mode-edit" class="tool-btn" data-i18n="canvas.mode_edit">✏️ Gleisplan-Editor</button>
+            <button id="btn-mode-run" class="tool-btn active" data-i18n="canvas.mode_run">
+              <span class="icon"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg></span> Fahrbetrieb
+            </button>
+            <button id="btn-mode-edit" class="tool-btn" data-i18n="canvas.mode_edit">
+              <span class="icon"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span> Gleisplan-Editor
+            </button>
           </div>
           <div class="toolbar-group">
             <button id="btn-inspect-layout" class="btn btn-save" title="Gleisplan prüfen und Sensoren/Signale Blöcken zuordnen" data-i18n="canvas.inspect">
-              <span class="icon">⚡</span> Plan prüfen & Blöcke zuordnen
+              <span class="icon"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span> Plan prüfen & Blöcke zuordnen
             </button>
             <button id="btn-auto-routes" class="btn btn-save" style="background:#1f6feb26;color:#58a6ff;border-color:rgba(88,166,255,0.4);" title="Alle möglichen Fahrstraßen automatisch generieren" data-i18n="canvas.routes_auto">
-              <span class="icon">🧭</span> Fahrstraßen-Automatik
+              <span class="icon"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M5 17V9a4 4 0 0 1 4-4h8M15 2l3 3-3 3"/></svg></span> Fahrstraßen-Automatik
             </button>
           </div>
           <div class="toolbar-group">
             <span class="mode-label">Zoom:</span>
-            <button id="btn-zoom-out" class="tool-btn" title="Verkleinern (oder Strg + Mausrad)">🔍 -</button>
+            <button id="btn-zoom-out" class="tool-btn" title="Verkleinern (oder Strg + Mausrad)"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
             <span id="zoom-level-text" style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);min-width:38px;text-align:center;">100%</span>
-            <button id="btn-zoom-in" class="tool-btn" title="Vergrößern (oder Strg + Mausrad)">🔍 +</button>
+            <button id="btn-zoom-in" class="tool-btn" title="Vergrößern (oder Strg + Mausrad)"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
             <button id="btn-zoom-reset" class="tool-btn" title="Auf 100% zurücksetzen">1:1</button>
           </div>
           <div class="toolbar-group info-text" id="route-helper-text">
-            💡 <em>Klick auf einen Startblock und danach auf einen freien Zielblock, um eine Fahrstraße zu stellen.</em>
+            <svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e3b341" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5h6.18z"/></svg> <em>Klick auf einen Startblock und danach auf einen freien Zielblock, um eine Fahrstraße zu stellen.</em>
           </div>
         </div>
         <!-- Editor Werkzeugleiste (im Editor-Modus aktiv) -->
@@ -118,51 +123,51 @@
             <span class="icon">⬛</span> Block
           </button>
           <button class="palette-btn" data-tool="SIGNAL" title="Signal (Hp0 / Hp1 / Hp2)">
-            <span class="icon">🚦</span> Signal
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="15" rx="4"/><circle cx="12" cy="6.5" r="1.75" fill="currentColor"/><circle cx="12" cy="12.5" r="1.75" fill="currentColor"/><line x1="12" y1="17" x2="12" y2="22"/></svg></span> Signal
           </button>
           <button class="palette-btn" data-tool="SENSOR" title="Rückmelder / Gleissensor">
-            <span class="icon">📡</span> Sensor
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M4 15h16"/><circle cx="12" cy="8" r="4"/><line x1="12" y1="12" x2="12" y2="15"/></svg></span> Sensor
           </button>
           <button class="palette-btn" data-tool="BUFFER" title="Prellbock">
             <span class="icon">┨</span> Prellbock
           </button>
           <span class="palette-separator"></span>
           <button class="palette-btn" data-tool="INSPECT" title="Element konfigurieren (Block / Weiche / Sensor)">
-            <span class="icon">⚙️</span> Konfigurieren
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> Konfigurieren
           </button>
           <button class="palette-btn" data-tool="ROTATE" title="Gleis um 90° drehen">
-            <span class="icon">🔄</span> Drehen (90°)
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l6.23-6.19"/></svg></span> Drehen
           </button>
           <button class="palette-btn danger" data-tool="DELETE" title="Gleis löschen">
-            <span class="icon">🗑️</span> Löschen
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Löschen
           </button>
           <span class="palette-separator"></span>
           <span class="palette-label">Rand:</span>
-          <button id="btn-expand-left" class="palette-btn" title="Spalte links hinzufügen (verschiebt Gleise nach rechts)">
-            <span class="icon">⬅️</span> +Links
+          <button id="btn-expand-left" class="palette-btn" title="Spalte links hinzufügen">
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></span> +Links
           </button>
-          <button id="btn-expand-top" class="palette-btn" title="Zeile oben hinzufügen (verschiebt Gleise nach unten)">
-            <span class="icon">⬆️</span> +Oben
+          <button id="btn-expand-top" class="palette-btn" title="Zeile oben hinzufügen">
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></span> +Oben
           </button>
           <button id="btn-expand-right" class="palette-btn" title="Rechts erweitern (+2 Spalten)">
-            <span class="icon">➡️</span> +Rechts
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span> +Rechts
           </button>
           <button id="btn-expand-bottom" class="palette-btn" title="Unten erweitern (+2 Zeilen)">
-            <span class="icon">⬇️</span> +Unten
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></span> +Unten
           </button>
           <span class="palette-separator"></span>
           <button id="btn-inspect-layout-palette" class="palette-btn" title="Gleisplan prüfen & Blöcke zuordnen">
-            <span class="icon">⚡</span> Plan prüfen
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></span> Plan prüfen
           </button>
           <button id="btn-auto-routes-palette" class="palette-btn" title="Fahrstraßen-Automatik">
-            <span class="icon">🧭</span> Auto-Routen
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M5 17V9a4 4 0 0 1 4-4h8M15 2l3 3-3 3"/></svg></span> Auto-Routen
           </button>
           <span class="palette-separator"></span>
           <button id="btn-save-layout" class="btn btn-save" title="Gleisplan dauerhaft im Server speichern">
-            <span class="icon">💾</span> Speichern
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Speichern
           </button>
           <button id="btn-clear-layout" class="btn btn-clear" title="Gleisplan leeren">
-            <span class="icon">🧹</span> Leeren
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span> Leeren
           </button>
         </div>
         <div class="track-workspace-wrapper">

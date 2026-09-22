@@ -1,5 +1,19 @@
 import { Sensor, SensorType, WioNodeInfo } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import {
+  iconAlert,
+  iconBox,
+  iconCommandStation,
+  iconDot,
+  iconEdit,
+  iconGlobe,
+  iconLocos,
+  iconPlus,
+  iconPower,
+  iconRadio,
+  iconSearch,
+  iconSensor
+} from '../icons.js';
 
 export class SensorMonitor {
   private container: HTMLElement;
@@ -33,14 +47,14 @@ export class SensorMonitor {
     if (enabled) {
       if (activeNodes.length > 0) {
         const n = activeNodes[0];
-        chip.textContent = `📡 ESP32: ${n.name || 'WIO'} (Unit #${n.unit}) online @ ${n.ip} (${n.connectionType || 'TCP'})`;
+        chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32: ${n.name || 'WIO'} (Unit #${n.unit}) online @ ${n.ip} (${n.connectionType || 'TCP'})</span>`;
         chip.style.backgroundColor = '#238636';
       } else {
-        chip.textContent = `📡 ESP32 WIO-Server: Port ${port} aktiv (Warte auf ESP)`;
+        chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32 WIO-Server: Port ${port} aktiv (Warte auf ESP)</span>`;
         chip.style.backgroundColor = '#1f6feb';
       }
     } else {
-      chip.textContent = `📡 ESP32 WIO: Deaktiviert`;
+      chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32 WIO: Deaktiviert</span>`;
       chip.style.backgroundColor = '#484f58';
     }
   }
@@ -111,7 +125,7 @@ export class SensorMonitor {
     const defaultUnit = wsClient.wioNodes.length > 0 ? wsClient.wioNodes[0].unit : 33;
 
     if (sensor) {
-      if (titleEl) titleEl.textContent = '✏️ Rückmelder bearbeiten';
+      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconEdit(18)} <span>Rückmelder bearbeiten</span></span>`;
       if (idInput) idInput.value = sensor.id;
       if (nameInput) nameInput.value = sensor.name;
       if (typeSelect) typeSelect.value = sensor.type;
@@ -121,7 +135,7 @@ export class SensorMonitor {
       if (invCheckbox) invCheckbox.checked = !!sensor.inverted;
       if (btnDelete) btnDelete.style.display = 'block';
     } else {
-      if (titleEl) titleEl.textContent = '➕ Neuen Rückmelder anlegen';
+      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconPlus(18)} <span>Neuen Rückmelder anlegen</span></span>`;
       if (idInput) idInput.value = '';
       const unit = prefillWio ? prefillWio.unit : defaultUnit;
       const pin = prefillWio ? prefillWio.pin : wsClient.sensors.length + 1;
@@ -139,6 +153,7 @@ export class SensorMonitor {
     }
 
     this.modal.style.display = 'flex';
+    nameInput?.focus();
   }
 
   public closeModal(): void {
@@ -147,7 +162,7 @@ export class SensorMonitor {
     }
   }
 
-  private saveSensor(): void {
+  private saveFromModal(): void {
     const idInput = document.getElementById('sensor-edit-id') as HTMLInputElement | null;
     const nameInput = document.getElementById('sensor-form-name') as HTMLInputElement | null;
     const typeSelect = document.getElementById('sensor-form-type') as HTMLSelectElement | null;
@@ -156,23 +171,26 @@ export class SensorMonitor {
     const addrInput = document.getElementById('sensor-form-address') as HTMLInputElement | null;
     const invCheckbox = document.getElementById('sensor-form-inverted') as HTMLInputElement | null;
 
-    if (!nameInput || !addrInput || !typeSelect) return;
-
-    const isEdit = !!(idInput && idInput.value);
-    const type = typeSelect.value as SensorType;
+    const id = idInput?.value || undefined;
+    const name = nameInput?.value.trim() || 'Rückmelder';
+    const type = (typeSelect?.value as SensorType) || 'WIO';
+    const address = parseInt(addrInput?.value || '1', 10);
+    const inverted = !!invCheckbox?.checked;
+    const wioUnit = type === 'WIO' ? parseInt(unitInput?.value || '1', 10) : undefined;
+    const wioPin = type === 'WIO' ? parseInt(pinInput?.value || '1', 10) : undefined;
 
     const sensorData: Sensor = {
-      id: isEdit ? idInput.value : `sens-${Date.now()}`,
-      name: nameInput.value.trim(),
+      id: id || `sensor_${Date.now()}`,
+      name,
       type,
-      address: parseInt(addrInput.value, 10) || 1,
+      address,
       active: false,
-      inverted: !!invCheckbox?.checked,
-      wioUnit: type === 'WIO' && unitInput ? parseInt(unitInput.value, 10) || 33 : undefined,
-      wioPin: type === 'WIO' && pinInput ? parseInt(pinInput.value, 10) || 1 : undefined
+      inverted,
+      ...(wioUnit !== undefined ? { wioUnit } : {}),
+      ...(wioPin !== undefined ? { wioPin } : {})
     };
 
-    if (isEdit) {
+    if (id) {
       wsClient.send({
         type: 'UPDATE_SENSOR',
         payload: sensorData
@@ -183,7 +201,10 @@ export class SensorMonitor {
         payload: sensorData
       });
     }
+  }
 
+  private saveSensor(): void {
+    this.saveFromModal();
     this.closeModal();
   }
 
@@ -209,7 +230,7 @@ export class SensorMonitor {
     const scanningBanner = wsClient.isScanningEsp
       ? `
         <div style="background:rgba(31,111,235,0.15);border:1px solid #1f6feb;border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;color:#58a6ff;">
-          <div style="font-size:22px;display:inline-block;animation:spin 1s linear infinite;">🔄</div>
+          <div style="font-size:20px;display:inline-block;animation:spin 1s linear infinite;">${iconRadio(20)}</div>
           <div>
             <strong style="color:#f0f6fc;">Netzwerk-Scan läuft...</strong>
             <div style="font-size:12px;color:#8b949e;margin-top:2px;">Suche im lokalen Subnetz nach ESP32 Modulen & WIO Signal-Controllern...</div>
@@ -224,13 +245,13 @@ export class SensorMonitor {
       const espItems = discovered.map((esp) => {
         const isConnected = esp.tcpConnected || nodes.some((n) => n.ip === esp.ip);
         const statusBadge = isConnected
-          ? `<span style="background:rgba(35,134,54,0.2);border:1px solid #238636;color:#3fb950;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">🟢 Aktiv verbunden (TCP 8051)</span>`
-          : `<span style="background:rgba(31,111,235,0.2);border:1px solid #1f6feb;color:#58a6ff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">🔵 Online</span>`;
+          ? `<span style="background:rgba(35,134,54,0.2);border:1px solid #238636;color:#3fb950;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#3fb950', 6)} Aktiv verbunden (TCP 8051)</span>`
+          : `<span style="background:rgba(31,111,235,0.2);border:1px solid #1f6feb;color:#58a6ff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#58a6ff', 6)} Online</span>`;
 
         return `
           <div style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:24px;">🎛️</span>
+              <span style="color:#58a6ff;">${iconCommandStation(22)}</span>
               <div>
                 <div style="display:flex;align-items:center;gap:8px;">
                   <strong style="color:#f0f6fc;font-size:14px;">${esp.name}</strong>
@@ -245,12 +266,12 @@ export class SensorMonitor {
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <a href="${esp.webUrl}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;" title="Öffnet die ESP32 Konfiguration im Webbrowser">
-                🌐 Web-UI (${esp.ip}) ↗️
+              <a href="${esp.webUrl}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfiguration im Webbrowser">
+                ${iconGlobe(14)} Web-UI (${esp.ip}) ↗
               </a>
               ${esp.unit ? `
-                <button id="btn-scan-create-${esp.unit}" class="btn btn-sm btn-save" title="Erstellt automatisch 16 Belegtmelder für dieses Modul">
-                  ➕ 16 Pins für Unit ${esp.unit} anlegen
+                <button id="btn-scan-create-${esp.unit}" class="btn btn-sm btn-save" style="display:inline-flex;align-items:center;gap:5px;" title="Erstellt automatisch 16 Belegtmelder für dieses Modul">
+                  ${iconPlus(14)} 16 Pins für Unit ${esp.unit} anlegen
                 </button>
               ` : ''}
             </div>
@@ -262,7 +283,8 @@ export class SensorMonitor {
         <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div style="font-weight:600;font-size:13px;color:#f0f6fc;display:flex;align-items:center;gap:6px;">
-              <span>🔍 Gefundene ESP-Geräte im Netzwerk (${discovered.length})</span>
+              <span style="color:#58a6ff;">${iconSearch(15)}</span>
+              <span>Gefundene ESP-Geräte im Netzwerk (${discovered.length})</span>
             </div>
             <span style="font-size:11px;color:#6e7681;">Rocrail WIO / ESP32 Signal- & Belegtmelder</span>
           </div>
@@ -277,13 +299,13 @@ export class SensorMonitor {
     if (nodes.length === 0) {
       nodesHtml = `
         <div style="background:#161b22;border:1px dashed #30363d;border-radius:10px;padding:22px;text-align:center;">
-          <div style="font-size:28px;margin-bottom:6px;">📡</div>
+          <div style="margin-bottom:8px;color:#58a6ff;">${iconRadio(32)}</div>
           <div style="font-weight:600;font-size:15px;color:#f0f6fc;margin-bottom:6px;">Warte auf Verbindung des ESP32...</div>
           <p style="font-size:13px;color:#8b949e;max-width:620px;margin:0 auto 14px;line-height:1.5;">
             Der TrainMaster Server lauscht auf <strong>Port ${port} (TCP & UDP)</strong>. Starte den Netzwerk-Scan oder trage im ESP32 die Server-IP <code style="color:#58a6ff;background:#21262d;padding:2px 6px;border-radius:4px;">${serverHost}</code> ein.
           </p>
-          <button id="btn-wio-scan-empty" class="btn btn-save" style="margin:0 auto;">
-            🔍 ESP-Netzwerkscan starten
+          <button id="btn-wio-scan-empty" class="btn btn-save" style="margin:0 auto;display:inline-flex;align-items:center;gap:6px;">
+            ${iconSearch(15)} ESP-Netzwerkscan starten
           </button>
         </div>
       `;
@@ -310,7 +332,7 @@ export class SensorMonitor {
         <!-- Connection Banner -->
         <div class="wio-info-banner">
           <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:26px;">📡</span>
+            <span style="color:#58a6ff;">${iconRadio(26)}</span>
             <div>
               <div style="font-weight:700;font-size:15px;color:#f0f6fc;">ESP32 WIO Gerätemanager & Live-Monitor</div>
               <div style="font-size:12px;color:#8b949e;margin-top:2px;">
@@ -322,10 +344,10 @@ export class SensorMonitor {
             <div class="wio-info-pill" title="Server-IP für die ESP32 Konfiguration">Server-IP: <strong>${serverHost}</strong></div>
             <div class="wio-info-pill" title="Ziel-Port für TCP & UDP">Port: <strong>${port}</strong></div>
             <button id="btn-wio-scan" class="btn btn-sm" style="background:#238636;border:1px solid #2ea043;color:#ffffff;font-weight:600;display:flex;align-items:center;gap:6px;" ${wsClient.isScanningEsp ? 'disabled' : ''} title="Sucht das lokale Netzwerk nach ESP32 & WIO Geräten ab">
-              ${wsClient.isScanningEsp ? '🔄 Scanne...' : '🔍 ESP-Scan starten'}
+              ${wsClient.isScanningEsp ? 'Scanne...' : `${iconSearch(14)} ESP-Scan starten`}
             </button>
-            <button id="btn-wio-simulate" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;" title="Simuliert ein WIO-ESP32 Paket zum Testen">
-              ⚡ Test-Signal simulieren
+            <button id="btn-wio-simulate" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;display:inline-flex;align-items:center;gap:6px;" title="Simuliert ein WIO-ESP32 Paket zum Testen">
+              ${iconPower(true, 14)} Test-Signal simulieren
             </button>
           </div>
         </div>
@@ -342,7 +364,8 @@ export class SensorMonitor {
         <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div style="font-size:12px;font-weight:600;color:#c9d1d9;display:flex;align-items:center;gap:6px;">
-              <span>📦 Live-Paketprotokoll (letzte 10 Ereignisse)</span>
+              <span style="color:#58a6ff;">${iconBox(15)}</span>
+              <span>Live-Paketprotokoll (letzte 10 Ereignisse)</span>
             </div>
             <span style="font-size:11px;color:#6e7681;">TCP / UDP Port ${port} & HTTP</span>
           </div>
@@ -407,7 +430,7 @@ export class SensorMonitor {
   private renderNodeCard(node: WioNodeInfo): string {
     const secAgo = Math.floor((Date.now() - node.lastSeen) / 1000);
     const isOnline = secAgo < 30;
-    const statusText = isOnline ? `🟢 Online (Vor ${secAgo}s)` : `🟠 Zuletzt gesehen vor ${secAgo}s`;
+    const statusText = isOnline ? `Online (Vor ${secAgo}s)` : `Zuletzt gesehen vor ${secAgo}s`;
     const connBadge = node.connectionType
       ? `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">${node.connectionType} 8051</span>`
       : '';
@@ -426,7 +449,9 @@ export class SensorMonitor {
       pinsHtml += `
         <div id="pin-${node.unit}-${pin}" class="wio-pin-item ${isHigh ? 'active' : ''}" title="${title}" style="cursor:pointer;">
           <div class="pin-num">P${pin}</div>
-          <div class="pin-label">${isHigh ? '🔴 BELEGT' : '⚪ FREI'}</div>
+          <div class="pin-label" style="display:flex;align-items:center;justify-content:center;gap:4px;">
+            ${isHigh ? `${iconDot('#f85149', 6)} BELEGT` : `${iconDot('#8b949e', 6)} FREI`}
+          </div>
           ${sensor ? `<div style="font-size:9px;color:#58a6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;" title="${sensor.name}">${sensor.name}</div>` : ''}
         </div>
       `;
@@ -436,23 +461,23 @@ export class SensorMonitor {
       <div class="wio-node-card ${isOnline ? 'online' : ''}">
         <div class="wio-node-header">
           <div class="wio-node-title">
-            <span style="font-size:22px;">🎛️</span>
+            <span style="color:#58a6ff;">${iconCommandStation(22)}</span>
             <div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="color:#f0f6fc;">ESP32 WIO - <strong>Unit #${node.unit}</strong> ${nameStr}</span>
                 ${connBadge}
               </div>
-              <div style="font-size:12px;color:#8b949e;font-weight:400;margin-top:2px;">
-                ${statusText} ${verStr} • 📦 ${node.packetsReceived} Pakete empfangen
+              <div style="font-size:12px;color:#8b949e;font-weight:400;margin-top:2px;display:flex;align-items:center;gap:6px;">
+                ${isOnline ? iconDot('#3fb950', 7) : iconDot('#d29922', 7)} ${statusText} ${verStr} • ${iconBox(13)} ${node.packetsReceived} Pakete empfangen
               </div>
             </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <a href="http://${node.ip}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;" title="Öffnet die ESP32 Konfigurations-Webseite">
-              🌐 Web-UI (${node.ip}) ↗️
+            <a href="http://${node.ip}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfigurations-Webseite">
+              ${iconGlobe(14)} Web-UI (${node.ip}) ↗
             </a>
-            <button id="btn-autocreate-wio-${node.unit}" class="btn btn-sm btn-save" title="Legt für alle 16 Pins dieses ESP32 automatisch Rückmelder in TrainMaster an">
-              ➕ Alle 16 Pins anlegen
+            <button id="btn-autocreate-wio-${node.unit}" class="btn btn-sm btn-save" style="display:inline-flex;align-items:center;gap:5px;" title="Legt für alle 16 Pins dieses ESP32 automatisch Rückmelder in TrainMaster an">
+              ${iconPlus(14)} Alle 16 Pins anlegen
             </button>
           </div>
         </div>
@@ -494,8 +519,11 @@ export class SensorMonitor {
     if (wsClient.sensors.length === 0) {
       this.container.innerHTML = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #8b949e; background: #161b22; border-radius: 8px; border: 1px dashed #30363d;">
-          <p style="font-size: 16px; margin-bottom: 12px;">📡 Keine Rückmelder vorhanden.</p>
-          <button id="btn-add-sensor-empty" class="btn btn-save">➕ Ersten Rückmelder anlegen</button>
+          <div style="margin-bottom:12px;color:#58a6ff;">${iconSensor(36)}</div>
+          <p style="font-size: 16px; margin-bottom: 12px;">Keine Rückmelder vorhanden.</p>
+          <button id="btn-add-sensor-empty" class="btn btn-save" style="display:inline-flex;align-items:center;gap:6px;">
+            ${iconPlus(16)} Ersten Rückmelder anlegen
+          </button>
         </div>
       `;
       document.getElementById('btn-add-sensor-empty')?.addEventListener('click', () => this.openModal());
@@ -507,16 +535,18 @@ export class SensorMonitor {
       card.className = `sensor-card ${sensor.active ? 'active' : ''}`;
       card.style.position = 'relative';
 
+      const sensorTypeIcon = sensor.type === 'WIO' ? iconRadio(16) : sensor.type === 'DCC_EX' ? iconLocos(16) : iconSensor(16);
+
       // Header
       const header = document.createElement('div');
       header.className = 'sensor-header';
       header.innerHTML = `
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:16px;">${sensor.type === 'WIO' ? '📡' : sensor.type === 'DCC_EX' ? '🚂' : '⚡'}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#58a6ff;display:inline-flex;align-items:center;">${sensorTypeIcon}</span>
           <div class="sensor-name" style="font-weight:600;color:#f0f6fc;">${sensor.name}</div>
         </div>
-        <div class="sensor-badge ${sensor.active ? 'active' : 'free'}">
-          ${sensor.active ? '🔴 BELEGT' : '⚪ FREI'}
+        <div class="sensor-badge ${sensor.active ? 'active' : 'free'}" style="display:inline-flex;align-items:center;gap:5px;">
+          ${sensor.active ? `${iconDot('#f85149', 6)} BELEGT` : `${iconDot('#8b949e', 6)} FREI`}
         </div>
       `;
       card.appendChild(header);
@@ -539,7 +569,7 @@ export class SensorMonitor {
 
       let badgesHtml = `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">Typ: ${sensor.type}</span>`;
       if (sensor.inverted) {
-        badgesHtml += ` <span style="background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.4);padding:2px 6px;border-radius:4px;font-size:11px;color:#e3b341;">⚠️ Invertiert</span>`;
+        badgesHtml += ` <span style="background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.4);padding:2px 6px;border-radius:4px;font-size:11px;color:#e3b341;display:inline-flex;align-items:center;gap:3px;">${iconAlert(12, '#e3b341')} Invertiert</span>`;
       }
 
       let timeText = 'Noch nie ausgelöst';
@@ -551,7 +581,7 @@ export class SensorMonitor {
       info.innerHTML = `
         <div>${addressText}</div>
         <div style="margin-top:4px;">${badgesHtml}</div>
-        <div style="font-size:11px;color:#484f58;margin-top:4px;">⏱️ ${timeText}</div>
+        <div style="font-size:11px;color:#484f58;margin-top:4px;">${timeText}</div>
       `;
       card.appendChild(info);
 
@@ -568,7 +598,11 @@ export class SensorMonitor {
       btnTest.style.backgroundColor = '#21262d';
       btnTest.style.border = '1px solid #30363d';
       btnTest.style.color = '#f0f6fc';
-      btnTest.innerHTML = '⚡ Test-Impuls';
+      btnTest.style.display = 'inline-flex';
+      btnTest.style.alignItems = 'center';
+      btnTest.style.justifyContent = 'center';
+      btnTest.style.gap = '6px';
+      btnTest.innerHTML = `${iconPower(true, 14)} Test-Impuls`;
       btnTest.title = 'Löst einen virtuellen Belegt-Impuls auf diesem Kontakt aus';
       btnTest.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -585,7 +619,11 @@ export class SensorMonitor {
       btnEdit.style.backgroundColor = '#161b22';
       btnEdit.style.border = '1px solid #30363d';
       btnEdit.style.color = '#58a6ff';
-      btnEdit.innerHTML = '✏️ Edit';
+      btnEdit.style.display = 'inline-flex';
+      btnEdit.style.alignItems = 'center';
+      btnEdit.style.justifyContent = 'center';
+      btnEdit.style.gap = '4px';
+      btnEdit.innerHTML = `${iconEdit(13)} Edit`;
       btnEdit.title = 'Rückmelder konfigurieren (Adresse, WIO-Pin, Typ)';
       btnEdit.addEventListener('click', (e) => {
         e.stopPropagation();

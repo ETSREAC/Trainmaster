@@ -26,14 +26,14 @@ export const translations: Record<Language, Record<string, string>> = {
     'nav.logs': 'System-Logs',
 
     // Track Canvas Toolbar
-    'canvas.mode_run': '🕹️ Fahrbetrieb',
-    'canvas.mode_edit': '✏️ Gleisplan-Editor',
-    'canvas.inspect': '⚡ Plan prüfen & Blöcke zuordnen',
-    'canvas.routes_auto': '🧭 Fahrstraßen-Automatik',
-    'canvas.save_layout': '💾 Plan speichern',
-    'canvas.clear_layout': '🗑️ Plan leeren',
-    'canvas.helper_run': '💡 Click & Drive: Startblock mit Lok antippen, dann Zielblock. Weichen zum Schalten antippen.',
-    'canvas.helper_testmode': ' • ⚡ Testbetrieb aktiv: Rückmelder antippen (oder lang drücken für Dauerbelegung)',
+    'canvas.mode_run': 'Fahrbetrieb',
+    'canvas.mode_edit': 'Gleisplan-Editor',
+    'canvas.inspect': 'Plan prüfen & Blöcke zuordnen',
+    'canvas.routes_auto': 'Fahrstraßen-Automatik',
+    'canvas.save_layout': 'Plan speichern',
+    'canvas.clear_layout': 'Plan leeren',
+    'canvas.helper_run': 'Click & Drive: Startblock mit Lok antippen, dann Zielblock. Weichen zum Schalten antippen.',
+    'canvas.helper_testmode': ' • Testbetrieb aktiv: Rückmelder antippen (oder lang drücken für Dauerbelegung)',
     'canvas.zoom_reset': '100% (Reset)',
 
     // Editor Palette Tools
@@ -52,8 +52,8 @@ export const translations: Record<Language, Record<string, string>> = {
     // Train Depot Drawer
     'depot.title': 'Zugdepot',
     'depot.empty': 'Keine Loks angelegt.',
-    'depot.instruction_default': '💡 Lok antippen zum Aufgleisen oder per Drag & Drop ziehen',
-    'depot.instruction_selected': '🎯 Lok gewählt! Tippe jetzt auf ein Block-Gleis',
+    'depot.instruction_default': 'Lok antippen zum Aufgleisen oder per Drag & Drop ziehen',
+    'depot.instruction_selected': 'Lok gewählt! Tippe jetzt auf ein Block-Gleis',
     'depot.unassign_title': 'Zug hierher ziehen',
     'depot.unassign_subtitle': 'zum Abstellen & Block freigeben',
     'depot.btn_cancel': 'Abbrechen',
@@ -61,8 +61,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Throttle / Locos
     'throttle.empty_title': 'Noch keine Züge im Fuhrpark vorhanden',
-    'throttle.empty_desc': 'Klicke oben auf "➕ Neuen Zug anlegen", um deine erste Lokomotive mit DCC-Adresse anzulegen.',
-    'throttle.btn_add': '➕ Neuen Zug anlegen',
+    'throttle.empty_desc': 'Klicke oben auf "Neuen Zug anlegen", um deine erste Lokomotive mit DCC-Adresse anzulegen.',
+    'throttle.btn_add': 'Neuen Zug anlegen',
     'throttle.stop': 'STOP',
     'throttle.emergency_stop': 'NOT-HALT',
     'throttle.direction_fwd': 'VORWÄRTS',
@@ -78,18 +78,18 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.direction': 'Richtung',
 
     // Block-Typen
-    'block.type.station': '🏢 Hauptbahnhof / Bahnhof (Halt & Sounds)',
-    'block.type.local_station': '🚏 Regionalbahnhof (Durchfahrt für ICE/Güter)',
-    'block.type.shadow_station': '🚇 Schattenbahnhof (Zugspeicher / Parken)',
-    'block.type.mainline': '🛤️ Freie Strecke (Durchfahrtsgleis)',
-    'block.type.siding': '🏗️ Abstell- / Rangiergleis',
+    'block.type.station': 'Hauptbahnhof / Bahnhof (Halt & Sounds)',
+    'block.type.local_station': 'Regionalbahnhof (Durchfahrt für ICE/Güter)',
+    'block.type.shadow_station': 'Schattenbahnhof (Zugspeicher / Parken)',
+    'block.type.mainline': 'Freie Strecke (Durchfahrtsgleis)',
+    'block.type.siding': 'Abstell- / Rangiergleis',
 
     // Zug-Typen
-    'train.type.high_speed': '🚅 Hochgeschwindigkeit (ICE, TGV)',
-    'train.type.passenger': '🚆 Reisezug / InterCity',
-    'train.type.commuter': '🚈 Nahverkehr / Regional / Tram',
-    'train.type.freight': '🚂 Güterzug',
-    'train.type.shunter': '🚜 Rangierlok'
+    'train.type.high_speed': 'Hochgeschwindigkeit (ICE, TGV)',
+    'train.type.passenger': 'Reisezug / InterCity',
+    'train.type.commuter': 'Nahverkehr / Regional / Tram',
+    'train.type.freight': 'Güterzug',
+    'train.type.shunter': 'Rangierlok'
   },
   en: {
     // Header & Brand
@@ -116,14 +116,14 @@ export const translations: Record<Language, Record<string, string>> = {
     'nav.logs': 'System Logs',
 
     // Track Canvas Toolbar
-    'canvas.mode_run': '🕹️ Run Mode',
-    'canvas.mode_edit': '✏️ Track Editor',
-    'canvas.inspect': '⚡ Inspect Plan & Assign Blocks',
-    'canvas.routes_auto': '🧭 Route Generator',
-    'canvas.save_layout': '💾 Save Layout',
-    'canvas.clear_layout': '🗑️ Clear Layout',
-    'canvas.helper_run': '💡 Click & Drive: Tap source block with train, then tap target block. Tap turnouts to toggle.',
-    'canvas.helper_testmode': ' • ⚡ Test Mode Active: Tap feedback sensors (or long-press to latch occupied)',
+    'canvas.mode_run': 'Run Mode',
+    'canvas.mode_edit': 'Track Editor',
+    'canvas.inspect': 'Inspect Plan & Assign Blocks',
+    'canvas.routes_auto': 'Route Generator',
+    'canvas.save_layout': 'Save Layout',
+    'canvas.clear_layout': 'Clear Layout',
+    'canvas.helper_run': 'Click & Drive: Tap source block with train, then tap target block. Tap turnouts to toggle.',
+    'canvas.helper_testmode': ' • Test Mode Active: Tap feedback sensors (or long-press to latch occupied)',
     'canvas.zoom_reset': '100% (Reset)',
 
     // Editor Palette Tools
@@ -142,8 +142,8 @@ export const translations: Record<Language, Record<string, string>> = {
     // Train Depot Drawer
     'depot.title': 'Train Depot',
     'depot.empty': 'No locomotives configured.',
-    'depot.instruction_default': '💡 Tap a train to place on track, or drag & drop',
-    'depot.instruction_selected': '🎯 Train selected! Tap any block track to place',
+    'depot.instruction_default': 'Tap a train to place on track, or drag & drop',
+    'depot.instruction_selected': 'Train selected! Tap any block track to place',
     'depot.unassign_title': 'Drag train here',
     'depot.unassign_subtitle': 'to send to depot & clear block',
     'depot.btn_cancel': 'Cancel',
@@ -151,8 +151,8 @@ export const translations: Record<Language, Record<string, string>> = {
 
     // Throttle / Locos
     'throttle.empty_title': 'No locomotives in fleet yet',
-    'throttle.empty_desc': 'Click "➕ Add New Loco" above to create your first locomotive with a DCC address.',
-    'throttle.btn_add': '➕ Add New Loco',
+    'throttle.empty_desc': 'Click "Add New Loco" above to create your first locomotive with a DCC address.',
+    'throttle.btn_add': 'Add New Loco',
     'throttle.stop': 'STOP',
     'throttle.emergency_stop': 'EMERGENCY STOP',
     'throttle.direction_fwd': 'FORWARD',
@@ -168,18 +168,18 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.direction': 'Direction',
 
     // Block Types
-    'block.type.station': '🏢 Main Station (Halt & Sounds)',
-    'block.type.local_station': '🚏 Regional Halt (Pass-through for ICE/Freight)',
-    'block.type.shadow_station': '🚇 Staging Yard (Storage & Park)',
-    'block.type.mainline': '🛤️ Mainline (Passing Track)',
-    'block.type.siding': '🏗️ Siding / Shunting',
+    'block.type.station': 'Main Station (Halt & Sounds)',
+    'block.type.local_station': 'Regional Halt (Pass-through for ICE/Freight)',
+    'block.type.shadow_station': 'Staging Yard (Storage & Park)',
+    'block.type.mainline': 'Mainline (Passing Track)',
+    'block.type.siding': 'Siding / Shunting',
 
     // Train Types
-    'train.type.high_speed': '🚅 High-Speed (ICE, TGV)',
-    'train.type.passenger': '🚆 Passenger / InterCity',
-    'train.type.commuter': '🚈 Regional / Commuter / Tram',
-    'train.type.freight': '🚂 Freight Train',
-    'train.type.shunter': '🚜 Shunter / Switcher'
+    'train.type.high_speed': 'High-Speed (ICE, TGV)',
+    'train.type.passenger': 'Passenger / InterCity',
+    'train.type.commuter': 'Regional / Commuter / Tram',
+    'train.type.freight': 'Freight Train',
+    'train.type.shunter': 'Shunter / Switcher'
   }
 };
 
@@ -253,8 +253,8 @@ export function applyTranslationsToDOM(): void {
   if (langBtn) {
     const isDe = currentLang === 'de';
     langBtn.innerHTML = isDe
-      ? `<span class="lang-flag">🇬🇧</span> <span class="lang-text">EN</span>`
-      : `<span class="lang-flag">🇩🇪</span> <span class="lang-text">DE</span>`;
+      ? `<span class="lang-text" style="font-weight:700;letter-spacing:0.5px;">EN</span>`
+      : `<span class="lang-text" style="font-weight:700;letter-spacing:0.5px;">DE</span>`;
     langBtn.title = t('btn.lang_title');
   }
 

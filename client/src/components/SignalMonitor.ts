@@ -1,5 +1,12 @@
 import { Signal, SignalKind, SignalPins, SignalType, TrackElement, getSignalSupportedAspects } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import {
+  iconDot,
+  iconEdit,
+  iconLightbulb,
+  iconPlus,
+  iconSignal
+} from '../icons.js';
 
 export class SignalMonitor {
   private container: HTMLElement | null;
@@ -33,18 +40,19 @@ export class SignalMonitor {
     if (groupWhite) groupWhite.style.display = kind === 'ADVANCED' || kind === 'SHUNTING' ? 'block' : 'none';
 
     if (hintEl) {
+      const bulb = `<span style="color:#e3b341;display:inline-flex;align-items:center;margin-right:4px;">${iconLightbulb(15)}</span>`;
       switch (kind) {
         case 'BLOCK':
-          hintEl.innerHTML = '💡 <strong>2-begriffiges Blocksignal (Hp0 / Hp1)</strong>: Fahrstraßen stellen hier <em>niemals Gelb</em>, sondern stets Hp1 (Grün).';
+          hintEl.innerHTML = `${bulb}<strong>2-begriffiges Blocksignal (Hp0 / Hp1)</strong>: Fahrstraßen stellen hier <em>niemals Gelb</em>, sondern stets Hp1 (Grün).`;
           break;
         case 'ENTRY_EXIT':
-          hintEl.innerHTML = '💡 <strong>3-begriffiges Signal (Hp0 / Hp1 / Hp2)</strong>: Fahrstraßen über abzweigende Weichen stellen automatisch Hp2 (Gelb/Grün).';
+          hintEl.innerHTML = `${bulb}<strong>3-begriffiges Signal (Hp0 / Hp1 / Hp2)</strong>: Fahrstraßen über abzweigende Weichen stellen automatisch Hp2 (Gelb/Grün).`;
           break;
         case 'ADVANCED':
-          hintEl.innerHTML = '💡 <strong>4-begriffiges Signal</strong>: Unterstützt Hp0, Hp1, Hp2 und Sh1 (Rangierfahrt).';
+          hintEl.innerHTML = `${bulb}<strong>4-begriffiges Signal</strong>: Unterstützt Hp0, Hp1, Hp2 und Sh1 (Rangierfahrt).`;
           break;
         case 'SHUNTING':
-          hintEl.innerHTML = '💡 <strong>Sperrsignal (Sh0 / Sh1)</strong>: Reines Rangiersignal mit Sh0 (Halt) und Sh1 (Fahrverbot aufgehoben).';
+          hintEl.innerHTML = `${bulb}<strong>Sperrsignal (Sh0 / Sh1)</strong>: Reines Rangiersignal mit Sh0 (Halt) und Sh1 (Fahrverbot aufgehoben).`;
           break;
       }
     }
@@ -189,7 +197,7 @@ export class SignalMonitor {
 
     if (signal) {
       const initialKind: SignalKind = signal.kind || (signal.wioPins?.yellow !== undefined ? 'ENTRY_EXIT' : 'BLOCK');
-      if (titleEl) titleEl.textContent = `✏️ Signal bearbeiten: ${signal.name}`;
+      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconEdit(18)} <span>Signal bearbeiten: ${signal.name}</span></span>`;
       if (idInput) idInput.value = signal.id;
       if (nameInput) nameInput.value = signal.name;
       if (kindSelect) kindSelect.value = initialKind;
@@ -205,7 +213,7 @@ export class SignalMonitor {
       if (btnDelete) btnDelete.style.display = 'block';
       this.updateKindUi(initialKind);
     } else {
-      if (titleEl) titleEl.textContent = '➕ Neues Signal anlegen';
+      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconPlus(18)} <span>Neues Signal anlegen</span></span>`;
       if (idInput) idInput.value = '';
       const num = wsClient.signals.length + 1;
       if (nameInput) nameInput.value = `Signal ${num}`;
@@ -316,8 +324,11 @@ export class SignalMonitor {
     if (signals.length === 0) {
       cardsHtml = `
         <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #8b949e; background: #161b22; border-radius: 8px; border: 1px dashed #30363d;">
-          <p style="font-size: 15px; margin-bottom: 12px;">🚦 Keine Signale angelegt.</p>
-          <button id="btn-add-signal-empty" class="btn btn-save">➕ Erstes Signal anlegen</button>
+          <div style="margin-bottom:12px;color:#58a6ff;">${iconSignal(36)}</div>
+          <p style="font-size: 15px; margin-bottom: 12px;">Keine Signale angelegt.</p>
+          <button id="btn-add-signal-empty" class="btn btn-save" style="display:inline-flex;align-items:center;gap:6px;">
+            ${iconPlus(16)} Erstes Signal anlegen
+          </button>
         </div>
       `;
     } else {
@@ -327,11 +338,16 @@ export class SignalMonitor {
     this.container.innerHTML = `
       <div class="card-container" style="margin-top: 16px; padding: 20px;">
         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-          <div>
-            <h2>🚦 Signal-Steuerung & Konfiguration</h2>
-            <p>Echtzeit-Signalisierung über ESP32 (WIO-Pins / WS2812) oder DCC-EX. Wähle Bauarten (2-begriffige Blocksignale oder 3/4-begriffige Hauptsignale) und schalte live.</p>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:#58a6ff;">${iconSignal(24)}</span>
+            <div>
+              <h2 style="margin:0;">Signal-Steuerung & Konfiguration</h2>
+              <p style="margin:4px 0 0;font-size:13px;color:#8b949e;">Echtzeit-Signalisierung über ESP32 (WIO-Pins / WS2812) oder DCC-EX. Wähle Bauarten (2-begriffige Blocksignale oder 3/4-begriffige Hauptsignale) und schalte live.</p>
+            </div>
           </div>
-          <button id="btn-add-signal" class="btn btn-save">➕ Neues Signal anlegen</button>
+          <button id="btn-add-signal" class="btn btn-save" style="display:inline-flex;align-items:center;gap:6px;">
+            ${iconPlus(16)} Neues Signal anlegen
+          </button>
         </div>
 
         <div class="signal-grid" id="signal-cards-grid">
@@ -427,16 +443,16 @@ export class SignalMonitor {
     let kindBadge = '';
     switch (kind) {
       case 'BLOCK':
-        kindBadge = '<span class="badge" style="background:#23863622;color:#3fb950;border:1px solid #2ea04344;font-size:11px;font-weight:600;">🟢🔴 Block (Hp0/Hp1)</span>';
+        kindBadge = `<span class="badge" style="background:#23863622;color:#3fb950;border:1px solid #2ea04344;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#3fb950', 6)} Block (Hp0/Hp1)</span>`;
         break;
       case 'ENTRY_EXIT':
-        kindBadge = '<span class="badge" style="background:#d2992222;color:#e3b341;border:1px solid #d2992244;font-size:11px;font-weight:600;">🟢🔴🟡 Einfahr/Ausfahr (Hp0/1/2)</span>';
+        kindBadge = `<span class="badge" style="background:#d2992222;color:#e3b341;border:1px solid #d2992244;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#e3b341', 6)} Einfahr/Ausfahr (Hp0/1/2)</span>`;
         break;
       case 'ADVANCED':
-        kindBadge = '<span class="badge" style="background:#a371f722;color:#bc8cff;border:1px solid #a371f744;font-size:11px;font-weight:600;">🟢🔴🟡⚪ Haupt/Sperr (4-begr.)</span>';
+        kindBadge = `<span class="badge" style="background:#a371f722;color:#bc8cff;border:1px solid #a371f744;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#bc8cff', 6)} Haupt/Sperr (4-begr.)</span>`;
         break;
       case 'SHUNTING':
-        kindBadge = '<span class="badge" style="background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff44;font-size:11px;font-weight:600;">🔴⚪ Sperrsignal (Sh0/Sh1)</span>';
+        kindBadge = `<span class="badge" style="background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff44;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconDot('#58a6ff', 6)} Sperrsignal (Sh0/Sh1)</span>`;
         break;
     }
 
@@ -444,19 +460,19 @@ export class SignalMonitor {
     let aspectBadge = '';
     switch (aspect) {
       case 'HP0':
-        aspectBadge = '<span class="signal-badge-status status-hp0">🔴 HP0 (HALT)</span>';
+        aspectBadge = `<span class="signal-badge-status status-hp0" style="display:inline-flex;align-items:center;gap:5px;">${iconDot('#f85149', 6)} HP0 (HALT)</span>`;
         break;
       case 'HP1':
-        aspectBadge = '<span class="signal-badge-status status-hp1">🟢 HP1 (FAHRT)</span>';
+        aspectBadge = `<span class="signal-badge-status status-hp1" style="display:inline-flex;align-items:center;gap:5px;">${iconDot('#3fb950', 6)} HP1 (FAHRT)</span>`;
         break;
       case 'HP2':
-        aspectBadge = '<span class="signal-badge-status status-hp2">🟡 HP2 (LANGSAM)</span>';
+        aspectBadge = `<span class="signal-badge-status status-hp2" style="display:inline-flex;align-items:center;gap:5px;">${iconDot('#e3b341', 6)} HP2 (LANGSAM)</span>`;
         break;
       case 'SH1':
-        aspectBadge = '<span class="signal-badge-status status-sh1">⚪ SH1 (RANGIEREN)</span>';
+        aspectBadge = `<span class="signal-badge-status status-sh1" style="display:inline-flex;align-items:center;gap:5px;">${iconDot('#79c0ff', 6)} SH1 (RANGIEREN)</span>`;
         break;
       case 'SH0':
-        aspectBadge = '<span class="signal-badge-status status-sh0">🔴 SH0 (HALT)</span>';
+        aspectBadge = `<span class="signal-badge-status status-sh0" style="display:inline-flex;align-items:center;gap:5px;">${iconDot('#f85149', 6)} SH0 (HALT)</span>`;
         break;
       default:
         aspectBadge = `<span class="signal-badge-status">${aspect}</span>`;
@@ -487,19 +503,19 @@ export class SignalMonitor {
 
       switch (asp) {
         case 'HP0':
-          label = count <= 2 ? '🔴 Hp0 (Halt)' : (count === 3 ? '🔴 Hp0 (Halt)' : '🔴 Hp0');
+          label = count <= 2 ? `${iconDot('#f85149', 6)} Hp0 (Halt)` : (count === 3 ? `${iconDot('#f85149', 6)} Hp0 (Halt)` : `${iconDot('#f85149', 6)} Hp0`);
           break;
         case 'HP1':
-          label = count <= 2 ? '🟢 Hp1 (Fahrt)' : (count === 3 ? '🟢 Hp1 (Fahrt)' : '🟢 Hp1');
+          label = count <= 2 ? `${iconDot('#3fb950', 6)} Hp1 (Fahrt)` : (count === 3 ? `${iconDot('#3fb950', 6)} Hp1 (Fahrt)` : `${iconDot('#3fb950', 6)} Hp1`);
           break;
         case 'HP2':
-          label = count <= 3 ? '🟡 Hp2 (Langsam)' : '🟡 Hp2';
+          label = count <= 3 ? `${iconDot('#e3b341', 6)} Hp2 (Langsam)` : `${iconDot('#e3b341', 6)} Hp2`;
           break;
         case 'SH1':
-          label = count <= 2 ? '⚪ Sh1 (Rangieren)' : '⚪ Sh1';
+          label = count <= 2 ? `${iconDot('#79c0ff', 6)} Sh1 (Rangieren)` : `${iconDot('#79c0ff', 6)} Sh1`;
           break;
         case 'SH0':
-          label = count <= 2 ? '🔴 Sh0 (Halt)' : '🔴 Sh0';
+          label = count <= 2 ? `${iconDot('#f85149', 6)} Sh0 (Halt)` : `${iconDot('#f85149', 6)} Sh0`;
           break;
       }
 
@@ -536,12 +552,13 @@ export class SignalMonitor {
         </div>
 
         <div>
-          <button id="btn-edit-sig-${sig.id}" class="signal-config-btn">
-            ✏️ Signal konfigurieren (Bauart / Pins / Unit)
+          <button id="btn-edit-sig-${sig.id}" class="signal-config-btn" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+            ${iconEdit(14)} Signal konfigurieren (Bauart / Pins / Unit)
           </button>
         </div>
       </div>
     `;
   }
 }
+
 

@@ -1,5 +1,6 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import { iconEdit, iconLocos, iconPlus } from '../icons.js';
 
 export let activeLocoId: string | null = null;
 
@@ -43,17 +44,10 @@ interface LocoCardRef {
 
 export class Throttle {
   private container: HTMLElement;
-  private cards: Map<string, LocoCardRef> = new Map();
-
-  // Modal Elemente
   private modal: HTMLElement | null = null;
+  private modalTitle: HTMLElement | null = null;
   private formLoco: HTMLFormElement | null = null;
   private editIdInput: HTMLInputElement | null = null;
-  private modalTitle: HTMLElement | null = null;
-  private btnModalDelete: HTMLButtonElement | null = null;
-  private btnModalClose: HTMLButtonElement | null = null;
-  private btnModalCancel: HTMLButtonElement | null = null;
-
   private nameInput: HTMLInputElement | null = null;
   private addressInput: HTMLInputElement | null = null;
   private typeSelect: HTMLSelectElement | null = null;
@@ -61,42 +55,55 @@ export class Throttle {
   private vMidInput: HTMLInputElement | null = null;
   private vMaxInput: HTMLInputElement | null = null;
   private lengthInput: HTMLInputElement | null = null;
+  private btnModalDelete: HTMLButtonElement | null = null;
+
+  // Cache für DOM-Referenzen jeder Lokkarte (Performance & kein Flackern bei Slider-Bedienung)
+  private cards: Map<string, LocoCardRef> = new Map();
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.initModalElements();
     this.init();
   }
 
-  private initModalElements(): void {
-    this.modal = document.getElementById('loco-modal');
-    this.formLoco = document.getElementById('form-loco') as HTMLFormElement;
-    this.editIdInput = document.getElementById('loco-edit-id') as HTMLInputElement;
-    this.modalTitle = document.getElementById('modal-loco-title');
-    this.btnModalDelete = document.getElementById('btn-modal-delete') as HTMLButtonElement;
-    this.btnModalClose = document.getElementById('btn-modal-close') as HTMLButtonElement;
-    this.btnModalCancel = document.getElementById('btn-modal-cancel') as HTMLButtonElement;
+  private init(): void {
+    this.initModal();
 
-    this.nameInput = document.getElementById('loco-form-name') as HTMLInputElement;
-    this.addressInput = document.getElementById('loco-form-address') as HTMLInputElement;
-    this.typeSelect = document.getElementById('loco-form-type') as HTMLSelectElement;
-    this.vMinInput = document.getElementById('loco-form-vmin') as HTMLInputElement;
-    this.vMidInput = document.getElementById('loco-form-vmid') as HTMLInputElement;
-    this.vMaxInput = document.getElementById('loco-form-vmax') as HTMLInputElement;
-    this.lengthInput = document.getElementById('loco-form-length') as HTMLInputElement;
-
-    // "➕ Neuen Zug anlegen" Button
-    document.getElementById('btn-add-loco')?.addEventListener('click', () => {
-      this.openCreateModal();
+    wsClient.subscribe(() => {
+      this.render();
     });
 
-    // Modal Schließen
+    this.render();
+  }
+
+  private initModal(): void {
+    this.modal = document.getElementById('loco-modal');
+    this.modalTitle = document.getElementById('loco-modal-title');
+    this.formLoco = document.getElementById('form-loco') as HTMLFormElement | null;
+    this.editIdInput = document.getElementById('edit-loco-id') as HTMLInputElement | null;
+    this.nameInput = document.getElementById('loco-name') as HTMLInputElement | null;
+    this.addressInput = document.getElementById('loco-address') as HTMLInputElement | null;
+    this.typeSelect = document.getElementById('loco-type') as HTMLSelectElement | null;
+    this.vMinInput = document.getElementById('loco-vmin') as HTMLInputElement | null;
+    this.vMidInput = document.getElementById('loco-vmid') as HTMLInputElement | null;
+    this.vMaxInput = document.getElementById('loco-vmax') as HTMLInputElement | null;
+    this.lengthInput = document.getElementById('loco-length') as HTMLInputElement | null;
+    this.btnModalDelete = document.getElementById('btn-loco-modal-delete') as HTMLButtonElement | null;
+
+    const btnAdd = document.getElementById('btn-add-loco');
+    if (btnAdd) {
+      btnAdd.addEventListener('click', () => this.openCreateModal());
+    }
+
+    const btnClose = document.getElementById('btn-loco-close');
+    const btnCancel = document.getElementById('btn-loco-cancel');
+
     const closeModal = () => {
       if (this.modal) this.modal.style.display = 'none';
     };
 
-    this.btnModalClose?.addEventListener('click', closeModal);
-    this.btnModalCancel?.addEventListener('click', closeModal);
+    btnClose?.addEventListener('click', closeModal);
+    btnCancel?.addEventListener('click', closeModal);
+
     this.modal?.addEventListener('click', (e) => {
       if (e.target === this.modal) closeModal();
     });
@@ -123,7 +130,7 @@ export class Throttle {
 
   public openCreateModal(): void {
     if (!this.modal) return;
-    if (this.modalTitle) this.modalTitle.textContent = '➕ Neue Lokomotive anlegen';
+    if (this.modalTitle) this.modalTitle.innerHTML = `${iconPlus(18)} <span>Neue Lokomotive anlegen</span>`;
     if (this.btnModalDelete) this.btnModalDelete.style.display = 'none';
     if (this.editIdInput) this.editIdInput.value = '';
 
@@ -141,7 +148,7 @@ export class Throttle {
 
   public openEditModal(loco: Locomotive): void {
     if (!this.modal) return;
-    if (this.modalTitle) this.modalTitle.textContent = `✏️ ${loco.name} bearbeiten`;
+    if (this.modalTitle) this.modalTitle.innerHTML = `${iconEdit(18)} <span>${loco.name} bearbeiten</span>`;
     if (this.btnModalDelete) this.btnModalDelete.style.display = 'block';
     if (this.editIdInput) this.editIdInput.value = loco.id;
 
@@ -210,11 +217,6 @@ export class Throttle {
     }
   }
 
-  private init(): void {
-    wsClient.subscribe(() => this.render());
-    this.render();
-  }
-
   private sendSpeed(locoId: string, speed: number, direction?: 'FWD' | 'REV'): void {
     wsClient.send({
       type: 'SET_LOCO_SPEED',
@@ -230,8 +232,9 @@ export class Throttle {
       this.cards.clear();
       this.container.innerHTML = `
         <div style="color:#8b949e;text-align:center;padding:40px;width:100%;">
+          <div style="margin-bottom:12px;color:#58a6ff;">${iconLocos(36)}</div>
           <h3>Noch keine Züge im Fuhrpark vorhanden</h3>
-          <p style="margin-top:8px;">Klicke oben auf <strong>"➕ Neuen Zug anlegen"</strong>, um deine erste Lokomotive mit DCC-Adresse anzulegen.</p>
+          <p style="margin-top:8px;">Klicke oben auf <strong>"Neuen Zug anlegen"</strong>, um deine erste Lokomotive mit DCC-Adresse anzulegen.</p>
         </div>
       `;
       return;
@@ -288,11 +291,11 @@ export class Throttle {
     const headerLeft = document.createElement('div');
     const nameEl = document.createElement('div');
     nameEl.className = 'loco-name';
-    nameEl.textContent = `🚂 ${loco.name} `;
+    nameEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><span style="color:#58a6ff;">${iconLocos(18)}</span> <span>${loco.name}</span></span>`;
 
     const activeBadgeEl = document.createElement('span');
     activeBadgeEl.style.cssText = 'background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;';
-    activeBadgeEl.textContent = '⭐ AKTIV';
+    activeBadgeEl.textContent = 'AKTIV';
     activeBadgeEl.style.display = isActive ? 'inline-block' : 'none';
     nameEl.appendChild(activeBadgeEl);
 
@@ -313,8 +316,8 @@ export class Throttle {
     const btnEdit = document.createElement('button');
     btnEdit.className = 'btn-icon btn-edit-loco';
     btnEdit.title = 'Lokomotive bearbeiten';
-    btnEdit.style.cssText = 'font-size:14px;cursor:pointer;';
-    btnEdit.textContent = '✏️';
+    btnEdit.style.cssText = 'cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:4px;';
+    btnEdit.innerHTML = iconEdit(15);
     btnEdit.addEventListener('click', (e) => {
       e.stopPropagation();
       const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
@@ -544,8 +547,12 @@ export class Throttle {
     ref.activeBadgeEl.style.display = isActive ? 'inline-block' : 'none';
 
     // Textfelder
-    if (ref.nameEl.childNodes[0]) {
-      ref.nameEl.childNodes[0].textContent = `🚂 ${loco.name} `;
+    const nameSpan = ref.nameEl.querySelector('span span:last-child');
+    if (nameSpan) {
+      nameSpan.textContent = loco.name;
+    } else {
+      ref.nameEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><span style="color:#58a6ff;">${iconLocos(18)}</span> <span>${loco.name}</span></span>`;
+      ref.nameEl.appendChild(ref.activeBadgeEl);
     }
     ref.metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
     ref.dccAddrEl.textContent = `DCC #${loco.dccAddress}`;

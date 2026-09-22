@@ -10,6 +10,27 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.5.0] - 2026-09-22
+
+### 🎨 Design, Brand & UI/UX (Cyber-Neon Edition)
+- **Neues Cyber-Neon Markenlogo**:
+  - Hochauflösendes, aerodynamisches Logo mit cyan- und neongrün-leuchtender Zugschnauze und verzweigenden Gleisen (`client/public/logo.png`, `client/public/favicon.png`, `docs/assets/logo.png`).
+  - Integriert in Header-Branding mit dezentem Neon-Glow und sanfter Hover-Skalierung.
+  - Übernommen in das Elgato Stream Deck Plugin (`pluginIcon.png`, `pluginIcon@2x.png`, `categoryIcon.png`, `categoryIcon@2x.png`).
+- **Komplette Emoji-Ablösung durch Custom SVG Vector Icon Library (`client/src/icons.ts`)**:
+  - Vollständiges Set maßgeschneiderter Vektor-Icons im exakten Stil des Logos (2px Stroke, runde Kappen, 100% skalierbar, Farbübernahme via `currentColor`):
+    - **Header & Navigation**: Gleisstrom (`iconPower`), Not-Aus (`iconEstop`), Automatik-Modus (`iconAuto`), Zentrale (`iconCommandStation`), Gleisplan (`iconLayout`), Handregler (`iconThrottle`), BBT (`iconBbt`), Signale (`iconSignal`), Sensoren (`iconSensor`), Weichen (`iconTurnouts`), Fuhrpark (`iconLocos`), Fahrstraßen (`iconRoutes`), Einstellungen (`iconSettings`), Logs (`iconLogs`).
+    - **Aktionen & Werkzeuge**: Editieren (`iconEdit`), Löschen (`iconTrash`), Hinzufügen/Entfernen (`iconPlus`/`iconMinus`), Zoom-Controls (`iconZoomIn`, `iconZoomOut`, `iconZoomReset`), Drehen (`iconRotate`), Prüfen/Diagnose (`iconInspect`), Speichern (`iconSave`).
+    - **Hardware & Status**: WIO/Funk (`iconRadio`), Suche/Scan (`iconSearch`), Verriegelung (`iconLock`), Warnung (`iconAlert`), Standort/Pin (`iconPin`), Ziel (`iconTarget`), Status-Linsen (`iconDot`), Lautsprecher/Sound (`iconSpeaker`).
+    - **Zug-Typen**: Highspeed (`iconTrainHighspeed`), Reisezug/Regional (`iconTrainPassenger`), Güterzug (`iconTrainFreight`), Rangierlok (`iconTrainShunter`).
+- **Signal-Monitor Layout & Badge Optimierung**:
+  - Getrennte Header-Strukturierung (Titel + Status-Badge oben, Signalbauart-Badge darunter), um Textumbruch-Kollisionen bei längeren Signalnamen zu verhindern.
+  - Schärfere Signalbegriffs-Buttons (Hp0, Hp1, Hp2, Sh0, Sh1) mit ausgewogener Beschriftung und leuchtenden Neon-Zuständen (`.active-hp0`, `.active-hp1`, etc.).
+- **Bereinigte Sprach- & Lokalisierungs-Strings (`i18n.ts`)**:
+  - Beseitigung von hartkodierten Emojis aus Übersetzungs-Wörterbüchern; nahtlose Beibehaltung der dynamischen SVG-Icons bei Sprachwechsel zwischen Deutsch und Englisch.
+
+---
+
 ## [1.4.0] - 2026-09-22
 
 ### 🎮 Hardware & Bedienelemente (Stream Deck XL & USB-Macropads)

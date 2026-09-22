@@ -1,5 +1,6 @@
 import { BBTEntry } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import { iconAlert } from '../icons.js';
 
 export class BBTMonitor {
   private tbody: HTMLElement;
@@ -31,7 +32,7 @@ export class BBTMonitor {
       let lastRunText = 'Noch nicht gefahren';
       if (entry.lastRunMetrics) {
         if (entry.lastRunMetrics.overranIn) {
-          lastRunText = '⚠️ Zu schnell (IN überfahren)';
+          lastRunText = `<span style="display:inline-flex;align-items:center;gap:4px;">${iconAlert(13, '#f85149')} Zu schnell (IN überfahren)</span>`;
         } else {
           lastRunText = `Kriechzeit: ${entry.lastRunMetrics.creepDurationMs}ms`;
         }

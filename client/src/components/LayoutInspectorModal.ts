@@ -1,5 +1,6 @@
 import { wsClient } from '../wsClient.js';
 import { LayoutInspectionResult } from '../types.js';
+import { iconAlert, iconDot } from '../icons.js';
 
 export class LayoutInspectorModal {
   private modalEl: HTMLElement | null = null;
@@ -70,29 +71,22 @@ export class LayoutInspectorModal {
 
   private switchTab(tab: 'diagnose' | 'routes'): void {
     this.activeTab = tab;
-
+    const tabDiag = document.getElementById('inspector-tab-content-diag');
+    const tabRoutes = document.getElementById('inspector-tab-content-routes');
     const btnDiag = document.getElementById('tab-btn-inspector-diag');
     const btnRoutes = document.getElementById('tab-btn-inspector-routes');
-    const paneDiag = document.getElementById('inspector-pane-diag');
-    const paneRoutes = document.getElementById('inspector-pane-routes');
 
-    if (tab === 'diagnose') {
-      btnDiag?.classList.add('active');
-      btnRoutes?.classList.remove('active');
-      if (paneDiag) paneDiag.style.display = 'block';
-      if (paneRoutes) paneRoutes.style.display = 'none';
-    } else {
-      btnRoutes?.classList.add('active');
-      btnDiag?.classList.remove('active');
-      if (paneRoutes) paneRoutes.style.display = 'block';
-      if (paneDiag) paneDiag.style.display = 'none';
-    }
+    if (tabDiag) tabDiag.style.display = tab === 'diagnose' ? 'block' : 'none';
+    if (tabRoutes) tabRoutes.style.display = tab === 'routes' ? 'block' : 'none';
+
+    btnDiag?.classList.toggle('active', tab === 'diagnose');
+    btnRoutes?.classList.toggle('active', tab === 'routes');
   }
 
   public triggerInspect(): void {
     const statusMsg = document.getElementById('inspector-status-text');
     if (statusMsg) {
-      statusMsg.innerHTML = '🔄 <em>Gleisplan wird analysiert und Fahrstraßen berechnet...</em>';
+      statusMsg.innerHTML = '<em>Gleisplan wird analysiert und Fahrstraßen berechnet...</em>';
     }
     wsClient.send({ type: 'INSPECT_LAYOUT' });
   }
@@ -108,10 +102,10 @@ export class LayoutInspectorModal {
     const statusMsg = document.getElementById('inspector-status-text');
     if (statusMsg) {
       if (res.issues.length === 0) {
-        statusMsg.innerHTML = `<span style="color:#3fb950;font-weight:bold;">✅ Topologie einwandfrei!</span> Alle Gleise und Weichen sind nahtlos verbunden.`;
+        statusMsg.innerHTML = `<span style="color:#3fb950;font-weight:bold;display:inline-flex;align-items:center;gap:6px;">${iconDot('#3fb950', 8)} Topologie einwandfrei!</span> Alle Gleise und Weichen sind nahtlos verbunden.`;
       } else {
         const errors = res.issues.filter((i) => i.type === 'OPEN_END');
-        statusMsg.innerHTML = `<span style="color:#d29922;font-weight:bold;">⚠️ ${res.issues.length} Hinweise gefunden</span> (${errors.length} offene Gleisenden).`;
+        statusMsg.innerHTML = `<span style="color:#d29922;font-weight:bold;display:inline-flex;align-items:center;gap:6px;">${iconAlert(14, '#d29922')} ${res.issues.length} Hinweise gefunden</span> (${errors.length} offene Gleisenden).`;
       }
     }
 
@@ -153,20 +147,18 @@ export class LayoutInspectorModal {
     const issuesContainer = document.getElementById('inspector-issues-list');
     if (issuesContainer) {
       if (res.issues.length === 0) {
-        issuesContainer.innerHTML = `<div class="alert alert-success" style="padding:10px 14px;border-radius:6px;background:rgba(35,134,54,0.15);border:1px solid #238636;color:#3fb950;">
-          Keine offenen Gleisenden oder fehlende Weichenverbindungen gefunden. Das Gleisnetz ist vollständig geschlossen!
+        issuesContainer.innerHTML = `<div class="alert alert-success" style="padding:10px 14px;border-radius:6px;background:rgba(35,134,54,0.15);border:1px solid #238636;color:#3fb950;display:flex;align-items:center;gap:6px;">
+          ${iconDot('#3fb950', 8)} Keine offenen Gleisenden oder fehlende Weichenverbindungen gefunden. Das Gleisnetz ist vollständig geschlossen!
         </div>`;
       } else {
         issuesContainer.innerHTML = `
-          <div style="font-weight:600;margin-bottom:8px;color:#f0883e;">⚠️ Topologie-Hinweise (${res.issues.length}):</div>
+          <div style="font-weight:600;margin-bottom:8px;color:#f0883e;display:flex;align-items:center;gap:6px;">
+            ${iconAlert(14, '#f0883e')} Topologie-Hinweise (${res.issues.length}):
+          </div>
           <div style="max-height:120px;overflow-y:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:12px;font-family:monospace;">
             ${res.issues
               .map((iss) => {
-                let icon = 'ℹ️';
-                if (iss.type === 'OPEN_END') icon = '🚧';
-                if (iss.type === 'DANGLING_TURNOUT') icon = '⎇';
-                if (iss.type === 'MISSING_LINK') icon = '🔗';
-                return `<div style="padding:3px 0;border-bottom:1px solid #21262d;">${icon} <strong>[${iss.type}]</strong> ${iss.message}</div>`;
+                return `<div style="padding:3px 0;border-bottom:1px solid #21262d;"><strong>[${iss.type}]</strong> ${iss.message}</div>`;
               })
               .join('')}
           </div>
@@ -315,7 +307,7 @@ export class LayoutInspectorModal {
     const alertBox = document.getElementById('inspector-alert');
     if (alertBox) {
       alertBox.style.display = 'block';
-      alertBox.innerHTML = `✅ <strong>Zuordnungen übernommen!</strong> ${assignments.length} Blöcke wurden mit Sensoren und Signalen aktualisiert und dauerhaft gespeichert.`;
+      alertBox.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconDot('#3fb950', 8)} <strong>Zuordnungen übernommen!</strong></span> ${assignments.length} Blöcke wurden mit Sensoren und Signalen aktualisiert und dauerhaft gespeichert.`;
       setTimeout(() => {
         alertBox.style.display = 'none';
       }, 4000);
@@ -340,7 +332,7 @@ export class LayoutInspectorModal {
     const alertBox = document.getElementById('inspector-alert');
     if (alertBox) {
       alertBox.style.display = 'block';
-      alertBox.innerHTML = `🚀 <strong>Fahrstraßen aktiviert!</strong> ${selected.length} Fahrstraßen wurden erfolgreich im Stellwerk gespeichert.`;
+      alertBox.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconDot('#38bdf8', 8)} <strong>Fahrstraßen aktiviert!</strong></span> ${selected.length} Fahrstraßen wurden erfolgreich im Stellwerk gespeichert.`;
       setTimeout(() => {
         alertBox.style.display = 'none';
       }, 4000);

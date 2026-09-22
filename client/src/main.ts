@@ -8,6 +8,7 @@ import { SignalMonitor } from './components/SignalMonitor.js';
 import { LayoutInspectorModal } from './components/LayoutInspectorModal.js';
 import { TrainDepotDrawer } from './components/TrainDepotDrawer.js';
 import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
+import { iconCommandStation, iconPower, iconAuto, iconEstop } from './icons.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Elements
@@ -293,17 +294,17 @@ document.addEventListener('DOMContentLoaded', () => {
       let label = 'Simulator';
       if (csType === 'DCC_EX') label = 'DCC-EX';
       if (csType === 'Z21') label = 'Roco Z21';
-      badgeCs.innerHTML = `<span class="icon">🔌</span> <span class="text">${label}</span>`;
+      badgeCs.innerHTML = `<span class="icon">${iconCommandStation(16)}</span> <span class="text">${label}</span>`;
     }
 
     // Power Button
     if (btnPower) {
       if (wsClient.status.trackPower) {
         btnPower.className = 'btn btn-power on';
-        btnPower.innerHTML = `<span class="icon">⚡</span> <span class="text">${t('status.power_on')}</span>`;
+        btnPower.innerHTML = `<span class="icon">${iconPower(true, 18)}</span> <span class="text">${t('status.power_on')}</span>`;
       } else {
         btnPower.className = 'btn btn-power';
-        btnPower.innerHTML = `<span class="icon">🔌</span> <span class="text">${t('status.power_off')}</span>`;
+        btnPower.innerHTML = `<span class="icon">${iconPower(false, 18)}</span> <span class="text">${t('status.power_off')}</span>`;
       }
     }
 
@@ -311,10 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnAuto) {
       if (wsClient.status.automaticMode) {
         btnAuto.className = 'btn btn-auto active';
-        btnAuto.innerHTML = `<span class="icon">🔄</span> <span class="text">${t('status.auto_on')}</span>`;
+        btnAuto.innerHTML = `<span class="icon">${iconAuto(true, 18)}</span> <span class="text">${t('status.auto_on')}</span>`;
       } else {
         btnAuto.className = 'btn btn-auto';
-        btnAuto.innerHTML = `<span class="icon">🔄</span> <span class="text">${t('status.auto_off')}</span>`;
+        btnAuto.innerHTML = `<span class="icon">${iconAuto(false, 18)}</span> <span class="text">${t('status.auto_off')}</span>`;
       }
     }
 
@@ -322,10 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnEstop) {
       if (wsClient.status.emergencyStop) {
         btnEstop.className = 'btn btn-estop active';
-        btnEstop.innerHTML = `<span class="icon">⚠️</span> <span class="text">${t('status.estop')}</span>`;
+        btnEstop.innerHTML = `<span class="icon">${iconEstop(true, 18)}</span> <span class="text">${t('status.estop')}</span>`;
       } else {
         btnEstop.className = 'btn btn-estop';
-        btnEstop.innerHTML = `<span class="icon">🛑</span> <span class="text">${t('status.estop')}</span>`;
+        btnEstop.innerHTML = `<span class="icon">${iconEstop(false, 18)}</span> <span class="text">${t('status.estop')}</span>`;
       }
     }
 

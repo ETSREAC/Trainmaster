@@ -1,6 +1,16 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { onLanguageChange, t } from '../i18n.js';
+import {
+  iconDot,
+  iconLocos,
+  iconPin,
+  iconTarget,
+  iconTrainFreight,
+  iconTrainHighspeed,
+  iconTrainPassenger,
+  iconTrainShunter
+} from '../icons.js';
 
 export class TrainDepotDrawer {
   private container: HTMLElement;
@@ -40,16 +50,13 @@ export class TrainDepotDrawer {
       this.isOpen = savedState === 'true';
     }
 
-    TrainDepotDrawer.onSelectionChange = () => {
-      this.render();
-      const tc = (window as any).trackCanvas;
-      tc?.render();
-      tc?.updateHelperText();
-    };
-
     wsClient.subscribe(() => {
       this.render();
     });
+
+    TrainDepotDrawer.onSelectionChange = () => {
+      this.render();
+    };
 
     onLanguageChange(() => {
       this.render();
@@ -70,19 +77,17 @@ export class TrainDepotDrawer {
 
   public render(): void {
     const locos = wsClient.locos || [];
-    const blocks = wsClient.blocks || [];
-    const selectedLoco = TrainDepotDrawer.selectedLocoId
-      ? locos.find((l) => l.id === TrainDepotDrawer.selectedLocoId)
-      : null;
+    const blocks: Array<{ id: string; name: string }> = (wsClient.blocks || []).map((b) => ({ id: b.id, name: b.name }));
+    const selectedLoco = locos.find((l) => l.id === TrainDepotDrawer.selectedLocoId);
 
-    // Main Drawer wrapper
-    this.container.className = `train-depot-drawer ${this.isOpen ? 'open' : 'collapsed'}`;
+    this.container.classList.toggle('collapsed', !this.isOpen);
+    this.container.classList.toggle('open', this.isOpen);
 
     if (!this.isOpen) {
       // Collapsed tab
       this.container.innerHTML = `
         <button id="btn-depot-expand" class="depot-collapsed-tab" title="${t('depot.title')}">
-          <span class="tab-icon">🚂</span>
+          <span class="tab-icon" style="color:#58a6ff;">${iconLocos(18)}</span>
           <span class="tab-label">${t('depot.collapsed_label')} (${locos.length})</span>
           <span class="tab-arrow">▶</span>
         </button>
@@ -107,7 +112,7 @@ export class TrainDepotDrawer {
       ? `
         <div class="depot-instruction active-selection">
           <div class="instruction-content">
-            <span class="instruction-title">🎯 ${t('depot.instruction_selected')} (<strong>${selectedLoco.name}</strong>)</span>
+            <span class="instruction-title" style="display:flex;align-items:center;gap:6px;"><span style="color:#38bdf8;">${iconTarget(16)}</span> ${t('depot.instruction_selected')} (<strong>${selectedLoco.name}</strong>)</span>
           </div>
           <button id="btn-depot-cancel-select" class="btn-cancel-placement" title="${t('depot.btn_cancel')}">✕</button>
         </div>
@@ -121,7 +126,7 @@ export class TrainDepotDrawer {
     this.container.innerHTML = `
       <div class="depot-header">
         <div class="depot-title">
-          <span class="depot-icon">🚂</span>
+          <span class="depot-icon" style="color:#58a6ff;">${iconLocos(18)}</span>
           <span class="depot-heading">${t('depot.title')}</span>
           <span class="depot-count-badge">${locos.length}</span>
         </div>
@@ -138,7 +143,7 @@ export class TrainDepotDrawer {
 
       <!-- Drop-Zone zum Abstellen / Freigeben -->
       <div class="depot-unassign-zone" id="depot-unassign-zone">
-        <span class="unassign-icon">📥</span>
+        <span class="unassign-icon" style="color:#8b949e;">${iconLocos(18)}</span>
         <div class="unassign-text">
           <strong>${t('depot.unassign_title')}</strong>
           <small>${t('depot.unassign_subtitle')}</small>
@@ -210,7 +215,7 @@ export class TrainDepotDrawer {
           if (!this.touchGhostEl) {
             this.touchGhostEl = document.createElement('div');
             this.touchGhostEl.className = 'touch-drag-ghost';
-            this.touchGhostEl.innerHTML = `<span>🚂</span> <strong>${loco.name}</strong>`;
+            this.touchGhostEl.innerHTML = `<span style="color:#58a6ff;display:inline-flex;align-items:center;">${iconLocos(16)}</span> <strong>${loco.name}</strong>`;
             document.body.appendChild(this.touchGhostEl);
           }
         }
@@ -278,7 +283,7 @@ export class TrainDepotDrawer {
       btnClear?.addEventListener('click', (e) => {
         e.stopPropagation();
         if (loco.currentBlockId) {
-          const b = blocks.find((x) => x.id === loco.currentBlockId);
+          const b = blocks.find((x: { id: string; name: string }) => x.id === loco.currentBlockId);
           if (confirm(`Zug "${loco.name}" aus Block "${b?.name || loco.currentBlockId}" entfernen und Gleis freigeben?`)) {
             wsClient.send({
               type: 'FREE_BLOCK',
@@ -327,22 +332,22 @@ export class TrainDepotDrawer {
     let typeBadge = '';
     switch (loco.trainType) {
       case 'HIGH_SPEED':
-        typeBadge = '<span class="loco-type-badge highspeed">🚅 Highspeed</span>';
+        typeBadge = `<span class="loco-type-badge highspeed" style="display:inline-flex;align-items:center;gap:4px;">${iconTrainHighspeed(14)} Highspeed</span>`;
         break;
       case 'PASSENGER':
-        typeBadge = '<span class="loco-type-badge passenger">🚆 Reisezug</span>';
+        typeBadge = `<span class="loco-type-badge passenger" style="display:inline-flex;align-items:center;gap:4px;">${iconTrainPassenger(14)} Reisezug</span>`;
         break;
       case 'COMMUTER':
-        typeBadge = '<span class="loco-type-badge commuter" style="background:rgba(56,139,253,0.15);color:#58a6ff;border:1px solid rgba(56,139,253,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🚈 Regional</span>';
+        typeBadge = `<span class="loco-type-badge commuter" style="background:rgba(56,139,253,0.15);color:#58a6ff;border:1px solid rgba(56,139,253,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconTrainPassenger(14)} Regional</span>`;
         break;
       case 'FREIGHT':
-        typeBadge = '<span class="loco-type-badge freight">🚂 Güterzug</span>';
+        typeBadge = `<span class="loco-type-badge freight" style="display:inline-flex;align-items:center;gap:4px;">${iconTrainFreight(14)} Güterzug</span>`;
         break;
       case 'SHUNTER':
-        typeBadge = '<span class="loco-type-badge shunter" style="background:rgba(210,153,34,0.15);color:#d29922;border:1px solid rgba(210,153,34,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">🚜 Rangierer</span>';
+        typeBadge = `<span class="loco-type-badge shunter" style="background:rgba(210,153,34,0.15);color:#d29922;border:1px solid rgba(210,153,34,0.3);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">${iconTrainShunter(14)} Rangierer</span>`;
         break;
       default:
-        typeBadge = '<span class="loco-type-badge">Triebfahrzeug</span>';
+        typeBadge = `<span class="loco-type-badge" style="display:inline-flex;align-items:center;gap:4px;">${iconLocos(14)} Triebfahrzeug</span>`;
     }
 
     return `
@@ -365,7 +370,7 @@ export class TrainDepotDrawer {
 
         ${isSelected ? `
           <div class="loco-selected-banner">
-            <span>👆 <strong>Block im Gleisplan antippen</strong></span>
+            <span><strong style="color:#38bdf8;">Block im Gleisplan antippen</strong></span>
           </div>
         ` : ''}
 
@@ -374,14 +379,14 @@ export class TrainDepotDrawer {
             ? `
               <div class="loco-status-location" title="Aktuell auf dem Gleisplan">
                 <span class="status-dot green"></span>
-                <span class="location-name">📍 ${currentBlock.name}</span>
+                <span class="location-name" style="display:inline-flex;align-items:center;gap:4px;"><span style="color:#38bdf8;">${iconPin(13)}</span> ${currentBlock.name}</span>
               </div>
               <button id="btn-free-loco-${loco.id}" class="btn-card-free" title="Aus Block entfernen">✕</button>
             `
             : `
               <div class="loco-status-ready">
                 <span class="status-dot yellow"></span>
-                <span>🟢 Bereit im Depot</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;">${iconDot('#3fb950', 7)} Bereit im Depot</span>
               </div>
             `
           }

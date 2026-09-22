@@ -1,5 +1,6 @@
 import { AppSettings, CommandStationConfig } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import { iconSearch } from '../icons.js';
 
 export class SettingsTab {
   private csTypeSelect = document.getElementById('cs-type-select') as HTMLSelectElement;
@@ -59,8 +60,13 @@ export class SettingsTab {
 
     // COM-Ports scannen
     this.btnScanPorts?.addEventListener('click', () => {
-      this.btnScanPorts.textContent = '⏳ Suche...';
+      this.btnScanPorts.innerHTML = `${iconSearch(14)} Scanne...`;
+      this.btnScanPorts.disabled = true;
       wsClient.send({ type: 'SCAN_SERIAL_PORTS' });
+      setTimeout(() => {
+        this.btnScanPorts.innerHTML = `${iconSearch(14)} Suchen`;
+        this.btnScanPorts.disabled = false;
+      }, 1500);
     });
 
     // Speichern
@@ -68,7 +74,7 @@ export class SettingsTab {
       this.saveSettings();
     });
 
-    // Auf State-Änderungen hören
+    // Bei Updates der Settings vom Server
     wsClient.subscribe(() => {
       this.populateFromState();
     });
@@ -111,7 +117,7 @@ export class SettingsTab {
     }
 
     if (this.btnScanPorts && wsClient.serialPorts.length > 0) {
-      this.btnScanPorts.textContent = '🔄 Suchen';
+      this.btnScanPorts.innerHTML = `${iconSearch(14)} Suchen`;
     }
   }
 
@@ -260,6 +266,6 @@ export class SettingsTab {
       payload: newSettings
     });
 
-    alert('✅ Einstellungen gespeichert! Die Zentrale wird jetzt verbunden...');
+    alert('Einstellungen gespeichert! Die Zentrale wird jetzt verbunden...');
   }
 }
