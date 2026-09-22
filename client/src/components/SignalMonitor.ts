@@ -444,22 +444,22 @@ export class SignalMonitor {
     let aspectBadge = '';
     switch (aspect) {
       case 'HP0':
-        aspectBadge = '<span class="badge" style="background:#da363333;color:#f85149;border:1px solid #da363366;font-weight:700;">🔴 HP0 (HALT)</span>';
+        aspectBadge = '<span class="signal-badge-status status-hp0">🔴 HP0 (HALT)</span>';
         break;
       case 'HP1':
-        aspectBadge = '<span class="badge" style="background:#23863633;color:#3fb950;border:1px solid #2ea04366;font-weight:700;">🟢 HP1 (FAHRT)</span>';
+        aspectBadge = '<span class="signal-badge-status status-hp1">🟢 HP1 (FAHRT)</span>';
         break;
       case 'HP2':
-        aspectBadge = '<span class="badge" style="background:#d2992233;color:#e3b341;border:1px solid #d2992266;font-weight:700;">🟡 HP2 (LANGSAM)</span>';
+        aspectBadge = '<span class="signal-badge-status status-hp2">🟡 HP2 (LANGSAM)</span>';
         break;
       case 'SH1':
-        aspectBadge = '<span class="badge" style="background:#58a6ff33;color:#58a6ff;border:1px solid #58a6ff66;font-weight:700;">⚪ SH1 (RANGIEREN)</span>';
+        aspectBadge = '<span class="signal-badge-status status-sh1">⚪ SH1 (RANGIEREN)</span>';
         break;
       case 'SH0':
-        aspectBadge = '<span class="badge" style="background:#da363333;color:#f85149;border:1px solid #da363366;font-weight:700;">🔴 SH0 (HALT)</span>';
+        aspectBadge = '<span class="signal-badge-status status-sh0">🔴 SH0 (HALT)</span>';
         break;
       default:
-        aspectBadge = `<span class="badge">${aspect}</span>`;
+        aspectBadge = `<span class="signal-badge-status">${aspect}</span>`;
     }
 
     // Hardware Details
@@ -478,38 +478,33 @@ export class SignalMonitor {
       hwDetails = `Typ: ${sig.type} • DCC-Adresse: #${sig.address}`;
     }
 
-    // Schaltknöpfe nur für vom Signalmodell tatsächlich unterstützte Begriffe
+    // Schaltknöpfe: Ausgewogene Beschriftung je nach Anzahl der Begriffe
+    const count = supportedAspects.length;
     const aspectButtonsHtml = supportedAspects.map((asp) => {
       let label = '';
-      let color = '#c9d1d9';
-      let borderColor = '#30363d';
       const isActive = aspect === asp;
+      const activeClass = isActive ? `active active-${asp.toLowerCase()}` : '';
 
       switch (asp) {
         case 'HP0':
-          label = '🔴 Hp0';
-          if (isActive) { color = '#f85149'; borderColor = '#f85149'; }
+          label = count <= 2 ? '🔴 Hp0 (Halt)' : (count === 3 ? '🔴 Hp0 (Halt)' : '🔴 Hp0');
           break;
         case 'HP1':
-          label = '🟢 Hp1';
-          if (isActive) { color = '#3fb950'; borderColor = '#3fb950'; }
+          label = count <= 2 ? '🟢 Hp1 (Fahrt)' : (count === 3 ? '🟢 Hp1 (Fahrt)' : '🟢 Hp1');
           break;
         case 'HP2':
-          label = '🟡 Hp2';
-          if (isActive) { color = '#e3b341'; borderColor = '#e3b341'; }
+          label = count <= 3 ? '🟡 Hp2 (Langsam)' : '🟡 Hp2';
           break;
         case 'SH1':
-          label = '⚪ Sh1';
-          if (isActive) { color = '#58a6ff'; borderColor = '#58a6ff'; }
+          label = count <= 2 ? '⚪ Sh1 (Rangieren)' : '⚪ Sh1';
           break;
         case 'SH0':
-          label = '🔴 Sh0';
-          if (isActive) { color = '#f85149'; borderColor = '#f85149'; }
+          label = count <= 2 ? '🔴 Sh0 (Halt)' : '🔴 Sh0';
           break;
       }
 
       return `
-        <button id="btn-aspect-${sig.id}-${asp}" class="btn btn-sm ${isActive ? 'active' : ''}" style="background:#21262d;border:1px solid ${borderColor};color:${color};font-weight:600;" title="${label}">
+        <button id="btn-aspect-${sig.id}-${asp}" class="signal-aspect-btn ${activeClass}" title="${asp}">
           ${label}
         </button>
       `;
@@ -518,28 +513,30 @@ export class SignalMonitor {
     const cols = Math.max(2, supportedAspects.length);
 
     return `
-      <div class="signal-card ${isRed ? 'halt' : 'proceed'}" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:all 0.2s ease;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-          <div style="display:flex;align-items:center;gap:12px;">
+      <div class="signal-card ${isRed ? 'halt' : 'proceed'}">
+        <div class="signal-card-header">
+          <div class="signal-card-icon">
             ${signalHeadSvg}
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-weight:700;font-size:15px;color:#f0f6fc;">${sig.name}</span>
-                ${kindBadge}
-              </div>
-              <div style="font-size:12px;color:#8b949e;margin-top:4px;">${hwDetails}</div>
-            </div>
           </div>
-          <div>${aspectBadge}</div>
+          <div class="signal-card-main">
+            <div class="signal-card-top-row">
+              <span class="signal-card-name" title="${sig.name}">${sig.name}</span>
+              <div style="flex-shrink:0;">${aspectBadge}</div>
+            </div>
+            <div class="signal-card-meta-row">
+              ${kindBadge}
+            </div>
+            <div class="signal-card-hw">${hwDetails}</div>
+          </div>
         </div>
 
         <!-- Buttons zum Schalten (dynamisch je nach Bauart) -->
-        <div style="display:grid;grid-template-columns:repeat(${cols}, 1fr);gap:6px;margin-top:4px;">
+        <div class="signal-aspect-grid" style="grid-template-columns:repeat(${cols}, 1fr);">
           ${aspectButtonsHtml}
         </div>
 
-        <div style="display:flex;justify-content:flex-end;margin-top:2px;">
-          <button id="btn-edit-sig-${sig.id}" class="btn btn-sm" style="background:#161b22;border:1px solid #30363d;color:#58a6ff;">
+        <div>
+          <button id="btn-edit-sig-${sig.id}" class="signal-config-btn">
             ✏️ Signal konfigurieren (Bauart / Pins / Unit)
           </button>
         </div>

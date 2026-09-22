@@ -1568,7 +1568,7 @@ body {
   border-bottom: none;
 }
 
-/* Signal Grid */
+/* Signal Grid & Cards */
 .signal-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -1583,7 +1583,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
 .signal-card.halt {
@@ -1592,7 +1593,178 @@ body {
 
 .signal-card.proceed {
   border-color: rgba(63, 185, 80, 0.4);
-  box-shadow: 0 0 12px rgba(46, 160, 67, 0.15);
+  box-shadow: 0 0 12px rgba(46, 160, 67, 0.12);
+}
+
+.signal-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.signal-card-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signal-card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.signal-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.signal-card-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #f0f6fc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.signal-badge-status.status-hp0,
+.signal-badge-status.status-sh0 {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff7b72;
+  border: 1px solid rgba(248, 81, 73, 0.45);
+}
+
+.signal-badge-status.status-hp1 {
+  background: rgba(63, 185, 80, 0.15);
+  color: #56d364;
+  border: 1px solid rgba(63, 185, 80, 0.45);
+}
+
+.signal-badge-status.status-hp2 {
+  background: rgba(210, 153, 34, 0.15);
+  color: #e3b341;
+  border: 1px solid rgba(210, 153, 34, 0.45);
+}
+
+.signal-badge-status.status-sh1 {
+  background: rgba(88, 166, 255, 0.15);
+  color: #79c0ff;
+  border: 1px solid rgba(88, 166, 255, 0.45);
+}
+
+.signal-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.signal-card-hw {
+  font-size: 11.5px;
+  color: #8b949e;
+  line-height: 1.35;
+}
+
+.signal-aspect-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.signal-aspect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #30363d;
+  background: #1c2128;
+  color: #adbac7;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.signal-aspect-btn:hover {
+  background: #2d333b;
+  border-color: #444c56;
+  color: #f0f6fc;
+}
+
+.signal-aspect-btn.active.active-hp0,
+.signal-aspect-btn.active.active-sh0 {
+  background: rgba(248, 81, 73, 0.18);
+  border-color: #f85149;
+  color: #ff7b72;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(248, 81, 73, 0.25);
+}
+
+.signal-aspect-btn.active.active-hp1 {
+  background: rgba(46, 160, 67, 0.18);
+  border-color: #3fb950;
+  color: #56d364;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(46, 160, 67, 0.25);
+}
+
+.signal-aspect-btn.active.active-hp2 {
+  background: rgba(210, 153, 34, 0.18);
+  border-color: #d29922;
+  color: #e3b341;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(210, 153, 34, 0.25);
+}
+
+.signal-aspect-btn.active.active-sh1 {
+  background: rgba(88, 166, 255, 0.18);
+  border-color: #58a6ff;
+  color: #79c0ff;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(88, 166, 255, 0.25);
+}
+
+.signal-config-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #58a6ff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.signal-config-btn:hover {
+  background: #21262d;
+  border-color: rgba(88, 166, 255, 0.5);
 }
 
 /* Sensor Grid */
