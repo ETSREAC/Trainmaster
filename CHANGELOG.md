@@ -8,6 +8,10 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ## [Unreleased]
 
+---
+
+## [1.4.0] - 2026-09-22
+
 ### 🎮 Hardware & Bedienelemente (Stream Deck XL & USB-Macropads)
 - **Globale Tastatur- & Macropad-Steuerung (USB Rotary Knobs & Keypads)**:
   - Volle Unterstützung für handelsübliche programmierbare USB-Macropads mit Drehknopf (z. B. 3-Key / 6-Key / 9-Key Keypads) und Standard-PC-Tastaturen.
