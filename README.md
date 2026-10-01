@@ -65,7 +65,7 @@ TrainMaster/
 │   │   ├── hal/                # Z21, DCC-EX, WIO/UDP, Virtual Simulator
 │   │   └── storage/            # JSON persistence for track plans, locos & routes
 │   └── data/                   # Track plan & fleet database
-├── hardware/                   # 3D printable designs (e.g. Stream Deck XL Console)
+├── hardware/                   # Hardware, firmware & 3D designs (CrowPanel 1.28" Rotary Display, Stream Deck dock)
 ├── integrations/               # External controller plugins (e.g. Elgato Stream Deck Plugin)
 ├── docs/                       # In-depth guides & documentation
 ├── STEERING.md                 # Project release & versioning policy

@@ -10,7 +10,28 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
-## [1.5.0] - 2026-09-22
+## [1.6.0] - 2026-10-01
+
+### 🎮 Hardware & Firmware: CrowPanel 1.28" ESP32-S3 Rotary Display Handregler
+- **Standalone Handregler für DCC-EX & TrainMaster**:
+  - Vollwertige kabellose Handregler-Firmware für das runde **Elecrow CrowPanel 1.28" ESP32-S3 Rotary Display** (240x240 IPS Touchscreen, Drehregler & 5x WS2812 RGB-LED-Ring) unter `hardware/crowpanel_esp32_rotary/`.
+  - **Direkter Standalone-Modus**: Verbindet sich per WLAN direkt via TCP mit der DCC-EX Zentrale (Port 2560) – die Modellbahn kann sofort ohne laufenden PC oder Server gefahren werden.
+  - **DCC 128 Fahrstufen-Steuerung**: Butterweiche Geschwindigkeitsregelung über den physischen Drehknopf mit debounctem Makerguides-Encoder-Algorithmus (1 Raste = 1 definierte Fahrstufe, kein Nachlaufen oder Springen).
+  - **Fahrtrichtung & Not-Aus (Knob-Button)**:
+    - Kurzer Klick toggelt Fahrtrichtung (FWD / REV) mit visueller Bestätigung.
+    - Langer Druck (>800 ms) löst einen sofortigen Not-Aus (`<!>` Broadcast Emergency Stop) für die gesamte Anlage aus; erneuter Klick stellt die Gleisspannung (`<1>`) sauber wieder her.
+  - **Kapazitive Touch-Gesten (CST816D)**:
+    - Wischgesten (Swipe Left/Right) wechseln direkt zwischen den DCC-Adressen (#1 bis #12) mit Gesture-Lock gegen versehentliches Überspringen.
+    - Doppelklick auf den Drehknopf oder Touch öffnet das Funktionsmenü (F0 bis F11) zum Schalten von Licht, Sound und Sonderfunktionen.
+  - **Flimmerfreie Delta-Grafik (Differential Rendering)**:
+    - Zero-Flicker Benutzeroberfläche auf dem runden GC9A01 IPS-Display: Nur tatsächlich geänderte Werte (Tachobogen, Geschwindigkeitswert, DCC-Adresse, Status) werden selektiv neu gezeichnet.
+  - **Dynamischer 5x WS2812 RGB LED-Ring**:
+    - LED-Tachometer mit farbkodiertem Füllstand proportional zur Geschwindigkeit.
+    - Sanftes Status-Glühen im Stillstand je nach Fahrtrichtung (Grün/Blau).
+    - Weißer Blitz bei Funktionsschaltung (z. B. Pfeife).
+    - Roter Stroboskop-Alarm bei Not-Aus / unterbrochenem Gleisstrom.
+- **Server WebSocket Optimierung für Handregler**:
+  - `server/src/index.ts`: Filtert unnötigen Datenballast (Gleisplan, Sensoren, Signale, Weichen, Routen) bei dedizierten Throttle-Verbindungen heraus, um RAM und Bandbreite auf Mikrocontrollern drastisch zu schonen.
 
 ### 🎨 Design, Brand & UI/UX (Cyber-Neon Edition)
 - **Neues Cyber-Neon Markenlogo**:

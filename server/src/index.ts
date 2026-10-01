@@ -423,22 +423,23 @@ function inspectLayout(): LayoutInspectionResult {
 applyCommandStation(data.settings.commandStation);
 
 // WebSocket Verbindungen
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  const isThrottle = req?.url?.includes('throttle') || req?.url?.includes('hmi');
   const initialMsg: WSServerMessage = {
     type: 'INITIAL_STATE',
     payload: {
       status,
       locos: locoManager.getAllLocos(),
-      turnouts: turnoutManager.getAllTurnouts(),
-      signals: data.signals,
-      sensors: data.sensors,
-      blocks: blockManager.getAllBlocks(),
-      layout: data.layout,
-      routes: routeEngine.getAllRoutes(),
-      bbt: bbtEngine.getAllEntries(),
+      turnouts: isThrottle ? [] : turnoutManager.getAllTurnouts(),
+      signals: isThrottle ? [] : data.signals,
+      sensors: isThrottle ? [] : data.sensors,
+      blocks: isThrottle ? [] : blockManager.getAllBlocks(),
+      layout: isThrottle ? [] : data.layout,
+      routes: isThrottle ? [] : routeEngine.getAllRoutes(),
+      bbt: isThrottle ? [] : bbtEngine.getAllEntries(),
       settings: data.settings,
-      wioNodes: wioDriver.getDiscoveredNodes(),
-      wioPackets: wioDriver.getRecentPackets()
+      wioNodes: isThrottle ? [] : wioDriver.getDiscoveredNodes(),
+      wioPackets: isThrottle ? [] : wioDriver.getRecentPackets()
     }
   };
   ws.send(JSON.stringify(initialMsg));
