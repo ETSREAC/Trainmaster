@@ -2,6 +2,7 @@
 
 LedController::LedController(uint8_t pin, uint8_t count)
   : _strip(count, pin, NEO_GRB + NEO_KHZ800),
+    _brightness(35),
     _mode(LED_BOOT_CONNECTING),
     _speed(0),
     _isFwd(true),
@@ -14,8 +15,18 @@ LedController::LedController(uint8_t pin, uint8_t count)
 
 void LedController::begin() {
   _strip.begin();
-  _strip.setBrightness(180); // Gute Helligkeit, schont Strom & Blendung
+  _strip.setBrightness(_brightness); // Angenehme, blendfreie Helligkeit (35)
   _strip.show();
+}
+
+void LedController::setBrightness(uint8_t brightness) {
+  _brightness = brightness;
+  _strip.setBrightness(_brightness);
+  _strip.show();
+}
+
+uint8_t LedController::getBrightness() const {
+  return _brightness;
 }
 
 void LedController::setMode(LedMode mode) {

@@ -7,14 +7,18 @@ Kabelloser WLAN-Handregler & Lokomotiv-Tacho für TrainMaster mit dem **Elecrow 
 ## 🌟 Funktionen im Überblick
 
 1. **Drehregler (Rotary Knob):**
-   - **Fahr-Modus:** Stufenlose Geschwindigkeitsregelung (0 bis 128 DCC-Fahrstufen).
-   - **Funktionen-Modus:** Schnelles Durchscrollen aller Lokfunktionen (F0 bis F11).
+   - **Fahr-Modus:** Reaktionsschnelle Geschwindigkeitsregelung (0 bis 128 DCC-Fahrstufen). 
+     - Schrittweite einstellbar: *Fein (+2)*, *Normal (+4)*, *Schnell (+8)* oder *Dynamisch/Auto* (schnelles Kurbeln beschleunigt progressiv).
+   - **Funktionen- & Einstellungs-Modus:** Schnelles Durchscrollen aller Lokfunktionen (F0 bis F11) sowie Live-Geräteeinstellungen:
+     - **LED Helligkeit:** Direkt am Display umschaltbar (*Aus*, *15% Gedimmt*, *35% Normal*, *80% Hell*).
+     - **Kurbel-Tempo:** Umschaltbar zwischen *Fein*, *Normal*, *Schnell* und *Auto*.
+     - Beide Einstellungen werden dauerhaft im Flash-Speicher (NVS) gesichert!
    - **Lokauswahl-Modus:** Durch den Fuhrpark blättern.
 
 2. **Druckknopf (Knob Button):**
    - **1x Klick (Fahren):** Fahrtrichtungsumkehr (Vorwärts ▶ / Rückwärts ◀).
-   - **1x Klick (Funktionen):** Ausgewählte Funktion direkt umschalten (An / Aus).
-   - **Doppelklick:** Wechsel zwischen Tacho-Anzeige und Funktionen-Menü.
+   - **1x Klick (Funktionen/Settings):** Lokfunktion schalten bzw. LED-Helligkeit / Kurbel-Tempo umschalten.
+   - **Doppelklick:** Wechsel zwischen Tacho-Anzeige und Funktionen-/Settings-Menü.
    - **Langer Druck (> 800ms):** **NOT-AUS (Emergency Stop)** für die gesamte Modellbahnanlage!
 
 3. **Touchscreen (CST816D Gesten):**

@@ -22,6 +22,11 @@ struct UiLoco {
   char trainType[16];
 };
 
+struct DeviceSettings {
+  uint8_t ledBrightnessLevel; // 0=Aus, 1=Gedimmt(15), 2=Normal(35), 3=Hell(80)
+  uint8_t speedStepMode;      // 0=Fein(+2), 1=Mittel(+4), 2=Schnell(+8), 3=Dynamisch(Auto)
+};
+
 class DisplayUI {
 public:
   DisplayUI();
@@ -35,7 +40,7 @@ public:
   UiScreen getScreen() const { return _currentScreen; }
 
   void renderDriveScreen(const UiLoco &loco, bool trackPower, bool emergencyStop);
-  void renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc);
+  void renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc, const DeviceSettings &settings);
   void renderLocoSelectScreen(const UiLoco &loco, uint8_t currentIdx, uint8_t totalLocos);
   void resetDriveCache();
 

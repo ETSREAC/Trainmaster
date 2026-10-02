@@ -20,12 +20,16 @@ public:
   void begin();
   void update();
 
+  void setBrightness(uint8_t brightness);
+  uint8_t getBrightness() const;
+
   void setMode(LedMode mode);
   void updateDriveState(uint8_t speed, bool isFwd, bool trackPower, bool emergencyStop);
   void triggerFlash(uint32_t color = 0xFFFFFF, uint16_t durationMs = 180);
 
 private:
   Adafruit_NeoPixel _strip;
+  uint8_t _brightness;
   LedMode _mode;
   uint8_t _speed;
   bool _isFwd;

@@ -291,7 +291,7 @@ void DisplayUI::renderDriveScreen(const UiLoco &loco, bool trackPower, bool emer
   }
 }
 
-void DisplayUI::renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc) {
+void DisplayUI::renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc, const DeviceSettings &settings) {
   _gfx->fillScreen(COLOR_BG);
 
   // Äußerer Zierring
@@ -307,8 +307,12 @@ void DisplayUI::renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc) {
   _gfx->setCursor(65, 34);
   _gfx->printf("%s (#%d)", loco.name, loco.dccAddress);
 
-  // Standard Funktionsbeschriftungen
-  const char* funcNames[12] = {
+  // Labels für Einstellungen
+  const char* brightLabels[4] = {"Aus", "15%", "35%", "80%"};
+  const char* stepLabels[4]   = {"Fein", "Normal", "Schnell", "Auto"};
+
+  // Standard Funktionsbeschriftungen + Extra Geräte-Settings
+  const char* funcNames[14] = {
     "F0: Spitzensignal",
     "F1: Motorsound",
     "F2: Horn / Pfeife",
@@ -316,46 +320,60 @@ void DisplayUI::renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc) {
     "F4: Bahnhofsansage",
     "F5: Luefter / Aux1",
     "F6: Schaffnerpfiff",
-    "F7: Bremsenquietschen",
+    "F7: Bremsquietschen",
     "F8: Sound Mute",
-    "F9: Fuehrerstandslicht",
+    "F9: Fuehrerstand",
     "F10: Fernlicht",
-    "F11: Kupplung"
+    "F11: Kupplung",
+    "LED Helligkeit",
+    "Kurbel-Tempo"
   };
 
   // Anzeige von 5 sichtbaren Einträgen (Scrollbereich rund um selectedFunc)
   int startIdx = (int)selectedFunc - 2;
   if (startIdx < 0) startIdx = 0;
-  if (startIdx > 7) startIdx = 7;
+  if (startIdx > 9) startIdx = 9;
 
   int y = 55;
-  for (int i = startIdx; i < startIdx + 5 && i < 12; i++) {
+  for (int i = startIdx; i < startIdx + 5 && i < 14; i++) {
     bool isSelected = (i == selectedFunc);
-    bool isActive = loco.functions[i];
 
     if (isSelected) {
-      _gfx->fillRoundRect(30, y - 2, 180, 22, 5, COLOR_CARD);
-      _gfx->drawRoundRect(30, y - 2, 180, 22, 5, COLOR_ACCENT);
+      _gfx->fillRoundRect(26, y - 2, 188, 22, 5, COLOR_CARD);
+      _gfx->drawRoundRect(26, y - 2, 188, 22, 5, (i >= 12) ? COLOR_YELLOW : COLOR_ACCENT);
     }
 
     _gfx->setTextSize(1);
     if (isSelected) {
-      _gfx->setTextColor(COLOR_TEXT_WHITE);
+      _gfx->setTextColor((i >= 12) ? COLOR_YELLOW : COLOR_TEXT_WHITE);
     } else {
-      _gfx->setTextColor(COLOR_TEXT_MUTED);
+      _gfx->setTextColor((i >= 12) ? COLOR_YELLOW : COLOR_TEXT_MUTED);
     }
-    _gfx->setCursor(40, y + 5);
+    _gfx->setCursor(32, y + 5);
     _gfx->print(funcNames[i]);
 
-    // Status Badge rechts (AN / AUS)
-    if (isActive) {
-      _gfx->setTextColor(COLOR_GREEN);
-      _gfx->setCursor(180, y + 5);
-      _gfx->print("AN");
-    } else {
-      _gfx->setTextColor(COLOR_DARK_ARC);
-      _gfx->setCursor(180, y + 5);
-      _gfx->print("--");
+    // Status Badge rechts (AN / AUS bzw. Einstellungs-Wert)
+    if (i < 12) {
+      bool isActive = loco.functions[i];
+      if (isActive) {
+        _gfx->setTextColor(COLOR_GREEN);
+        _gfx->setCursor(182, y + 5);
+        _gfx->print("AN");
+      } else {
+        _gfx->setTextColor(COLOR_DARK_ARC);
+        _gfx->setCursor(182, y + 5);
+        _gfx->print("--");
+      }
+    } else if (i == 12) {
+      // LED Helligkeit
+      _gfx->setTextColor(COLOR_ACCENT);
+      _gfx->setCursor(168, y + 5);
+      _gfx->print(brightLabels[settings.ledBrightnessLevel % 4]);
+    } else if (i == 13) {
+      // Kurbel Tempo
+      _gfx->setTextColor(COLOR_ACCENT);
+      _gfx->setCursor(156, y + 5);
+      _gfx->print(stepLabels[settings.speedStepMode % 4]);
     }
 
     y += 25;
@@ -364,8 +382,8 @@ void DisplayUI::renderFunctionScreen(const UiLoco &loco, uint8_t selectedFunc) {
   // Hinweistext unten
   _gfx->setTextColor(COLOR_TEXT_MUTED);
   _gfx->setTextSize(1);
-  _gfx->setCursor(48, 195);
-  _gfx->print("Druecken: An/Aus");
+  _gfx->setCursor(45, 195);
+  _gfx->print("Klick: Umschalten");
   _gfx->setCursor(55, 207);
   _gfx->print("Touch: Zurueck");
 }

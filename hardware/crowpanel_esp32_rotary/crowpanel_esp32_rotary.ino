@@ -23,16 +23,44 @@
  */
 
 #include <WiFi.h>
+#include <Preferences.h>
 #include "config.h"
 #include "display_ui.h"
 #include "cst816_touch.h"
 #include "led_effects.h"
 
 // Hardware-Module instanziieren
-DisplayUI     ui;
-CST816Touch   touch(TOUCH_SDA, TOUCH_SCL, TOUCH_RST, TOUCH_INT, TOUCH_I2C_ADDR);
-LedController leds(LED_PIN, LED_COUNT);
-WiFiClient    dccClient;
+DisplayUI      ui;
+CST816Touch    touch(TOUCH_SDA, TOUCH_SCL, TOUCH_RST, TOUCH_INT, TOUCH_I2C_ADDR);
+LedController  leds(LED_PIN, LED_COUNT);
+WiFiClient     dccClient;
+Preferences    prefs;
+
+// Geräte-Einstellungen (dauerhaft im Flash gespeichert)
+DeviceSettings settings;
+const uint8_t BRIGHTNESS_VALUES[4] = {0, 15, 35, 80};
+
+void applyLedBrightness() {
+  leds.setBrightness(BRIGHTNESS_VALUES[settings.ledBrightnessLevel % 4]);
+}
+
+void loadDeviceSettings() {
+  prefs.begin("trainmaster", false);
+  settings.ledBrightnessLevel = prefs.getUChar("led_lvl", DEFAULT_LED_BRIGHT_MODE);
+  settings.speedStepMode      = prefs.getUChar("step_lvl", DEFAULT_SPEED_STEP_MODE);
+  prefs.end();
+
+  if (settings.ledBrightnessLevel > 3) settings.ledBrightnessLevel = DEFAULT_LED_BRIGHT_MODE;
+  if (settings.speedStepMode > 3) settings.speedStepMode = DEFAULT_SPEED_STEP_MODE;
+  applyLedBrightness();
+}
+
+void saveDeviceSettings() {
+  prefs.begin("trainmaster", false);
+  prefs.putUChar("led_lvl", settings.ledBrightnessLevel);
+  prefs.putUChar("step_lvl", settings.speedStepMode);
+  prefs.end();
+}
 
 // Lok-Verwaltung direkt nach DCC-Adressen (1 bis 12)
 #define MAX_LOCOS 16
@@ -152,7 +180,7 @@ void updateUiAndLeds(bool forceRedraw) {
       break;
 
     case SCREEN_FUNCTIONS:
-      ui.renderFunctionScreen(cur, selectedFuncIdx);
+      ui.renderFunctionScreen(cur, selectedFuncIdx, settings);
       break;
 
     case SCREEN_LOCO_SELECT:
@@ -196,8 +224,9 @@ void setup() {
   delay(100);
   Serial.println("\n--- TrainMaster Standalone DCC-EX Controller ---");
 
-  // 1. LEDs initialisieren
+  // 1. LEDs & Einstellungen initialisieren
   leds.begin();
+  loadDeviceSettings(); // Gespeicherte Helligkeit & Kurbel-Tempo aus Flash laden
   leds.setMode(LED_BOOT_CONNECTING);
 
   // 2. Display starten
@@ -328,7 +357,28 @@ void loop() {
 
       // A) FAHR-MODUS: Geschwindigkeit anpassen (stufenlos & direkt)
       if (ui.getScreen() == SCREEN_DRIVE) {
-        int newSpeed = (int)cur.speed + (steps * SPEED_STEP);
+        int stepSize = 8;
+        if (settings.speedStepMode == 0) {
+          stepSize = 2; // Fein (+2)
+        } else if (settings.speedStepMode == 1) {
+          stepSize = 4; // Normal (+4)
+        } else if (settings.speedStepMode == 2) {
+          stepSize = 8; // Schnell (+8: ca. 16 Klicks für Vollgas)
+        } else if (settings.speedStepMode == 3) {
+          // Dynamisch / Auto: schnelles Drehen beschleunigt progressiv
+          static unsigned long lastStepTime = 0;
+          unsigned long stepInterval = now - lastStepTime;
+          lastStepTime = now;
+          if (stepInterval < 40) {
+            stepSize = 14;
+          } else if (stepInterval < 80) {
+            stepSize = 7;
+          } else {
+            stepSize = 2;
+          }
+        }
+
+        int newSpeed = (int)cur.speed + (steps * stepSize);
         if (newSpeed < 0) newSpeed = 0;
         if (newSpeed > SPEED_MAX) newSpeed = SPEED_MAX;
 
@@ -338,11 +388,11 @@ void loop() {
           speedSendPending = true;
         }
       }
-      // B) FUNKTIONEN-MODUS: Durch F0..F11 scrollen
+      // B) FUNKTIONEN- & SETTINGS-MODUS: Durch F0..F11 + Settings scrollen
       else if (ui.getScreen() == SCREEN_FUNCTIONS) {
         int nextFunc = (int)selectedFuncIdx + steps;
         if (nextFunc < 0) nextFunc = 0;
-        if (nextFunc > 11) nextFunc = 11;
+        if (nextFunc > 13) nextFunc = 13;
         if (nextFunc != selectedFuncIdx) {
           selectedFuncIdx = (uint8_t)nextFunc;
           updateUiAndLeds(false);
@@ -411,14 +461,31 @@ void loop() {
         updateUiAndLeds(false);
       }
       else if (ui.getScreen() == SCREEN_FUNCTIONS) {
-        // Gewählte Funktion (F0..F11) ein-/ausschalten!
-        cur.functions[selectedFuncIdx] = !cur.functions[selectedFuncIdx];
-        sendDccFunction(cur.dccAddress, selectedFuncIdx, cur.functions[selectedFuncIdx]);
+        if (selectedFuncIdx < 12) {
+          // Gewählte Lok-Funktion (F0..F11) ein-/ausschalten!
+          cur.functions[selectedFuncIdx] = !cur.functions[selectedFuncIdx];
+          sendDccFunction(cur.dccAddress, selectedFuncIdx, cur.functions[selectedFuncIdx]);
 
-        if (selectedFuncIdx == 1 || selectedFuncIdx == 2) {
-          leds.triggerFlash(0x00AAFF, 250);
+          if (selectedFuncIdx == 1 || selectedFuncIdx == 2) {
+            leds.triggerFlash(0x00AAFF, 250);
+          }
+          updateUiAndLeds(false);
         }
-        updateUiAndLeds(false);
+        else if (selectedFuncIdx == 12) {
+          // LED Helligkeit durchschalten (Aus -> 15% -> 35% -> 80%)
+          settings.ledBrightnessLevel = (settings.ledBrightnessLevel + 1) % 4;
+          applyLedBrightness();
+          saveDeviceSettings();
+          leds.triggerFlash(0xFFFF00, 150);
+          updateUiAndLeds(false);
+        }
+        else if (selectedFuncIdx == 13) {
+          // Kurbel Tempo durchschalten (Fein -> Normal -> Schnell -> Auto)
+          settings.speedStepMode = (settings.speedStepMode + 1) % 4;
+          saveDeviceSettings();
+          leds.triggerFlash(0x00FFFF, 150);
+          updateUiAndLeds(false);
+        }
       }
       else if (ui.getScreen() == SCREEN_LOCO_SELECT) {
         ui.setScreen(SCREEN_DRIVE);

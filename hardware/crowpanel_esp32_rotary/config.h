@@ -52,7 +52,8 @@
 // 3. Steuerungs- & Regelparameter
 // =============================================================================
 #define SPEED_MAX           128  // DCC 128 Fahrstufen (Standard DCC)
-#define SPEED_STEP          2    // Fahrstufen pro Encoder-Raste
+#define DEFAULT_SPEED_STEP_MODE 2 // 0=Fein (+2), 1=Normal (+4), 2=Schnell (+8), 3=Dynamisch (Auto)
+#define DEFAULT_LED_BRIGHT_MODE 2 // 0=Aus (0), 1=Gedimmt (15), 2=Normal (35), 3=Hell (80)
 #define LONG_PRESS_MS       800  // Druckdauer für Not-Aus (> 800ms)
 #define DOUBLE_CLICK_MS     350  // Max Zeitfenster für Doppelklick
 

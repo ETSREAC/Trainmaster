@@ -10,7 +10,20 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
-## [1.6.0] - 2026-10-01
+## [1.6.1] - 2026-10-02
+
+### 🎮 Hardware & Firmware: CrowPanel 1.28" Rotary Display Tweaks
+- **Blendfreie LED-Helligkeit & Live-Regelung**:
+  - Standardhelligkeit der 5x WS2812 LEDs von blendenden 180 auf angenehme, augenschonende 35 (~14%) reduziert.
+  - Neue Live-Einstellung im Funktionsmenü (`⚙ LED Helligkeit`): Per Klick umschaltbar zwischen *Aus*, *15% (Gedimmt)*, *35% (Normal)* und *80% (Hell)* mit sofortiger visueller Vorschau.
+- **Schnellere & anpassbare Kurbel-Geschwindigkeit (Rotary Step Sizing)**:
+  - Neue Kurbel-Modi im Menü (`⚙ Kurbel-Tempo`):
+    - *Fein (+2 Fahrstufen)*: Präzises Rangieren
+    - *Normal (+4 Fahrstufen)*: Ausgewogen (~32 Klicks von 0 auf 128)
+    - *Schnell (+8 Fahrstufen)*: Zügiges Beschleunigen (~16 Klicks von 0 auf 128)
+    - *Auto / Dynamisch*: Passt die Schrittweite automatisch an das Drehtempo an (langsam drehen = feinfühlig, schneller Sweep = bis zu +14 Stufen pro Raste).
+- **Dauerhafte Konfigurations-Persistenz (ESP32 Preferences / NVS)**:
+  - Gewählte LED-Helligkeit und Kurbel-Schrittweite werden dauerhaft im Flash-Speicher des ESP32-S3 hinterlegt und bleiben auch nach dem Aus- und Einschalten erhalten.
 
 ### 🎮 Hardware & Firmware: CrowPanel 1.28" ESP32-S3 Rotary Display Handregler
 - **Standalone Handregler für DCC-EX & TrainMaster**:
