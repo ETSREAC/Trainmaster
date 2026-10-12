@@ -327,7 +327,8 @@ export class WioDriver {
     const isNew = !node;
     if (!node) {
       const initialPins: Record<number, boolean> = {};
-      for (let p = 1; p <= 16; p++) initialPins[p] = false;
+      const espAllPins = [1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39];
+      for (const p of espAllPins) initialPins[p] = false;
       node = {
         unit: unitNum,
         ip: sourceIp,
