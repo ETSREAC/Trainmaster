@@ -20,6 +20,8 @@ export class SensorMonitor {
   private wioContainer: HTMLElement | null = null;
   private modal: HTMLElement | null = null;
   private form: HTMLFormElement | null = null;
+  private filter: 'all' | 'active' | 'free' = 'all';
+  private searchQuery: string = '';
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -209,8 +211,20 @@ export class SensorMonitor {
   }
 
   public render(): void {
+    this.updateSubnavCounts();
     this.renderWioManager();
     this.renderSensors();
+  }
+
+  public updateSubnavCounts(): void {
+    const sCount = document.getElementById('subnav-count-sensors');
+    if (sCount) sCount.textContent = String(wsClient.sensors.length);
+
+    const sigCount = document.getElementById('subnav-count-signals');
+    if (sigCount) sigCount.textContent = String(wsClient.signals.length);
+
+    const wioCount = document.getElementById('subnav-count-wio');
+    if (wioCount) wioCount.textContent = String(wsClient.wioNodes.length);
   }
 
   private renderWioManager(): void {
@@ -406,12 +420,13 @@ export class SensorMonitor {
       document.getElementById(`btn-autocreate-wio-${node.unit}`)?.addEventListener('click', () => {
         wsClient.send({
           type: 'AUTO_CREATE_WIO_SENSORS',
-          payload: { unit: node.unit, count: 16 }
+          payload: { unit: node.unit, count: 39 }
         });
       });
 
       // Attach pin click handlers
-      for (let pin = 1; pin <= 16; pin++) {
+      const pins = this.getNodePins(node);
+      for (const pin of pins) {
         const pinEl = document.getElementById(`pin-${node.unit}-${pin}`);
         if (pinEl) {
           pinEl.addEventListener('click', () => {
@@ -427,6 +442,17 @@ export class SensorMonitor {
     }
   }
 
+  private getNodePins(node: WioNodeInfo): number[] {
+    const knownEspPins = [4, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39];
+    const pinSet = new Set<number>([
+      ...Array.from({ length: 16 }, (_, i) => i + 1),
+      ...knownEspPins,
+      ...Object.keys(node.pinStates || {}).map((k) => parseInt(k, 10)),
+      ...wsClient.sensors.filter((s) => s.type === 'WIO' && s.wioUnit === node.unit && s.wioPin).map((s) => s.wioPin!)
+    ]);
+    return Array.from(pinSet).filter((p) => !isNaN(p) && p > 0).sort((a, b) => a - b);
+  }
+
   private renderNodeCard(node: WioNodeInfo): string {
     const secAgo = Math.floor((Date.now() - node.lastSeen) / 1000);
     const isOnline = secAgo < 30;
@@ -437,9 +463,10 @@ export class SensorMonitor {
     const nameStr = node.name ? `"${node.name}" ` : '';
     const verStr = node.clientver ? `• FW v${node.clientver}` : '';
 
-    // Generate 16 Pins
+    // Generate Pins for this node
+    const pins = this.getNodePins(node);
     let pinsHtml = '';
-    for (let pin = 1; pin <= 16; pin++) {
+    for (const pin of pins) {
       const isHigh = !!node.pinStates?.[pin];
       const sensor = wsClient.sensors.find((s) => s.type === 'WIO' && s.wioUnit === node.unit && s.wioPin === pin);
       const title = sensor
@@ -514,6 +541,51 @@ export class SensorMonitor {
   }
 
   private renderSensors(): void {
+    this.renderFilterToolbar();
+    this.renderSensorCardsOnly();
+  }
+
+  private renderFilterToolbar(): void {
+    const filterToolbar = document.getElementById('sensor-filter-toolbar');
+    if (!filterToolbar) return;
+
+    const allSensors = wsClient.sensors;
+    const activeCount = allSensors.filter((s) => s.active).length;
+    const freeCount = allSensors.length - activeCount;
+
+    filterToolbar.innerHTML = `
+      <div class="filter-pills">
+        <button class="filter-pill ${this.filter === 'all' ? 'active' : ''}" data-sfilter="all">
+          Alle (${allSensors.length})
+        </button>
+        <button class="filter-pill active-accent ${this.filter === 'active' ? 'active' : ''}" data-sfilter="active">
+          <span class="indicator-dot red"></span> Belegt (${activeCount})
+        </button>
+        <button class="filter-pill free-accent ${this.filter === 'free' ? 'active' : ''}" data-sfilter="free">
+          <span class="indicator-dot green"></span> Frei (${freeCount})
+        </button>
+      </div>
+      <div class="filter-search-box">
+        <span class="search-icon">${iconSearch(14)}</span>
+        <input type="text" class="filter-search-input" id="real-sensor-search" placeholder="Name, Adresse oder Pin suchen..." value="${this.escapeHtml(this.searchQuery)}">
+      </div>
+    `;
+
+    filterToolbar.querySelectorAll<HTMLButtonElement>('.filter-pill').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.filter = (btn.dataset.sfilter as any) || 'all';
+        this.renderSensors();
+      });
+    });
+
+    const searchInput = document.getElementById('real-sensor-search') as HTMLInputElement | null;
+    searchInput?.addEventListener('input', (e) => {
+      this.searchQuery = (e.target as HTMLInputElement).value;
+      this.renderSensorCardsOnly();
+    });
+  }
+
+  private renderSensorCardsOnly(): void {
     this.container.innerHTML = '';
 
     if (wsClient.sensors.length === 0) {
@@ -530,7 +602,36 @@ export class SensorMonitor {
       return;
     }
 
-    for (const sensor of wsClient.sensors) {
+    const filteredSensors = wsClient.sensors.filter((s) => {
+      if (this.filter === 'active' && !s.active) return false;
+      if (this.filter === 'free' && s.active) return false;
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        return (
+          s.name.toLowerCase().includes(q) ||
+          String(s.address).includes(q) ||
+          (s.wioPin && String(s.wioPin).includes(q))
+        );
+      }
+      return true;
+    });
+
+    if (filteredSensors.length === 0) {
+      this.container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #8b949e; background: #161b22; border-radius: 8px; border: 1px dashed #30363d;">
+          <p style="font-size: 14px; margin-bottom: 8px;">Keine Rückmelder gefunden, die dem Suchfilter entsprechen.</p>
+          <button id="btn-reset-sensor-filter" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;">Filter zurücksetzen</button>
+        </div>
+      `;
+      document.getElementById('btn-reset-sensor-filter')?.addEventListener('click', () => {
+        this.filter = 'all';
+        this.searchQuery = '';
+        this.renderSensors();
+      });
+      return;
+    }
+
+    for (const sensor of filteredSensors) {
       const card = document.createElement('div');
       card.className = `sensor-card ${sensor.active ? 'active' : ''}`;
       card.style.position = 'relative';

@@ -534,6 +534,15 @@ export class TrackCanvas {
   }
 
   public setEditMode(edit: boolean): void {
+    if (!edit && this.autoSaveTimer) {
+      window.clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+      wsClient.send({
+        type: 'UPDATE_LAYOUT',
+        payload: { elements: wsClient.layout }
+      });
+    }
+
     this.isEditMode = edit;
     this.selectedStartBlockId = null;
     this.hoveredCell = null;
@@ -552,18 +561,48 @@ export class TrackCanvas {
     this.updateHelperText();
   }
 
-  public saveLayout(): void {
+  private autoSaveTimer: number | null = null;
+
+  public triggerAutoSave(): void {
+    if (this.autoSaveTimer) {
+      window.clearTimeout(this.autoSaveTimer);
+    }
+    try {
+      localStorage.setItem('trainmaster_layout_backup', JSON.stringify(wsClient.layout));
+    } catch {}
+
+    this.autoSaveTimer = window.setTimeout(() => {
+      this.autoSaveTimer = null;
+      wsClient.send({
+        type: 'UPDATE_LAYOUT',
+        payload: { elements: wsClient.layout }
+      });
+    }, 600);
+  }
+
+  public saveLayout(showAlert = true): void {
+    if (this.autoSaveTimer) {
+      window.clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    try {
+      localStorage.setItem('trainmaster_layout_backup', JSON.stringify(wsClient.layout));
+    } catch {}
+
     wsClient.send({
       type: 'UPDATE_LAYOUT',
       payload: { elements: wsClient.layout }
     });
-    alert('✅ Gleisplan erfolgreich auf dem Server gespeichert!');
+    if (showAlert) {
+      alert('✅ Gleisplan erfolgreich auf dem Server gespeichert!');
+    }
   }
 
   public clearLayout(): void {
     if (confirm('Möchtest du wirklich alle Gleise vom Plan entfernen?')) {
       wsClient.layout = [];
       this.render();
+      this.saveLayout(false);
     }
   }
 
@@ -590,6 +629,7 @@ export class TrackCanvas {
       if (existingIndex >= 0) {
         wsClient.layout.splice(existingIndex, 1);
         this.render();
+        this.triggerAutoSave();
       }
       return;
     }
@@ -598,6 +638,7 @@ export class TrackCanvas {
       if (existing) {
         existing.rotation = ((existing.rotation + 90) % 360) as 0 | 90 | 180 | 270;
         this.render();
+        this.triggerAutoSave();
       }
       return;
     }
@@ -626,6 +667,7 @@ export class TrackCanvas {
     }
 
     this.render();
+    this.triggerAutoSave();
   }
 
   private assignDefaultLinkedId(elem: TrackElement): void {

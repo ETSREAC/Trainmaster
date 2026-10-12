@@ -77,25 +77,25 @@ export class Throttle {
 
   private initModal(): void {
     this.modal = document.getElementById('loco-modal');
-    this.modalTitle = document.getElementById('loco-modal-title');
+    this.modalTitle = document.getElementById('modal-loco-title') || document.getElementById('loco-modal-title');
     this.formLoco = document.getElementById('form-loco') as HTMLFormElement | null;
-    this.editIdInput = document.getElementById('edit-loco-id') as HTMLInputElement | null;
-    this.nameInput = document.getElementById('loco-name') as HTMLInputElement | null;
-    this.addressInput = document.getElementById('loco-address') as HTMLInputElement | null;
-    this.typeSelect = document.getElementById('loco-type') as HTMLSelectElement | null;
-    this.vMinInput = document.getElementById('loco-vmin') as HTMLInputElement | null;
-    this.vMidInput = document.getElementById('loco-vmid') as HTMLInputElement | null;
-    this.vMaxInput = document.getElementById('loco-vmax') as HTMLInputElement | null;
-    this.lengthInput = document.getElementById('loco-length') as HTMLInputElement | null;
-    this.btnModalDelete = document.getElementById('btn-loco-modal-delete') as HTMLButtonElement | null;
+    this.editIdInput = (document.getElementById('loco-edit-id') || document.getElementById('edit-loco-id')) as HTMLInputElement | null;
+    this.nameInput = (document.getElementById('loco-form-name') || document.getElementById('loco-name')) as HTMLInputElement | null;
+    this.addressInput = (document.getElementById('loco-form-address') || document.getElementById('loco-address')) as HTMLInputElement | null;
+    this.typeSelect = (document.getElementById('loco-form-type') || document.getElementById('loco-type')) as HTMLSelectElement | null;
+    this.vMinInput = (document.getElementById('loco-form-vmin') || document.getElementById('loco-vmin')) as HTMLInputElement | null;
+    this.vMidInput = (document.getElementById('loco-form-vmid') || document.getElementById('loco-vmid')) as HTMLInputElement | null;
+    this.vMaxInput = (document.getElementById('loco-form-vmax') || document.getElementById('loco-vmax')) as HTMLInputElement | null;
+    this.lengthInput = (document.getElementById('loco-form-length') || document.getElementById('loco-length')) as HTMLInputElement | null;
+    this.btnModalDelete = (document.getElementById('btn-modal-delete') || document.getElementById('btn-loco-modal-delete')) as HTMLButtonElement | null;
 
     const btnAdd = document.getElementById('btn-add-loco');
     if (btnAdd) {
       btnAdd.addEventListener('click', () => this.openCreateModal());
     }
 
-    const btnClose = document.getElementById('btn-loco-close');
-    const btnCancel = document.getElementById('btn-loco-cancel');
+    const btnClose = document.getElementById('btn-modal-close') || document.getElementById('btn-loco-close');
+    const btnCancel = document.getElementById('btn-modal-cancel') || document.getElementById('btn-loco-cancel');
 
     const closeModal = () => {
       if (this.modal) this.modal.style.display = 'none';

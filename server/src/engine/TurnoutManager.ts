@@ -73,4 +73,15 @@ export class TurnoutManager {
       }
     }
   }
+
+  unlockAll(): void {
+    for (const to of this.turnouts.values()) {
+      if (to.locked) {
+        to.locked = false;
+        to.lockedByRouteId = null;
+        this.events.onTurnoutUpdated(to);
+      }
+    }
+  }
 }
+

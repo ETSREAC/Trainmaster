@@ -1,4 +1,4 @@
-import { Block, Locomotive, Route, SignalAspect } from '../types.js';
+import { Block, Direction, Locomotive, Route, SignalAspect } from '../types.js';
 import { BlockManager } from './BlockManager.js';
 import { LocoManager } from './LocoManager.js';
 import { TurnoutManager } from './TurnoutManager.js';
@@ -8,6 +8,8 @@ export interface RouteEvents {
   onBlockUpdated?: (block: Block) => void;
   onSignalSet?: (signalId: string, aspect: SignalAspect) => void;
   onSoundTriggered?: (block: Block, soundType: 'DEPARTURE' | 'ARRIVAL') => void;
+  isEmergencyStop?: () => boolean;
+  isBlockSensorsConfigured?: (blockId: string, direction: '+' | '-') => boolean;
   onLog: (message: string, level?: 'info' | 'warn' | 'error') => void;
 }
 
@@ -20,6 +22,9 @@ export class RouteEngine {
 
   private automaticModeActive: boolean = false;
   private autoLoopTimer?: NodeJS.Timeout;
+
+  // Richtungsspeicher der Loks auf der Modellbahnanlage ('+' oder '-')
+  private locoArrivalDirection: Map<string, '+' | '-'> = new Map();
 
   // Zeitpläne für geplante Abfahrten und Soundtrigger
   private departureTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -67,9 +72,82 @@ export class RouteEngine {
   }
 
   /**
+   * Prüft, ob ein Block gerade der Startblock einer aktiven Fahrstraße ist (Zug fährt aus).
+   */
+  isBlockDeparting(blockId: string): boolean {
+    for (const r of this.routes.values()) {
+      if (r.fromBlockId === blockId && r.active) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Gibt die aktive Fahrstraße zurück, die von diesem Block ausgeht (falls vorhanden).
+   */
+  getActiveRouteFromBlock(blockId: string): Route | undefined {
+    for (const r of this.routes.values()) {
+      if (r.fromBlockId === blockId && r.active) {
+        return r;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Prüft, ob überhaupt mindestens eine Fahrstraße aktiv ist.
+   */
+  isAnyRouteActive(): boolean {
+    for (const r of this.routes.values()) {
+      if (r.active) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Prüft, ob ein Sensor zu einem Block gehört, der Teil einer aktiven Fahrstraße ist
+   * (Startblock in Ausfahrt oder Zielblock in Reservierung/Anfahrt).
+   */
+  isSensorInActiveRoute(sensorId: string): boolean {
+    if (!sensorId) return false;
+    for (const r of this.routes.values()) {
+      if (!r.active) continue;
+      const fromBlock = this.blockManager.getBlock(r.fromBlockId);
+      if (fromBlock) {
+        if (
+          fromBlock.sensorsPlus.enter === sensorId ||
+          fromBlock.sensorsPlus.in === sensorId ||
+          fromBlock.sensorsMinus.enter === sensorId ||
+          fromBlock.sensorsMinus.in === sensorId
+        ) {
+          return true;
+        }
+      }
+      const toBlock = this.blockManager.getBlock(r.toBlockId);
+      if (toBlock) {
+        if (
+          toBlock.sensorsPlus.enter === sensorId ||
+          toBlock.sensorsPlus.in === sensorId ||
+          toBlock.sensorsMinus.enter === sensorId ||
+          toBlock.sensorsMinus.in === sensorId
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
    * Click & Drive: Startet eine Fahrstraße zwischen zwei Blöcken
    */
   requestRoute(fromBlockId: string, toBlockId: string): boolean {
+    if (this.events.isEmergencyStop?.()) {
+      this.events.onLog('Fahrstraße abgelehnt: GENERAL-NOTHALT ist aktiv!', 'warn');
+      return false;
+    }
+
     const route = this.findRoute(fromBlockId, toBlockId);
     if (!route) {
       this.events.onLog(`Keine gültige Fahrstraße von Block ${fromBlockId} nach ${toBlockId} gefunden!`, 'warn');
@@ -101,11 +179,28 @@ export class RouteEngine {
       return false;
     }
 
+    // 1. Fahrtrichtung für Abfahrt bestimmen & Richtungswechsel prüfen
+    const prevArrivalDir = this.locoArrivalDirection.get(loco.id);
+    let targetDirection: Direction = loco.direction;
+
+    // Falls die neue Fahrstraße in Gegenrichtung zur vorigen Fahrtrichtung verläuft:
+    if (prevArrivalDir && route.direction !== prevArrivalDir) {
+      targetDirection = loco.direction === 'FWD' ? 'REV' : 'FWD';
+      this.locoManager.setSpeed(loco.id, 0, targetDirection);
+      this.events.onLog(
+        `[Automatik] 🔄 Richtungswechsel für ${loco.name}: Fahrstraße "${route.name}" führt in Gegenrichtung (${route.direction} vs Vorfahrt ${prevArrivalDir}). Fahrtrichtung von ${loco.direction} auf ${targetDirection} gewechselt.`,
+        'info'
+      );
+    }
+
+    // Zug bewegt sich nun in Richtung dieser Fahrstraße
+    this.locoArrivalDirection.set(loco.id, route.direction);
+
     // Timer des Startblocks löschen (Zug fährt nun ab)
     this.clearBlockTimer(fromBlockId);
 
-    // Zielblock reservieren
-    this.blockManager.reserveBlock(toBlockId, loco.id);
+    // Zielblock reservieren und Zielblock-Fahrrichtung mit Route synchronisieren
+    this.blockManager.reserveBlock(toBlockId, loco.id, route.direction);
 
     // Fahrstraße aktivieren
     route.active = true;
@@ -119,10 +214,12 @@ export class RouteEngine {
       }
     }
 
-    // Zug beschleunigen (z.B. auf vMid)
+    // Zug beschleunigen (unter Beibehaltung/Setzen der korrekten Ziel-Richtung targetDirection)
     setTimeout(() => {
-      this.locoManager.setSpeed(loco.id, loco.vMid, 'FWD');
-      this.events.onLog(`Zug ${loco.name} fährt ab mit Reisegeschwindigkeit (${loco.vMid})`, 'info');
+      // Spitzenlicht (F0 / F1) vor/bei Abfahrt automatisch einschalten
+      this.ensureLocoLights(loco.id);
+      this.locoManager.setSpeed(loco.id, loco.vMid, targetDirection);
+      this.events.onLog(`Zug ${loco.name} fährt ab (${targetDirection}) mit Reisegeschwindigkeit (${loco.vMid}) [💡 Licht an]`, 'info');
     }, 500);
 
     return true;
@@ -139,16 +236,23 @@ export class RouteEngine {
         this.events.onRouteUpdated(r);
         this.events.onLog(`Fahrstraße ${r.name} aufgelöst.`, 'info');
 
+        // Ankunftsrichtung der angekommenen Lokomotive im Zielblock merken
+        const destBlock = this.blockManager.getBlock(toBlockId);
+        const locoId = destBlock?.currentLocoId || destBlock?.reservedForLocoId;
+        if (locoId) {
+          this.locoArrivalDirection.set(locoId, r.direction);
+        }
+
+        // Falls voriger Block noch belegt war, freigeben
+        this.blockManager.freeBlock(r.fromBlockId);
+        this.clearBlockTimer(r.fromBlockId);
+
         // Signale wieder auf Halt (HP0) zurückstellen
         if (r.signalSettings) {
           for (const ss of r.signalSettings) {
             this.events.onSignalSet?.(ss.signalId, 'HP0');
           }
         }
-
-        // Falls voriger Block noch belegt war, freigeben
-        this.blockManager.freeBlock(r.fromBlockId);
-        this.clearBlockTimer(r.fromBlockId);
       }
     }
   }
@@ -158,11 +262,38 @@ export class RouteEngine {
    * Prüft Block-Typ, Zug-Typ, plant Haltezeiten oder veranlasst Durchfahrten.
    */
   notifyTrainArrival(blockId: string, locoId: string): void {
-    if (!this.automaticModeActive) return;
-
     const block = this.blockManager.getBlock(blockId);
     const loco = this.locoManager.getLoco(locoId);
     if (!block || !loco) return;
+
+    // Kopfbahnhof- / Stumpfgleis-Erkennung:
+    // Wenn alle Ausfahrten aus diesem Block in die Gegenrichtung der Ankunft führen,
+    // führen wir sofort am Bahnsteig / Haltepunkt einen Richtungswechsel durch!
+    const arrivalDir = this.locoArrivalDirection.get(loco.id);
+    const outgoingRoutes = Array.from(this.routes.values()).filter((r) => r.fromBlockId === blockId);
+
+    if (arrivalDir && outgoingRoutes.length > 0) {
+      const oppositeLayoutDir: '+' | '-' = arrivalDir === '+' ? '-' : '+';
+      const allRoutesOpposite = outgoingRoutes.every((r) => r.direction === oppositeLayoutDir);
+
+      if (allRoutesOpposite) {
+        const oldDccDir = loco.direction;
+        const newDccDir: Direction = oldDccDir === 'FWD' ? 'REV' : 'FWD';
+        this.locoManager.setSpeed(loco.id, 0, newDccDir);
+        // Spitzenlicht (F0 / F1) sicherstellen/auffrischen für die neue Fahrtrichtung
+        this.ensureLocoLights(loco.id);
+        this.locoArrivalDirection.set(loco.id, oppositeLayoutDir);
+        this.events.onLog(
+          `[Automatik] 🔄 Richtungswechsel am Bahnsteig (${block.name}): ${loco.name} wechselt Fahrtrichtung von ${oldDccDir} auf ${newDccDir} (Kopfbahnhof/Stumpfgleis - Spitzenlicht F0 umgeschaltet).`,
+          'info'
+        );
+      }
+    }
+
+    if (!this.automaticModeActive) return;
+
+    // Falls bereits ein Halte-/Abfahrts-Countdown für diesen Block läuft, nicht neu starten
+    if (this.departureTimers.has(blockId)) return;
 
     const blockType = block.type || (block.name.toLowerCase().includes('strecke') ? 'MAINLINE' : 'STATION');
 
@@ -299,11 +430,29 @@ export class RouteEngine {
     }
   }
 
+  resetActiveRoutes(): void {
+    for (const r of this.routes.values()) {
+      if (r.active) {
+        r.active = false;
+        this.turnoutManager.unlockTurnouts(r.id);
+        this.events.onRouteUpdated(r);
+        this.events.onLog(`[Fahrstraße] ${r.name} aufgelöst / zurückgesetzt.`, 'info');
+      }
+    }
+    this.turnoutManager.unlockAll();
+  }
+
   toggleAutomaticMode(active?: boolean): boolean {
     this.automaticModeActive = active !== undefined ? active : !this.automaticModeActive;
 
     if (this.automaticModeActive) {
       this.events.onLog('AUTOGARIUM / AUTOMATIK-MODUS AKTIVIERT.', 'info');
+      // Für alle Züge, die aktuell auf der Anlage aufgestellt sind, das Licht (F0 / F1) einschalten
+      for (const block of this.blockManager.getAllBlocks()) {
+        if (block.currentLocoId) {
+          this.ensureLocoLights(block.currentLocoId);
+        }
+      }
       this.startAutoLoop();
     } else {
       this.events.onLog('AUTOGARIUM / AUTOMATIK-MODUS GESTOPPT.', 'warn');
@@ -312,6 +461,7 @@ export class RouteEngine {
         this.autoLoopTimer = undefined;
       }
       this.clearAllTimers();
+      this.resetActiveRoutes();
     }
     return this.automaticModeActive;
   }
@@ -345,13 +495,26 @@ export class RouteEngine {
   }
 
   private checkAndDispatchAll(): void {
+    if (!this.automaticModeActive) return;
+    if (this.events.isEmergencyStop?.()) return;
+
     const blocks = this.blockManager.getAllBlocks();
     for (const block of blocks) {
       if (block.state === 'OCCUPIED' && block.currentLocoId) {
         const loco = this.locoManager.getLoco(block.currentLocoId);
         const isRouteActive = Array.from(this.routes.values()).some((r) => r.fromBlockId === block.id && r.active);
-        // Wenn der Zug steht und kein aktiver Timer oder aktive Route läuft, suche Route
-        if (loco && loco.speed === 0 && !this.departureTimers.has(block.id) && !isRouteActive) {
+        // Zug darf nur abgefertigt werden wenn:
+        // 1. Lok steht (speed === 0)
+        // 2. Lok ist tatsächlich diesem Block zugeordnet (currentBlockId === block.id)
+        // 3. Kein aktiver Abfahrtstimer läuft
+        // 4. Keine Fahrstraße von diesem Block aktiv ist
+        if (
+          loco &&
+          loco.speed === 0 &&
+          loco.currentBlockId === block.id &&
+          !this.departureTimers.has(block.id) &&
+          !isRouteActive
+        ) {
           this.tryDispatchNext(block.id);
         }
       }
@@ -359,6 +522,9 @@ export class RouteEngine {
   }
 
   private tryDispatchNext(fromBlockId: string): boolean {
+    if (!this.automaticModeActive) return false;
+    if (this.events.isEmergencyStop?.()) return false;
+
     const fromBlock = this.blockManager.getBlock(fromBlockId);
     if (!fromBlock || !fromBlock.currentLocoId) return false;
 
@@ -377,6 +543,14 @@ export class RouteEngine {
         if (toBlock && toBlock.state === 'FREE') {
           // Längenprüfung: Passt der Zug in den Zielblock?
           if (toBlock.lengthCm && loco.lengthCm && loco.lengthCm > toBlock.lengthCm) {
+            continue;
+          }
+          // Sensorprüfung: Der Zielblock MUSS für diese Fahrtrichtung reale, konfigurierte Sensoren haben!
+          const sensors = r.direction === '+' ? toBlock.sensorsPlus : toBlock.sensorsMinus;
+          if (!sensors.enter || !sensors.in) {
+            continue;
+          }
+          if (this.events.isBlockSensorsConfigured && !this.events.isBlockSensorsConfigured(toBlock.id, r.direction)) {
             continue;
           }
           candidateRoutes.push(r);
@@ -413,5 +587,29 @@ export class RouteEngine {
       this.events.onBlockUpdated?.(block);
     }
     return dispatched;
+  }
+
+  /**
+   * Schaltet für eine Lokomotive das Spitzenlicht ein (F0 und ggf. F1 / konfigurierte Lichtfunktionen)
+   */
+  private ensureLocoLights(locoId: string): void {
+    const loco = this.locoManager.getLoco(locoId);
+    if (!loco) return;
+
+    // F0 ist der NMRA-Standard für Spitzenlicht
+    this.locoManager.setFunction(loco.id, 0, true);
+
+    // Prüfen, ob weitere Funktionen als Licht konfiguriert sind (z.B. F1) oder aktiv gespeichert waren
+    if (loco.functionLabels) {
+      for (const [fnStr, label] of Object.entries(loco.functionLabels)) {
+        const fnIdx = parseInt(fnStr, 10);
+        if (!isNaN(fnIdx) && /licht|light|spitze|scheinwerfer/i.test(label)) {
+          this.locoManager.setFunction(loco.id, fnIdx, true);
+        }
+      }
+    } else if (loco.functions[1] === true) {
+      // Falls keine Labels definiert sind, aber F1 aktiv hinterlegt war (z.B. Amori701)
+      this.locoManager.setFunction(loco.id, 1, true);
+    }
   }
 }

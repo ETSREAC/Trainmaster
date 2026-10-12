@@ -5,6 +5,7 @@ import {
   iconEdit,
   iconLightbulb,
   iconPlus,
+  iconSearch,
   iconSignal
 } from '../icons.js';
 
@@ -13,6 +14,8 @@ export class SignalMonitor {
   private modal: HTMLElement | null = null;
   private form: HTMLFormElement | null = null;
   private activeTrackElement: TrackElement | null = null;
+  private filterKind: 'ALL' | 'BLOCK' | 'ENTRY_EXIT' | 'SHUNTING' = 'ALL';
+  private searchQuery: string = '';
 
   constructor(container: HTMLElement | null) {
     this.container = container;
@@ -320,6 +323,16 @@ export class SignalMonitor {
 
     const signals = wsClient.signals || [];
 
+    const filteredSignals = signals.filter((s) => {
+      const kind = s.kind || (s.wioPins?.yellow !== undefined ? 'ENTRY_EXIT' : 'BLOCK');
+      if (this.filterKind !== 'ALL' && kind !== this.filterKind) return false;
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        return s.name.toLowerCase().includes(q) || String(s.address).includes(q);
+      }
+      return true;
+    });
+
     let cardsHtml = '';
     if (signals.length === 0) {
       cardsHtml = `
@@ -331,8 +344,15 @@ export class SignalMonitor {
           </button>
         </div>
       `;
+    } else if (filteredSignals.length === 0) {
+      cardsHtml = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #8b949e; background: #161b22; border-radius: 8px; border: 1px dashed #30363d;">
+          <p style="font-size: 14px; margin-bottom: 8px;">Keine Signale gefunden, die dem Filter entsprechen.</p>
+          <button id="btn-reset-signal-filter" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;">Filter zurücksetzen</button>
+        </div>
+      `;
     } else {
-      cardsHtml = signals.map((sig) => this.renderSignalCard(sig)).join('');
+      cardsHtml = filteredSignals.map((sig) => this.renderSignalCard(sig)).join('');
     }
 
     this.container.innerHTML = `
@@ -350,6 +370,19 @@ export class SignalMonitor {
           </button>
         </div>
 
+        <div class="subnav-filter-row" style="margin-bottom: 14px;">
+          <div class="filter-pills">
+            <button class="filter-pill ${this.filterKind === 'ALL' ? 'active' : ''}" data-sig-filter="ALL">Alle (${signals.length})</button>
+            <button class="filter-pill ${this.filterKind === 'BLOCK' ? 'active' : ''}" data-sig-filter="BLOCK">Block (Hp0/1)</button>
+            <button class="filter-pill ${this.filterKind === 'ENTRY_EXIT' ? 'active' : ''}" data-sig-filter="ENTRY_EXIT">Hauptsignale (Hp0/1/2)</button>
+            <button class="filter-pill ${this.filterKind === 'SHUNTING' ? 'active' : ''}" data-sig-filter="SHUNTING">Sperrsignale (Sh0/1)</button>
+          </div>
+          <div class="filter-search-box">
+            <span class="search-icon">${iconSearch(14)}</span>
+            <input type="text" class="filter-search-input" id="real-signal-search" placeholder="Signal suchen..." value="${this.searchQuery}">
+          </div>
+        </div>
+
         <div class="signal-grid" id="signal-cards-grid">
           ${cardsHtml}
         </div>
@@ -358,9 +391,32 @@ export class SignalMonitor {
 
     document.getElementById('btn-add-signal')?.addEventListener('click', () => this.openModal());
     document.getElementById('btn-add-signal-empty')?.addEventListener('click', () => this.openModal());
+    document.getElementById('btn-reset-signal-filter')?.addEventListener('click', () => {
+      this.filterKind = 'ALL';
+      this.searchQuery = '';
+      this.render();
+    });
 
-    // Attach aspect click handlers only for supported aspects of each signal
-    for (const sig of signals) {
+    this.container.querySelectorAll<HTMLButtonElement>('.filter-pill[data-sig-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.filterKind = (btn.dataset.sigFilter as any) || 'ALL';
+        this.render();
+      });
+    });
+
+    const searchInput = document.getElementById('real-signal-search') as HTMLInputElement | null;
+    searchInput?.addEventListener('input', (e) => {
+      this.searchQuery = (e.target as HTMLInputElement).value;
+      this.render();
+      const updatedInput = document.getElementById('real-signal-search') as HTMLInputElement | null;
+      if (updatedInput) {
+        updatedInput.focus();
+        updatedInput.setSelectionRange(this.searchQuery.length, this.searchQuery.length);
+      }
+    });
+
+    // Attach aspect click handlers only for supported aspects of each filtered signal
+    for (const sig of filteredSignals) {
       const supported = getSignalSupportedAspects(sig);
       for (const aspect of supported) {
         document.getElementById(`btn-aspect-${sig.id}-${aspect}`)?.addEventListener('click', (e) => {
