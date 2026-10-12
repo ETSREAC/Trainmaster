@@ -10,6 +10,162 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.7.8] - 2026-10-12
+
+### 📡 ESP32 WIO-Firmware: Asymmetrisches Pulse-Stretching & Haltezeit für gepufferte Wagen
+- **Asymmetrische Stromfühler-Erkennung (`TrainMasterNode.ino` v2.1.0)**:
+  - Behebt das Problem mit gepufferten LED-Personen- und Steuerwagen, die bei geladenem Kondensator nur noch minimale oder kurzzeitige Nachladeimpulse ziehen.
+  - **Sofortiger Trigger (`triggerDelayMs = 5 ms`)**: Reagiert blitzschnell auf kleinste Nachladeströme und Schienenkontakte und meldet den Block sofort als `🔴 BELEGT`.
+  - **Haltezeit / Abfallverzögerung (`holdDelayMs = 400 ms`)**: Hält das Belegtsignal für mindestens 400 ms stabil aufrecht. Jeder neue Nachladeimpuls oder Radkontakt setzt den Timer zurück – kein Flattern oder fälschliches Freimelden bei gepufferten Fahrzeugen mehr.
+- **Konfigurierbar im ESP32 Web-Dashboard**:
+  - Haltezeit und Triggerzeit können direkt auf der internen HTML-Konfigurationsseite des ESP32 (`http://<esp-ip>/`) angepasst und dauerhaft im NVS-Flash gespeichert werden.
+- **OTA-Unterstützung (Over-The-Air)**:
+  - Integration von `ArduinoOTA` für komfortables Flashen direkt über das lokale Netzwerk neben dem integrierten Web-OTA.
+
+---
+
+## [1.7.7] - 2026-10-11
+
+### ⏱️ BBT Profilauswahl, Fahrten-Historie, Median-Lernen & Profil-Sperre
+- **Interaktive Block- & Fahrzeug-Auswahl im BBT-Menü**:
+  - Im Reiter **BBT** kann jetzt direkt über Dropdowns zunächst der gewünschte **Block** (z. B. Gleis 1, Gleis 2) und anschließend das **Fahrzeug / die Lokomotive** (z. B. BR 218, Amori701) sowie die **Fahrtrichtung** (`+` Vorwärts / `-` Rückwärts) ausgewählt werden.
+  - Zeigt eine fokussierte Detail- und Analysekachel für das ausgewählte Profil an.
+  - Per Mausklick auf eine beliebige Zeile in der Gesamt-Matrix wird das entsprechende Profil sofort oben in die Dropdowns geladen und im Detail geöffnet.
+- **Fahrten-Historie (Run History) & Messwerte pro Profil**:
+  - Jede Einmessung und jede Bremsung im Automatikmodus speichert nun die gemessenen Laufdaten in einer chronologischen Historie (`entry.history`, bis zu 25 Fahrten pro Profil).
+  - Übersicht mit Zeitstempel, Kriechzeit (ms), Soll-Kriechzeit (1.200 ms), Abweichung (Δ ms), Vorher/Nachher-Intervall und Status-Badges (🟢 Optimal, 🟡 Lernschritt, 🔴 IN überfahren, 🔒 Fixiert).
+  - Möglichkeit zum Leeren der Historie (`🗑️ Historie leeren`), um nach Gleisreinigungen sauber neu einzumessen.
+- **Ausreißer-resistente Meridian-/Median-Korrektur**:
+  - `BBTEngine` berechnet den statistischen Median aller validen Kriechzeiten aus der Historie, um punktuelle Messschwankungen (Schlupf, Kontaktprellen) auszugleichen.
+  - Adaptiver Lernschritt kombiniert 60% Median-Abweichung mit 40% aktuellem Einzellauf für sanfte, stabile Konvergenz gegen die 1.200 ms Zielkriechzeit.
+- **Einfahr- & Profil-Sperre (Locking)**:
+  - Prominenter Umschalt-Button (`🔒 Profil jetzt sperren` / `🔓 Entsperren & Weiterlernen`): Sobald der Haltepunkt und das Bremsverhalten perfekt eingefahren sind, kann das Profil fixiert werden.
+  - Im gesperrten Zustand (`locked: true`) wird das Intervall nicht mehr automatisch verändert, während Fahrten zur Qualitätskontrolle weiterhin protokolliert werden.
+  - Manuelle Feinjustierung: Schnelle `[-5 ms]` / `[+5 ms]`-Buttons und Zahleneingabefelder für Bremsintervall und Stufen mit sofortiger Speicherung.
+- **Dauerhafte Persistenz in `layout.json`**:
+  - Alle Profilaktualisierungen (`locked`, `intervalMs`, `history`) synchronisieren automatisch `data.bbt` und schreiben den aktuellen Zustand dauerhaft in `layout.json`.
+
+---
+
+## [1.7.6] - 2026-10-11
+
+### 🔓 Block-Management: Automatische Freigabe des Vorblocks bei Ankunft (IN) & State-Sync
+- **Automatische Freigabe des Vorblocks bei Zielankunft (`IN`)**:
+  - Sobald eine Lokomotive an ihrem Haltepunkt (`IN`) im Zielblock ankommt, gibt der `BlockManager` jeden anderen Block, der noch mit dieser Lokomotive verknüpft war (z. B. der Startblock `Gleis 1`), automatisch und restlos frei (`state: 'FREE'`, `currentLocoId: null`).
+  - Verhindert, dass Startblöcke nach einer erfolgreichen Zugfahrt auf dem Stellpult fälschlicherweise dauerhaft rot/belegt bleiben.
+- **Konsistente Block-Synchronisation & Persistenz (`onBlockUpdated`)**:
+  - Jede Block-Statusänderung (Reservierung, Belegung, Freigabe) synchronisiert nun unmittelbar die Server-Datenstruktur `data.blocks = blockManager.getAllBlocks()` und persistiert den Zustand auf Festplatte (`layout.json`).
+  - Löst das Problem, dass freigegebene Blöcke durch nachgelagerte Signal-Speicherungen oder Server-Neustarts wieder mit alten Belegungsdaten überschrieben wurden.
+- **Reihenfolge bei `releaseRoute`**:
+  - Die Freigabe des Startblocks (`freeBlock(r.fromBlockId)`) erfolgt nun vor dem Rückstellen der Signale, sodass Signal-Events stets den bereits freigegebenen Gleisplan sichern.
+  - Bereinigung von Gleis 1 in `layout.json` auf den sauberen Zustand `FREE`.
+
+---
+
+## [1.7.5] - 2026-10-11
+
+### 💡 Automatik & DCC: Automatisches Spitzenlicht (F0) & Funktions-Synchronisation
+- **Automatisches Spitzenlicht (F0) im Automatikbetrieb**:
+  - Sobald der Automatikmodus aktiviert wird (`toggleAutomaticMode(true)`), wird für alle aktuell auf der Anlage in Blöcken aufgestellten Lokomotiven automatisch das Spitzenlicht (F0) eingeschaltet.
+  - Bei jeder Zugabfahrt über eine Fahrstraße (`RouteEngine.requestRoute()`) stellt das System sicher, dass das Spitzenlicht (F0) aktiv ist (`setFunction(loco.id, 0, true)`), sendet den DCC-Befehl an die Zentrale und aktualisiert die Benutzeroberfläche.
+  - Bei Richtungswechseln an Kopfbahnhöfen und Stumpfgleisen (Wendezug) wird das Spitzenlicht (F0) für die neue Fahrtrichtung unmittelbar bestätigt und aufgefrischt.
+- **Hardware-Synchronisation bei Gleisspannung & Verbindung**:
+  - Beim Einschalten der Gleisspannung (`SET_POWER` / DCC-EX `<1>`) sowie beim Verbindungsaufbau zur Zentrale (`applyCommandStation`) werden alle in der Datenbank hinterlegten aktiven Lok-Funktionen (Licht F0, Sound F1 etc.) vollautomatisch per DCC an die Decoder gesendet (`syncAllLocoFunctionsToHardware()`).
+  - Verhindert, dass Loks nach einem Neustart der Zentrale oder nach Gleisspannungs-Aktivierung im Dunkeln anfahren.
+- **Persistierung von Funktions-Zuständen**:
+  - Lok-Funktionsänderungen werden in `onLocoUpdated` direkt in `data.locos` übernommen und im Anlagen-Layout dauerhaft gespeichert.
+
+---
+
+## [1.7.4] - 2026-10-11
+
+### 🛡️ Automatik-Schutz bei Nothalt & Phantom-Block-Filter
+- **Automatik-Schutz bei Nothalt (Emergency Stop Lockout)**:
+  - Behebt die kritische Rennbedingung (Race Condition), bei der ein Zug nach einem Not-Halt oder Geisterzug-Alarm (`speed: 0`) 2 Sekunden später durch die Automatik-Schleife (`checkAndDispatchAll`) sofort wieder mit Reisegeschwindigkeit (`vMid = 45`) gestartet wurde.
+  - `triggerEmergencyStop()` schaltet den Automatikbetrieb nun sofort und unwiderruflich ab (`toggleAutomaticMode(false)`), entriegelt alle Fahrstraßen und synchronisiert den Status (`automaticMode: false`) an alle verbundenen Web-Clients.
+  - `RouteEngine.checkAndDispatchAll()`, `tryDispatchNext()` und `requestRoute()` prüfen vor jeder Fahrstraßen- und Abfertigungsentscheidung, ob ein Not-Halt aktiv ist (`isEmergencyStop()`), und brechen sofort ab.
+  - Zusätzliche Sicherheitsprüfung im HAL/LocoManager: Fahrbefehle mit `speed > 0` werden bei aktivem Nothalt strikt blockiert und geloggt.
+- **Geister- & Phantom-Block-Filter für reale Anlagen**:
+  - `checkAndDispatchAll()` prüft jetzt strikt, ob die Lokomotive sich noch physisch in dem jeweiligen Block befindet (`loco.currentBlockId === block.id`). Abgefahrene Züge oder Geisterzüge können nicht mehr versehentlich aus alten Blöcken neu gestartet werden.
+  - `tryDispatchNext()` validiert Zielblöcke vor der Routenauswahl: Blöcke ohne echte, im System konfigurierte Rückmeldesensoren werden verworfen.
+- **Bereinigung der Anlagenkonfiguration (`layout.json`)**:
+  - Vollständige Bereinigung verwaister Dummy-Blöcke (`block-strecke`, `block-bf-gl3`, `block-1789034861385-503`) und deren Phantom-Fahrstraßen.
+  - Die Anlage ist nun exakt auf das 2-Gleis-Layout (Bahnhof Gleis 1 & Gleis 2, Weiche W1, 4 WIO-Rückmelder) ausgerichtet.
+  - Alle aktiven Fahrstraßen und Blockreservierungen wurden neutralisiert und entriegelt.
+
+---
+
+## [1.7.3] - 2026-10-11
+
+### 🔄 Automatik & Wendezugbetrieb: Automatischer Richtungswechsel & Kopfbahnhof-Steuerung
+- **Automatischer Richtungswechsel (Wendezug / Kopfbahnhof / Stumpfgleis)**:
+  - Bei Ankunft eines Zuges in einem Kopfbahnhof oder Stumpfgleis (alle möglichen Ausfahrten führen in Gegenrichtung zur Einfahrt) wird **sofort am Bahnsteig / Haltepunkt** der Richtungswechsel (`FWD` ↔ `REV`) durchgeführt.
+  - Das Spitzen- und Schlusssignal (DCC F0) schaltet bereits während der planmäßigen Haltezeit am Bahnsteig auf die neue Fahrtrichtung um, und der Geschwindigkeitsregler (Throttle) im Web-Frontend spiegelt die neue Abfahrbereitschaft wider.
+- **Entfernung der fest codierten Vorwärtsfahrt (`'FWD'`) in `RouteEngine`**:
+  - `RouteEngine.requestRoute()` erzwingt nun **niemals** mehr pauschal `'FWD'`, sondern berechnet und respektiert die tatsächliche Fahrtrichtung der Lokomotive (`loco.direction` / `targetDirection`).
+  - Züge, die rückwärts (`REV`) aus einem Stumpfgleis oder Kopfbahnhof ausfahren müssen, beschleunigen sauber in Fahrtrichtung `REV` weg vom Prellbock.
+- **Dynamische Richtungssynchronisation bei Abfahrt & Block-Reservierung**:
+  - `RouteEngine` führt Richtungsspeicher (`locoArrivalDirection`) und vergleicht die Ausfahr-Fahrstraße mit der vorherigen Einfahrt. Verläuft die Ausfahrt in Gegenrichtung, wechselt die Lok automatisch ihre DCC-Richtung.
+  - `blockManager.reserveBlock()` synchronisiert die logische Fahrtrichtung des Zielblocks (`block.direction`) direkt mit der gestellten Fahrstraße, sodass `sensorsPlus` und `sensorsMinus` stets exakt zugeordnet werden.
+- **Automatisches Entriegeln blockierter Weichen bei Nothalt & Modus-Stopp**:
+  - Beim Stoppen des Automatikmodus oder Auslösen des Nothalts werden nun sämtliche aktiven Fahrstraßen und Weichenverriegelungen sauber zurückgesetzt, sodass keine Weichen im Zustand `lockedByRouteId` blockiert bleiben.
+  - Bereinigung der Rückmelder-Zuordnung in `layout.json` für Gleis 1 (Gegenrichtung West = Prellbock).
+
+---
+
+## [1.7.2] - 2026-10-11
+
+### 🛑 Präzisions-Halt: Sofort-Stopp bei IN-Sensor & Entprellung
+- **Sofortiger BBT-Halt beim kleinsten ersten Kontakt am `IN`-Sensor**:
+  - Behebt den Fehler, bei dem ein mit Kriechgeschwindigkeit einfahrender Zug (`speed > 0`) am Ziel-Endsensor fälschlicherweise durch die Ausfahrmaske maskiert wurde, anstatt sofort auf Fahrstufe 0 anzuhalten.
+  - Die Ausfahrmaske gilt nun **ausschließlich** für den echten Startblock einer aktiven Abfahrt (`isBlockDeparting`), niemals für den ankommenden Zielblock.
+  - Beim ersten Berühren des `IN`-Sensors wird der DCC-Fahrstufenbefehl 0 unverzüglich gesendet und die Lok hält am Haltepunkt an.
+- **Entprellung nachfolgender Achskontakte im Stillstand**:
+  - Löst der Endsensor durch nachfolgende Achsen oder Wagen im Stillstand 5–6 Mal aus, wird der planmäßige Halte-Countdown nicht mehr neu gestartet.
+  - Fahrstraßen und Weichenverriegelungen werden sofort beim `IN`-Ereignis aufgelöst.
+
+---
+
+## [1.7.1] - 2026-10-11
+
+### 🚦 Automatik & Fahrstraßen: Intelligente Ausfahrmaske & Geisterzug-Schutz
+- **Ausfahrmaske (Departure Masking)**:
+  - Wenn ein Zug in einem Block steht und abfährt (aktive Fahrstraße oder Lok bereits in Fahrt), wird das erneute Überrollen der Block-Kontakte (insbesondere des Ausfahrkontakts / `IN`-Rückmelders) durch Lokräder, Zwischenwagen oder Achskontakte maskiert und quittiert.
+  - Verhindert, dass abfahrende Züge durch ihren eigenen Haltekontakt fälschlicherweise auf Fahrstufe 0 gestoppt oder fälschlich als Neuankunft verbucht werden (`bbtEngine.handleInEvent` bleibt bei der Ausfahrt geschützt).
+- **Geisterzug-Toleranz bei Ausfahr-Nachlauf & aktiven Fahrstraßen**:
+  - Kontakte von kürzlich freigegebenen Blöcken (Freigabe-Toleranz bis 12 Sekunden) werden als regulärer Nachlauf von Wagen oder Achsen erkannt und lösen keinen Fehlalarm mehr aus.
+  - Rückmelder, die zu einer aktiven Zugfahrt gehören, lösen keinen Geisterzug-Alarm und keinen General-Nothalt mehr aus.
+- **Topologische Bereinigung der Gleis- und Block-Rückmelder**:
+  - Gleis 1 (`block-bf-gl1`) und Gleis 2 (`block-bf-gl2`) wurden sauber entflechtet:
+    - **Bahnhof Gleis 1**: Anfang = Pin 17 (`sensor_1791733853240`), Ende/Ausfahrt = Pin 16 (`sensor_1791733679017`).
+    - **Bahnhof Gleis 2**: Anfang = Pin 19 (`sensor_1791733919791`), Ende/Ausfahrt = Pin 18 (`sensor_1791733911129`).
+  - Blockierte Weichen und abgebrochene Fahrstraßen wurden zurückgestellt und entriegelt.
+
+---
+
+## [1.7.0] - 2026-10-11
+
+### 🛠️ Gleisplan-Editor: Automatisches Speichern & Ausfallsicherheit
+- **Debounced Auto-Save**: Jede Gleisplatzierung, Drehung und Löschung im Gleisplan-Editor wird nun automatisch nach 600 ms im Hintergrund auf dem Server gespeichert – kein versehentlicher Datenverlust mehr beim Neuladen oder Tab-Wechsel.
+- **Sofort-Speichern beim Beenden des Editier-Modus**: Beim Schließen des Editors (`setEditMode(false)`) wird der Gleisplan sofort garantiert auf die Festplatte geschrieben.
+- **Lokales Backup-Sicherheitsnetz**: Der aktuelle Gleisplan wird parallel im `localStorage` des Browsers gepuffert, um selbst bei Verbindungsabbrüchen maximale Datensicherheit zu garantieren.
+
+### 🐛 Bugfix: Lokomotiv-Verwaltung & Geschwindigkeitsstufen
+- **Formular-IDs synchronisiert (`Throttle.ts` <-> `index.html`)**:
+  - Behebt den kritischen Bug, bei dem beim Anpassen von `V_Min`, `V_Mid`, `V_Max` oder Zuglänge eine neue Dummy-Lokomotive (*„Neue Lok“*) angelegt wurde, anstatt die bestehende Lokomotive zu aktualisieren.
+  - Formular-IDs (`loco-edit-id`, `loco-form-vmid`, `loco-form-vmin`, `loco-form-name` etc.) sind nun vollständig gemappt.
+  - Schließen-, Abbrechen- und Löschen-Buttons im Lok-Modal repariert.
+
+### 📡 Rückmelder & WIO: Dynamisches ESP32 Pin-Raster & Stromfühler
+- **Vollständige ESP32-Pinleiste in TrainMaster**:
+  - Die bisherige 16-Pin-Beschränkung der WIO-Kachel (`SensorMonitor.ts`) wurde aufgehoben. Ab sofort werden alle ESP32-GPIOs (bis GPIO 39, einschließlich P17, P18, P19, P21, P22, P23 etc.) dynamisch dargestellt und per 1-Klick-Zuweisung ansprechbar gemacht.
+  - Server-seitiges `AUTO_CREATE_WIO_SENSORS` und `WioDriver.ts` unterstützen nun die vollständige GPIO-Palette des ESP32.
+- **Hardware-Integration: JT Digital 03002 Stromfühler (8x3A)**:
+  - Vollständige Einbindung und Dokumentation für Open-Collector-Stromfühler (Massebezug über ESP-GND, Signale auf GPIO 16, 17, 18, 19 mit internem Pull-Up).
+  - ESP32-Firmware `firmware/TrainMasterNode` wieder als Kernbestandteil im Repository hinterlegt.
+
+---
+
 ## [1.6.1] - 2026-10-02
 
 ### 🎮 Hardware & Firmware: CrowPanel 1.28" Rotary Display Tweaks
