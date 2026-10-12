@@ -135,6 +135,16 @@ export interface Block {
   waitTimer?: BlockWaitTimer | null;
 }
 
+export interface BBTRunMetric {
+  timestamp: number;
+  creepDurationMs: number;
+  targetCreepDurationMs: number;
+  overranIn: boolean;
+  intervalBeforeMs?: number;
+  intervalAfterMs?: number;
+  deltaMs?: number;
+}
+
 export interface BBTEntry {
   locoId: string;
   blockId: string;
@@ -144,13 +154,10 @@ export interface BBTEntry {
   vStart: number;       // Anfangs-Fahrstufe
   vMin: number;         // Ziel-Kriechfahrstufe
   locked: boolean;      // Automatisches Weiterlernen sperren
-  lastRunMetrics?: {
-    creepDurationMs: number;
-    targetCreepDurationMs: number;
-    overranIn: boolean;
-    timestamp: number;
-  };
+  lastRunMetrics?: BBTRunMetric;
+  history?: BBTRunMetric[]; // Historie der bisherigen Fahrten/Einmessungen
 }
+
 
 export interface TrackElement {
   id: string;
@@ -223,9 +230,28 @@ export interface WioPacketInfo {
   payload: string;
 }
 
+export type LightingMode = 'CIRCADIAN' | 'WEATHER' | 'MANUAL' | 'OFF';
+export type WeatherType = 'CLEAR' | 'CLOUDY' | 'STORM';
+
+export interface AmbientLightingConfig {
+  enabled: boolean;
+  ip: string;
+  port: number;
+  mode: LightingMode;
+  modelDayMinutes: number; // Dauer 1 Modelltag in Realminuten (z.B. 15, 0 = Echtzeit)
+  currentModelHour: number; // 0.0 .. 23.99
+  manualColor: { r: number; g: number; b: number };
+  weather: WeatherType;
+  randomWeather: boolean;
+  lightningFrequencySec: number;
+  soundSyncEnabled: boolean;
+  isPaused?: boolean;
+}
+
 export interface AppSettings {
   commandStation: CommandStationConfig;
   wio?: WioConfig;
+  ambientLighting?: AmbientLightingConfig;
   scale: 'H0' | 'N' | 'TT' | 'Z' | '0' | 'G';
   targetCreepMs: number;
   ghostDetectionActive: boolean;
@@ -310,7 +336,9 @@ export type WSClientAction =
   | { type: 'AUTO_CREATE_WIO_SENSORS'; payload: { unit: number; count: number } }
   | { type: 'INSPECT_LAYOUT' }
   | { type: 'APPLY_BLOCK_ASSIGNMENTS'; payload: { assignments: BlockAssignmentPreview[] } }
-  | { type: 'SAVE_GENERATED_ROUTES'; payload: { routes: Route[]; mode?: 'REPLACE' | 'MERGE' } };
+  | { type: 'SAVE_GENERATED_ROUTES'; payload: { routes: Route[]; mode?: 'REPLACE' | 'MERGE' } }
+  | { type: 'UPDATE_LIGHTING_CONFIG'; payload: Partial<AmbientLightingConfig> }
+  | { type: 'TRIGGER_LIGHTNING' };
 
 export type WSServerMessage =
   | { type: 'INITIAL_STATE'; payload: { status: SystemStatus; locos: Locomotive[]; turnouts: Turnout[]; signals: Signal[]; sensors: Sensor[]; blocks: Block[]; layout: TrackElement[]; routes: Route[]; bbt: BBTEntry[]; settings: AppSettings; wioNodes?: WioNodeInfo[]; wioPackets?: WioPacketInfo[] } }
@@ -335,7 +363,9 @@ export type WSServerMessage =
   | { type: 'WIO_NODES_UPDATED'; payload: { nodes: WioNodeInfo[]; recentPackets: WioPacketInfo[] } }
   | { type: 'LOG_MESSAGE'; payload: { message: string; timestamp: number; level: 'info' | 'warn' | 'error' } }
   | { type: 'LAYOUT_INSPECTION_RESULT'; payload: LayoutInspectionResult }
-  | { type: 'PLAY_SOUND'; payload: { blockId: string; soundType: 'DEPARTURE' | 'ARRIVAL'; clientSoundId?: string } };
+  | { type: 'PLAY_SOUND'; payload: { blockId: string; soundType: 'DEPARTURE' | 'ARRIVAL'; clientSoundId?: string } }
+  | { type: 'LIGHTING_CONFIG_UPDATED'; payload: AmbientLightingConfig }
+  | { type: 'LIGHTNING_STRIKE'; payload: { thunderDelayMs: number } };
 
 
 

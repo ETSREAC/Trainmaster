@@ -14,6 +14,7 @@ import { BBTEngine } from './engine/BBTEngine.js';
 import { RouteEngine } from './engine/RouteEngine.js';
 import { TrackTopology } from './engine/TrackTopology.js';
 import { RouteGenerator } from './engine/RouteGenerator.js';
+import { AmbientLightingEngine } from './engine/AmbientLightingEngine.js';
 import { WioDriver, WioSensorEvent } from './hal/WioDriver.js';
 import {
   AppSettings,
@@ -91,6 +92,9 @@ const halCallbacks: CommandStationCallbacks = {
   onPowerChanged: (power) => {
     status.trackPower = power;
     broadcast({ type: 'STATUS_UPDATE', payload: { trackPower: power } });
+    if (power) {
+      syncAllLocoFunctionsToHardware();
+    }
   },
   onConnectionChanged: (connected) => {
     status.connected = connected;
@@ -127,6 +131,9 @@ async function applyCommandStation(cfg: CommandStationConfig): Promise<void> {
   status.connected = ok;
   status.commandStationType = cfg.type;
   broadcast({ type: 'STATUS_UPDATE', payload: { connected: ok, commandStationType: cfg.type } });
+  if (ok && status.trackPower) {
+    syncAllLocoFunctionsToHardware();
+  }
 }
 
 // Core Engines
@@ -135,15 +142,24 @@ let turnoutManager: TurnoutManager;
 let blockManager: BlockManager;
 let bbtEngine: BBTEngine;
 let routeEngine: RouteEngine;
+let lightingEngine: AmbientLightingEngine;
 
 locoManager = new LocoManager(data.locos, {
   onLocoUpdated: (loco) => {
+    data.locos = locoManager.getAllLocos();
+    saveAllData();
     broadcast({ type: 'LOCO_UPDATED', payload: loco });
   },
   onLocoDeleted: (locoId) => {
+    data.locos = locoManager.getAllLocos();
+    saveAllData();
     broadcast({ type: 'LOCO_DELETED', payload: { locoId } });
   },
   onSpeedChanged: (loco) => {
+    if (status.emergencyStop && loco.speed > 0) {
+      addLog(`[Not-Halt] Fahrbefehl für ${loco.name} (Speed: ${loco.speed}) blockiert, da Not-Halt aktiv ist!`, 'warn');
+      return;
+    }
     hal.setLocoSpeed(loco.dccAddress, loco.speed, loco.direction);
   },
   onFunctionChanged: (loco, fnIdx, active) => {
@@ -151,6 +167,18 @@ locoManager = new LocoManager(data.locos, {
   },
   onLog: addLog
 });
+
+function syncAllLocoFunctionsToHardware(): void {
+  if (!hal || !locoManager || !status.connected || !status.trackPower) return;
+  for (const loco of locoManager.getAllLocos()) {
+    for (const [fnStr, active] of Object.entries(loco.functions)) {
+      const fnIdx = parseInt(fnStr, 10);
+      if (!isNaN(fnIdx) && active) {
+        hal.setLocoFunction(loco.dccAddress, fnIdx, true);
+      }
+    }
+  }
+}
 
 turnoutManager = new TurnoutManager(data.turnouts, {
   onTurnoutUpdated: (to) => {
@@ -166,6 +194,8 @@ bbtEngine = new BBTEngine(data.bbt, {
     locoManager.setSpeed(locoId, speed);
   },
   onBBTUpdated: (entry) => {
+    data.bbt = bbtEngine.getAllEntries();
+    saveAllData();
     broadcast({ type: 'BBT_UPDATED', payload: entry });
   },
   onLog: addLog
@@ -173,6 +203,8 @@ bbtEngine = new BBTEngine(data.bbt, {
 
 blockManager = new BlockManager(data.blocks, {
   onBlockUpdated: (block) => {
+    data.blocks = blockManager.getAllBlocks();
+    saveAllData();
     broadcast({ type: 'BLOCK_UPDATED', payload: block });
   },
   onEnterTriggered: (block, loco) => {
@@ -184,12 +216,12 @@ blockManager = new BlockManager(data.blocks, {
   },
   onInTriggered: (block, loco) => {
     locoManager.setLocoBlock(loco.id, block.id);
-    data.locos = locoManager.getAllLocos();
-    data.blocks = blockManager.getAllBlocks();
-    saveAllData();
     bbtEngine.handleInEvent(loco, block.id, block.direction);
     routeEngine.releaseRoute(block.id);
     routeEngine.notifyTrainArrival(block.id, loco.id);
+    data.locos = locoManager.getAllLocos();
+    data.blocks = blockManager.getAllBlocks();
+    saveAllData();
   },
   onGhostDetected: () => {
     if (data.settings.ghostDetectionActive) {
@@ -199,6 +231,9 @@ blockManager = new BlockManager(data.blocks, {
     }
   },
   isAutomaticMode: () => (routeEngine ? routeEngine.isAutomaticMode() : false),
+  isBlockDeparting: (blockId) => (routeEngine ? routeEngine.isBlockDeparting(blockId) : false),
+  isSensorInActiveRoute: (sensorId) => (routeEngine ? routeEngine.isSensorInActiveRoute(sensorId) : false),
+  isAnyRouteActive: () => (routeEngine ? routeEngine.isAnyRouteActive() : false),
   onLog: addLog
 });
 
@@ -255,9 +290,33 @@ routeEngine = new RouteEngine(
         }
       });
     },
+    isEmergencyStop: () => status.emergencyStop,
+    isBlockSensorsConfigured: (blockId, direction) => {
+      const b = blockManager.getBlock(blockId);
+      if (!b) return false;
+      const sens = direction === '+' ? b.sensorsPlus : b.sensorsMinus;
+      const enterExists = data.sensors.some((s) => s.id === sens.enter);
+      const inExists = data.sensors.some((s) => s.id === sens.in);
+      return enterExists && inExists;
+    },
     onLog: addLog
   }
 );
+
+lightingEngine = new AmbientLightingEngine(data.settings.ambientLighting, {
+  onConfigUpdated: (cfg, saveToDisk = true) => {
+    data.settings.ambientLighting = cfg;
+    if (saveToDisk) {
+      saveAllData();
+    }
+    broadcast({ type: 'LIGHTING_CONFIG_UPDATED', payload: cfg });
+  },
+  onLightningStrike: (thunderDelayMs) => {
+    broadcast({ type: 'LIGHTNING_STRIKE', payload: { thunderDelayMs } });
+    addLog('[Raumlicht] ⚡ Gewitterblitz gezündet (Test 1)!', 'info');
+  },
+  onLog: addLog
+});
 
 // Virtuelle Züge simulieren: automatisches Weiterfahren bei aktiver Fahrstraße
 const activeSimulations = new Set<string>();
@@ -375,10 +434,15 @@ if (data.settings.wio?.enabled !== false) {
 function triggerEmergencyStop(): void {
   if (status.emergencyStop) return;
   status.emergencyStop = true;
+  status.automaticMode = false;
   hal.emergencyStop();
   locoManager.emergencyStopAll();
-  broadcast({ type: 'STATUS_UPDATE', payload: { emergencyStop: true } });
-  addLog('GENERAL-NOTHALT AKTIVIERT!', 'error');
+  if (routeEngine) {
+    routeEngine.toggleAutomaticMode(false);
+    routeEngine.resetActiveRoutes();
+  }
+  broadcast({ type: 'STATUS_UPDATE', payload: { emergencyStop: true, automaticMode: false } });
+  addLog('GENERAL-NOTHALT AKTIVIERT! Automatikbetrieb sofort gestoppt.', 'error');
 }
 
 function resumeStop(): void {
@@ -452,6 +516,9 @@ wss.on('connection', (ws, req) => {
           status.trackPower = action.payload.active;
           hal.setPower(action.payload.active);
           broadcast({ type: 'STATUS_UPDATE', payload: { trackPower: status.trackPower } });
+          if (status.trackPower) {
+            syncAllLocoFunctionsToHardware();
+          }
           break;
 
         case 'EMERGENCY_STOP':
@@ -655,6 +722,14 @@ wss.on('connection', (ws, req) => {
           const currentLocoId = targetBlock?.currentLocoId;
           const reservedLocoId = targetBlock?.reservedForLocoId;
 
+          // Eventuelle Fahrstraßen auflösen, die von/zu diesem Block führen
+          routeEngine.releaseRoute(blockId);
+          for (const r of routeEngine.getAllRoutes()) {
+            if (r.fromBlockId === blockId && r.active) {
+              routeEngine.releaseRoute(r.toBlockId);
+            }
+          }
+
           // Alle Loks freigeben, die im Block standen, dafür reserviert waren oder noch darauf verweisen
           for (const l of locoManager.getAllLocos()) {
             if (l.id === currentLocoId || l.id === reservedLocoId || l.currentBlockId === blockId) {
@@ -728,10 +803,22 @@ wss.on('connection', (ws, req) => {
             }
           }
 
+          if (data.settings.ambientLighting) {
+            lightingEngine.updateConfig(data.settings.ambientLighting);
+          }
+
           broadcast({ type: 'SETTINGS_UPDATED', payload: data.settings });
           addLog('Einstellungen erfolgreich übernommen und gespeichert.', 'info');
           break;
         }
+
+        case 'UPDATE_LIGHTING_CONFIG':
+          lightingEngine.updateConfig(action.payload);
+          break;
+
+        case 'TRIGGER_LIGHTNING':
+          lightingEngine.triggerLightning();
+          break;
 
         case 'SCAN_SERIAL_PORTS': {
           const ports: SerialPortInfo[] = [];
@@ -775,8 +862,11 @@ wss.on('connection', (ws, req) => {
 
         case 'AUTO_CREATE_WIO_SENSORS': {
           const { unit, count } = action.payload;
+          const pinsToCreate = count > 16
+            ? [4, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39]
+            : Array.from({ length: count }, (_, i) => i + 1);
           let createdCount = 0;
-          for (let pin = 1; pin <= count; pin++) {
+          for (const pin of pinsToCreate) {
             const exists = data.sensors.some((s) => s.type === 'WIO' && s.wioUnit === unit && s.wioPin === pin);
             if (!exists) {
               const newSensor = {
@@ -930,5 +1020,5 @@ app.post('/api/wio/scan', async (_req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit.`);
+  console.log(`🔌 WebSocket Server bereit (v1.7.8 - WIO Pulse-Stretching & Haltezeit aktiv).`);
 });

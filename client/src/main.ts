@@ -7,6 +7,7 @@ import { SettingsTab } from './components/SettingsTab.js';
 import { SignalMonitor } from './components/SignalMonitor.js';
 import { LayoutInspectorModal } from './components/LayoutInspectorModal.js';
 import { TrainDepotDrawer } from './components/TrainDepotDrawer.js';
+import { AmbientLightingMonitor } from './components/AmbientLightingMonitor.js';
 import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
 import { iconCommandStation, iconPower, iconAuto, iconEstop } from './icons.js';
 
@@ -50,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (bbtTbody) new BBTMonitor(bbtTbody);
 
   new SettingsTab();
+  new AmbientLightingMonitor();
 
   // Language Switcher & i18n
   applyTranslationsToDOM();
@@ -61,20 +63,75 @@ document.addEventListener('DOMContentLoaded', () => {
     wsClient.notify();
   });
 
-  // Tab Switching
-  const tabs = document.querySelectorAll<HTMLButtonElement>('.nav-tab');
+  // Synchronized Tab Switching (Desktop Main Nav & Mobile App Bottom Nav)
   const panes = document.querySelectorAll<HTMLElement>('.tab-pane');
+  const activateTab = (tabName: string) => {
+    const targetId = `tab-${tabName}`;
+    document.querySelectorAll<HTMLButtonElement>('.nav-tab').forEach((t) => {
+      t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+    document.querySelectorAll<HTMLButtonElement>('.m-bottom-tab').forEach((t) => {
+      t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+    panes.forEach((p) => {
+      p.classList.toggle('active', p.id === targetId);
+    });
+  };
 
-  tabs.forEach((tab) => {
+  document.querySelectorAll<HTMLButtonElement>('.nav-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      const targetId = `tab-${tab.dataset.tab}`;
-      tabs.forEach((t) => t.classList.remove('active'));
-      panes.forEach((p) => p.classList.remove('active'));
-
-      tab.classList.add('active');
-      document.getElementById(targetId)?.classList.add('active');
+      if (tab.dataset.tab) activateTab(tab.dataset.tab);
     });
   });
+
+  document.querySelectorAll<HTMLButtonElement>('.m-bottom-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      if (tab.dataset.tab) activateTab(tab.dataset.tab);
+    });
+  });
+
+  // Sub-Navigation inside Signale & Rückmelder (#tab-sensors - Konzept A)
+  const initSensorSubnav = () => {
+    const subnavBtns = document.querySelectorAll<HTMLButtonElement>('.sensor-subnav-btn');
+    const wioBox = document.getElementById('wio-manager-content');
+    const signalBox = document.getElementById('signal-manager-content');
+    const sensorBox = document.getElementById('sensor-list-section');
+
+    const applySubView = (sub: string) => {
+      subnavBtns.forEach((b) => b.classList.toggle('active', b.dataset.subview === sub));
+      localStorage.setItem('tm_sensor_subview', sub);
+
+      if (sub === 'all') {
+        if (wioBox) wioBox.style.display = 'block';
+        if (signalBox) signalBox.style.display = 'block';
+        if (sensorBox) sensorBox.style.display = 'block';
+      } else if (sub === 'sensors') {
+        if (wioBox) wioBox.style.display = 'none';
+        if (signalBox) signalBox.style.display = 'none';
+        if (sensorBox) sensorBox.style.display = 'block';
+      } else if (sub === 'signals') {
+        if (wioBox) wioBox.style.display = 'none';
+        if (signalBox) signalBox.style.display = 'block';
+        if (sensorBox) sensorBox.style.display = 'none';
+      } else if (sub === 'wio') {
+        if (wioBox) wioBox.style.display = 'block';
+        if (signalBox) signalBox.style.display = 'none';
+        if (sensorBox) sensorBox.style.display = 'none';
+      }
+    };
+
+    // Default to 'sensors' (Konzept A) unless the user saved another preference
+    const initialSub = localStorage.getItem('tm_sensor_subview') || 'sensors';
+    applySubView(initialSub);
+
+    subnavBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sub = btn.dataset.subview || 'sensors';
+        applySubView(sub);
+      });
+    });
+  };
+  initSensorSubnav();
 
   // Editor vs Run Mode
   const btnModeRun = document.getElementById('btn-mode-run');

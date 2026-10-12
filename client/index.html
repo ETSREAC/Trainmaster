@@ -18,11 +18,14 @@
         <img src="/logo.png" alt="TrainMaster" class="brand-logo">
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.5.0 • Cyber-Neon Edition</span>
+          <span class="version-tag">v1.8.0 • Clean Dispatcher Edition</span>
         </div>
       </div>
 
       <div class="quick-status">
+        <!-- Quick Raumlicht & Wetter Badge -->
+        <div id="header-ambient-badge" class="ambient-header-badge" style="display:none;"></div>
+
         <button id="btn-lang-toggle" class="btn btn-lang" title="Sprache wechseln / Switch language" style="background:#21262d;border:1px solid #30363d;padding:6px 12px;border-radius:6px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;color:#f0f6fc;">
           <span class="lang-flag">🇬🇧</span> <span class="lang-text">EN</span>
         </button>
@@ -196,10 +199,48 @@
 
       <!-- Tab 3: BBT Bremsrechner -->
       <section id="tab-bbt" class="tab-pane">
-        <div class="card-container">
-          <div class="card-header">
-            <h2>⏱️ Block Brake Timer (BBT) Matrix</h2>
-            <p>Erlernte Bremsrampen pro Lokomotive, Block und Fahrtrichtung. Das System optimiert die Schrittintervalle selbsttätig.</p>
+        <div class="panel-toolbar" style="margin-bottom: 0;">
+          <div class="toolbar-group">
+            <span class="mode-label">⏱️ BBT Block Brake Timer:</span>
+          </div>
+          <div class="toolbar-group" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="bbt-filter-block" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Block:</label>
+              <select id="bbt-filter-block" class="form-input" style="min-width: 170px;">
+                <option value="">-- Block wählen --</option>
+              </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="bbt-filter-loco" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Fahrzeug:</label>
+              <select id="bbt-filter-loco" class="form-input" style="min-width: 170px;">
+                <option value="">-- Fahrzeug wählen --</option>
+              </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="bbt-filter-dir" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Richtung:</label>
+              <select id="bbt-filter-dir" class="form-input" style="min-width: 140px;">
+                <option value="+">Vorwärts (+)</option>
+                <option value="-">Rückwärts (-)</option>
+              </select>
+            </div>
+          </div>
+          <div class="toolbar-group info-text" style="flex: 1; text-align: right;">
+            💡 <em>Wähle einen Block und eine Lok aus, um die Einmess-Historie, den Median (Meridian) und die Profilsperre einzusehen.</em>
+          </div>
+        </div>
+
+        <div class="card-container" style="padding-top: 14px; gap: 20px;">
+          <!-- Detail- & History-Ansicht für ausgewähltes Profil -->
+          <div id="bbt-detail-container" class="bbt-detail-wrapper">
+            <!-- Dynamisch generiert durch BBTMonitor -->
+          </div>
+
+          <!-- Gesamt-Matrix aller Profile -->
+          <div class="card-header" style="margin-top: 4px;">
+            <h3>📊 Alle erlernten BBT-Profile</h3>
+            <p>Übersicht aller Bremsrampen. Klicke auf eine Zeile, um die Fahrten-Historie und Einmesskurve oben aufzurufen.</p>
           </div>
           <div class="table-responsive">
             <table class="data-table" id="bbt-table">
@@ -211,9 +252,10 @@
                   <th>Stufen</th>
                   <th>Intervall (ms)</th>
                   <th>V_Start</th>
-                  <th>V_Min (Kriechen)</th>
+                  <th>V_Min</th>
+                  <th>Median Kriechzeit</th>
                   <th>Letzter Durchlauf</th>
-                  <th>Gesperrt</th>
+                  <th>Status / Sperre</th>
                 </tr>
               </thead>
               <tbody id="bbt-tbody">
@@ -240,6 +282,25 @@
             💡 <em>Hier siehst du deine aktiven ESP32-WIO-Module, Live-Pins, eingehende Pakete und konfigurierte Melder.</em>
           </div>
         </div>
+
+        <!-- Sub-Navigation Bar for Signale & Rückmelder (Konzept A) -->
+        <div class="sensor-subnav-container">
+          <div class="sensor-subnav-pills">
+            <button class="sensor-subnav-btn active" data-subview="sensors">
+              <span class="icon">📡</span> Rückmelder & Kontakte <span class="count-tag" id="subnav-count-sensors">0</span>
+            </button>
+            <button class="sensor-subnav-btn" data-subview="signals">
+              <span class="icon">🚦</span> Signale <span class="count-tag" id="subnav-count-signals">0</span>
+            </button>
+            <button class="sensor-subnav-btn" data-subview="wio">
+              <span class="icon">🎛️</span> ESP32 Hardware & Pins <span class="count-tag" id="subnav-count-wio">0</span>
+            </button>
+            <button class="sensor-subnav-btn" data-subview="all">
+              <span class="icon">📋</span> Alles anzeigen
+            </button>
+          </div>
+        </div>
+
         <div class="card-container" style="margin-top:0;">
           <!-- ESP32 WIO Geräte-Manager -->
           <div id="wio-manager-content">
@@ -252,12 +313,15 @@
           </div>
 
           <!-- Konfigurierte Rückmelder & Kontakte -->
-          <div style="margin-top: 16px;">
-            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="margin-top: 16px;" id="sensor-list-section">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
               <div>
                 <h2>🏷️ Konfigurierte Rückmelder & Kontakte</h2>
                 <p>Echtzeit-Zustand aller Gleisbelegtmelder und Schaltkontakte. Klicke auf "Test-Impuls", um einen Kontakt manuell zu prüfen.</p>
               </div>
+            </div>
+            <div id="sensor-filter-toolbar" class="subnav-filter-row" style="margin-bottom:14px;">
+              <!-- Dynamisch generiert durch SensorMonitor -->
             </div>
             <div class="sensor-grid" id="sensor-cards">
               <!-- Dynamisch generiert -->
@@ -433,10 +497,34 @@
                 </code>
               </div>
             </div>
+
+            <!-- Box 4: Raumbeleuchtung & Wetter-Simulation -->
+            <div id="ambient-lighting-settings-container"></div>
           </div>
         </div>
       </section>
+
     </main>
+
+    <!-- Mobile Bottom Navigation Bar (Wird per CSS auf Smartphones eingeblendet) -->
+    <nav class="mobile-app-bottom-nav">
+      <button class="m-bottom-tab active" data-tab="layout">
+        <span class="icon"><svg class="svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18M3 5h6a6 6 0 0 1 6 6v8"/><circle cx="6" cy="19" r="1.5" fill="currentColor"/><circle cx="15" cy="19" r="1.5" fill="currentColor"/><circle cx="6" cy="5" r="1.5" fill="currentColor"/></svg></span>
+        <span class="text">Gleisplan</span>
+      </button>
+      <button class="m-bottom-tab" data-tab="throttle">
+        <span class="icon"><svg class="svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg></span>
+        <span class="text">Regler</span>
+      </button>
+      <button class="m-bottom-tab" data-tab="sensors">
+        <span class="icon"><svg class="svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="15" rx="4"/><circle cx="12" cy="6.5" r="1.75" fill="currentColor"/><circle cx="12" cy="12.5" r="1.75" fill="currentColor"/><line x1="12" y1="17" x2="12" y2="22"/></svg></span>
+        <span class="text">Signale</span>
+      </button>
+      <button class="m-bottom-tab" data-tab="settings">
+        <span class="icon"><svg class="svg-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span class="text">Mehr</span>
+      </button>
+    </nav>
   </div>
 
   <!-- Modal: Lokomotive anlegen / bearbeiten -->

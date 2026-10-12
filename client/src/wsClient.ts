@@ -24,6 +24,7 @@ export class WSClient {
   private ws: WebSocket | null = null;
   private reconnectTimer?: number;
   private inspectionListeners: Array<(res: LayoutInspectionResult) => void> = [];
+  private lightningListeners: Array<(delayMs: number) => void> = [];
   public lastInspectionResult: LayoutInspectionResult | null = null;
 
   public status: SystemStatus = {
@@ -271,8 +272,27 @@ export class WSClient {
         this.playWebAudioSound(msg.payload.soundType, msg.payload.clientSoundId);
         break;
       }
+
+      case 'LIGHTING_CONFIG_UPDATED': {
+        this.settings.ambientLighting = msg.payload;
+        break;
+      }
+
+      case 'LIGHTNING_STRIKE': {
+        for (const cb of this.lightningListeners) {
+          cb(msg.payload.thunderDelayMs);
+        }
+        break;
+      }
     }
     this.notify();
+  }
+
+  public onLightningStrike(cb: (delayMs: number) => void): () => void {
+    this.lightningListeners.push(cb);
+    return () => {
+      this.lightningListeners = this.lightningListeners.filter((l) => l !== cb);
+    };
   }
 
   private playWebAudioSound(soundType: 'DEPARTURE' | 'ARRIVAL', _soundId?: string): void {
