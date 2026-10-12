@@ -20,7 +20,21 @@ export class StorageManager {
 
   constructor(baseDir?: string) {
     this.dataDir = baseDir || path.resolve(process.cwd(), 'data');
-    this.dataFilePath = path.join(this.dataDir, 'layout.json');
+    const localPath = path.join(this.dataDir, 'layout.local.json');
+    const defaultPath = path.join(this.dataDir, 'layout.json');
+
+    if (fs.existsSync(localPath)) {
+      this.dataFilePath = localPath;
+    } else if (fs.existsSync(defaultPath)) {
+      try {
+        fs.copyFileSync(defaultPath, localPath);
+        this.dataFilePath = localPath;
+      } catch {
+        this.dataFilePath = defaultPath;
+      }
+    } else {
+      this.dataFilePath = localPath;
+    }
   }
 
   loadData(): StorageData {
@@ -46,6 +60,30 @@ export class StorageManager {
         enabled: true,
         udpPort: 8051
       };
+    }
+    if (!data.settings.ambientLighting) {
+      data.settings.ambientLighting = {
+        enabled: true,
+        ip: '192.168.1.50',
+        port: 5577,
+        mode: 'CIRCADIAN',
+        modelDayMinutes: 15,
+        currentModelHour: 14.0,
+        manualColor: { r: 255, g: 160, b: 60 },
+        weather: 'CLEAR',
+        randomWeather: false,
+        lightningFrequencySec: 25,
+        soundSyncEnabled: true,
+        isPaused: false
+      };
+    }
+    if (!data.bbt) {
+      data.bbt = [];
+    }
+    for (const b of data.bbt) {
+      if (!b.history) {
+        b.history = b.lastRunMetrics ? [b.lastRunMetrics] : [];
+      }
     }
     return data;
   }
@@ -274,7 +312,21 @@ export class StorageManager {
       scale: 'H0',
       targetCreepMs: 1200,
       ghostDetectionActive: true,
-      manualSensorTriggerInRunMode: true
+      manualSensorTriggerInRunMode: true,
+      ambientLighting: {
+        enabled: true,
+        ip: '192.168.1.50',
+        port: 5577,
+        mode: 'CIRCADIAN',
+        modelDayMinutes: 15,
+        currentModelHour: 14.0,
+        manualColor: { r: 255, g: 160, b: 60 },
+        weather: 'CLEAR',
+        randomWeather: false,
+        lightningFrequencySec: 25,
+        soundSyncEnabled: true,
+        isPaused: false
+      }
     };
 
     return { locos, turnouts, signals, sensors, blocks, layout, routes, bbt, settings };

@@ -12,7 +12,7 @@
  *   - 5x WS2812 RGB LED Ring (Data Pin: 48)
  *
  * Funktionen:
- *   - Verbindet sich per WLAN direkt mit deiner DCC-EX Zentrale (192.168.178.210:2560)
+ *   - Verbindet sich per WLAN direkt mit deiner DCC-EX Zentrale (Port 2560)
  *   - KEIN PC / TrainMaster Server nötig – läuft völlig autark!
  *   - Drehrad: Fahrstufe stufenlos regeln (0-126) via `<t 1 ADDR SPEED DIR>`
  *   - Klick: Fahrtrichtungsumkehr (Vorwärts <-> Rückwärts)
@@ -283,7 +283,7 @@ void setup() {
       updateUiAndLeds(true);
     } else {
       Serial.println("❌ Verbindung zu DCC-EX fehlgeschlagen!");
-      ui.showBootStatus("DCC-EX FEHLER", "IP 192.168.178.210 prüfen");
+      ui.showBootStatus("DCC-EX FEHLER", "IP pruefen");
     }
   } else {
     Serial.printf("\nWLAN-Verbindung fehlgeschlagen (Status: %d)!\n", WiFi.status());

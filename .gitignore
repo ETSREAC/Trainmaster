@@ -31,6 +31,9 @@ Desktop.ini
 .env
 .env.local
 
-# Scratch & Temporary test scripts
-scratch/
+# Local hardware credentials & layout overrides
+server/data/layout.local.json
+server/data/*.local.json
+*.local.h
+credentials.h
 

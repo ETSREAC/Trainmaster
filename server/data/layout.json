@@ -18,7 +18,7 @@
       "vMax": 105,
       "lengthCm": 19.5,
       "trainType": "PASSENGER",
-      "currentBlockId": "block-bf-gl1"
+      "currentBlockId": null
     },
     {
       "id": "loco-ice-3",
@@ -48,7 +48,7 @@
       "targetSpeed": 0,
       "direction": "FWD",
       "functions": {
-        "0": false,
+        "0": true,
         "1": false,
         "2": false,
         "3": false,
@@ -72,9 +72,9 @@
         "21": false,
         "22": false
       },
-      "vMin": 10,
-      "vMid": 60,
-      "vMax": 120,
+      "vMin": 20,
+      "vMid": 65,
+      "vMax": 70,
       "lengthCm": 12,
       "trainType": "FREIGHT",
       "currentBlockId": null,
@@ -110,19 +110,25 @@
       "dccAddress": 9,
       "speed": 0,
       "targetSpeed": 0,
-      "direction": "REV",
+      "direction": "FWD",
       "functions": {
-        "0": false,
-        "1": false,
+        "0": true,
+        "1": true,
         "2": false,
         "3": false
       },
-      "vMin": 5,
-      "vMid": 40,
-      "vMax": 65,
+      "vMin": 15,
+      "vMid": 45,
+      "vMax": 60,
       "lengthCm": 20,
       "trainType": "PASSENGER",
-      "currentBlockId": null
+      "currentBlockId": null,
+      "functionLabels": {
+        "0": "💡 F0 Spitzenlicht",
+        "1": "💡 F1 Licht (fahrtrichtungsabhängig)",
+        "2": "🔔 F2 Horn / Glocke",
+        "3": "🐢 F3 Rangiergang"
+      }
     },
     {
       "id": "loco-1789911657287",
@@ -148,29 +154,12 @@
   "turnouts": [
     {
       "id": "to-1",
-      "name": "Weiche W1 (Einfahrt Ost)",
+      "name": "Weiche W1",
       "address": 26,
-      "state": "STRAIGHT",
-      "inverted": true,
-      "locked": false,
-      "lockedByRouteId": null
-    },
-    {
-      "id": "to-2",
-      "name": "Weiche W2 (Ausfahrt West)",
-      "address": 26,
-      "state": "STRAIGHT",
-      "locked": false,
-      "lockedByRouteId": null,
-      "inverted": false
-    },
-    {
-      "id": "to-1789913803686-830",
-      "name": "Weiche W3",
-      "address": 27,
       "state": "STRAIGHT",
       "inverted": false,
-      "locked": false
+      "locked": false,
+      "lockedByRouteId": null
     }
   ],
   "signals": [
@@ -194,14 +183,14 @@
       "id": "sig-2",
       "name": "Ausfahrsignal N2",
       "address": 102,
-      "aspect": "HP0",
+      "aspect": "HP1",
       "kind": "BLOCK"
     },
     {
       "id": "sig-3",
       "name": "Ausfahrsignal N3",
       "address": 103,
-      "aspect": "HP0",
+      "aspect": "HP1",
       "type": "WIO",
       "kind": "BLOCK",
       "wioUnit": 1,
@@ -228,68 +217,48 @@
   ],
   "sensors": [
     {
-      "id": "sens-1",
-      "name": "Bf Gl1 ENTER (+)",
+      "id": "sensor_1791733679017",
+      "name": "Rückmelder Gleis 1 Ende",
+      "type": "WIO",
       "address": 1,
-      "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036829254
+      "inverted": false,
+      "wioUnit": 33,
+      "wioPin": 16,
+      "lastTriggered": 1791797596248
     },
     {
-      "id": "sens-2",
-      "name": "Bf Gl1 IN (+)",
+      "id": "sensor_1791733853240",
+      "name": "Rückmelder Gleis 1 Anfang",
+      "type": "WIO",
       "address": 2,
-      "type": "CURRENT",
-      "active": true,
-      "lastTriggered": 1789036832261
+      "active": false,
+      "inverted": false,
+      "wioUnit": 33,
+      "wioPin": 17,
+      "lastTriggered": 1791797574651
     },
     {
-      "id": "sens-3",
-      "name": "Bf Gl2 ENTER (+)",
+      "id": "sensor_1791733911129",
+      "name": "Rückmelder Gleis 2 Ende",
+      "type": "WIO",
       "address": 3,
-      "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036810369
+      "inverted": false,
+      "wioUnit": 33,
+      "wioPin": 18,
+      "lastTriggered": 1791797542054
     },
     {
-      "id": "sens-4",
-      "name": "Bf Gl2 IN (+)",
+      "id": "sensor_1791733919791",
+      "name": "Rückmelder Gleis 2 Anfang",
+      "type": "WIO",
       "address": 4,
-      "type": "CURRENT",
       "active": false,
-      "lastTriggered": 1789036769775
-    },
-    {
-      "id": "sens-5",
-      "name": "Strecke ENTER (+)",
-      "address": 5,
-      "type": "CURRENT",
-      "active": false,
-      "lastTriggered": 1789036650615
-    },
-    {
-      "id": "sens-6",
-      "name": "Strecke IN (+)",
-      "address": 6,
-      "type": "CURRENT",
-      "active": false,
-      "lastTriggered": 1789036653632
-    },
-    {
-      "id": "sens-7",
-      "name": "Strecke IN (Gleis 2)",
-      "address": 7,
-      "type": "CURRENT",
-      "active": false,
-      "lastTriggered": 1789035202562
-    },
-    {
-      "id": "sens-8",
-      "name": "Gleis 3 IN",
-      "address": 8,
-      "type": "CURRENT",
-      "active": false,
-      "lastTriggered": 1789036813377
+      "inverted": false,
+      "wioUnit": 33,
+      "wioPin": 19,
+      "lastTriggered": 1791797548042
     }
   ],
   "blocks": [
@@ -297,42 +266,42 @@
       "id": "block-bf-gl1",
       "name": "Bahnhof Gleis 1",
       "lengthCm": 180,
-      "state": "OCCUPIED",
-      "currentLocoId": "loco-br-218",
+      "state": "FREE",
+      "currentLocoId": null,
       "reservedForLocoId": null,
-      "direction": "+",
+      "direction": "-",
       "sensorsPlus": {
-        "enter": "sens-1",
-        "in": "sens-2"
+        "enter": "sensor_1791733679017",
+        "in": "sensor_1791733853240"
       },
       "sensorsMinus": {
-        "enter": "sens-2",
-        "in": "sens-1"
+        "enter": "sensor_1791733853240",
+        "in": "sensor_1791733679017"
       },
       "type": "STATION",
       "minWaitTimeSec": 10,
       "maxWaitTimeSec": 25,
-      "waitTimer": {
-        "departureTimestamp": 1789036845264,
-        "totalWaitSec": 13,
-        "status": "WAITING"
+      "waitTimer": null,
+      "soundConfig": {
+        "departureLeadTimeSec": 3,
+        "departureFKeyDurationMs": 1500
       }
     },
     {
       "id": "block-bf-gl2",
-      "name": "Bahnhof Gleis 2 (Ausweichgleis)",
+      "name": "Bahnhof Gleis 2",
       "lengthCm": 160,
       "state": "FREE",
       "currentLocoId": null,
       "reservedForLocoId": null,
       "direction": "+",
       "sensorsPlus": {
-        "enter": "sens-3",
-        "in": "sens-4"
+        "enter": "sensor_1791733919791",
+        "in": "sensor_1791733911129"
       },
       "sensorsMinus": {
-        "enter": "sens-4",
-        "in": "sens-3"
+        "enter": "sensor_1791733911129",
+        "in": "sensor_1791733919791"
       },
       "type": "STATION",
       "minWaitTimeSec": 12,
@@ -343,277 +312,153 @@
         "departureFKeyDurationMs": 1500
       },
       "waitTimer": null
-    },
-    {
-      "id": "block-strecke",
-      "name": "Freie Strecke Nord",
-      "lengthCm": 250,
-      "state": "FREE",
-      "currentLocoId": null,
-      "reservedForLocoId": null,
-      "direction": "+",
-      "sensorsPlus": {
-        "enter": "sens-5",
-        "in": "sens-6"
-      },
-      "sensorsMinus": {
-        "enter": "sens-6",
-        "in": "sens-5"
-      },
-      "type": "MAINLINE",
-      "minWaitTimeSec": 0,
-      "maxWaitTimeSec": 0,
-      "waitTimer": null
-    },
-    {
-      "id": "block-bf-gl3",
-      "name": "Bahnhof Gleis 3",
-      "lengthCm": 160,
-      "state": "FREE",
-      "currentLocoId": null,
-      "reservedForLocoId": null,
-      "direction": "+",
-      "sensorsPlus": {
-        "enter": "sens-3",
-        "in": "sens-8"
-      },
-      "sensorsMinus": {
-        "enter": "sens-8",
-        "in": "sens-3"
-      },
-      "type": "STATION",
-      "minWaitTimeSec": 10,
-      "maxWaitTimeSec": 25,
-      "soundConfig": {
-        "departureLeadTimeSec": 3,
-        "departureFKeyDurationMs": 1500
-      },
-      "waitTimer": null
-    },
-    {
-      "id": "block-1789034861385-503",
-      "name": "Block B5",
-      "lengthCm": 180,
-      "state": "FREE",
-      "currentLocoId": null,
-      "reservedForLocoId": null,
-      "direction": "+",
-      "sensorsPlus": {
-        "enter": "",
-        "in": ""
-      },
-      "sensorsMinus": {
-        "enter": "",
-        "in": ""
-      },
-      "type": "STATION",
-      "minWaitTimeSec": 10,
-      "maxWaitTimeSec": 25,
-      "soundConfig": {
-        "departureLeadTimeSec": 3,
-        "departureFKeyDurationMs": 1500
-      }
     }
   ],
   "layout": [
     {
-      "id": "elem-1788858499865-1",
-      "x": 7,
-      "y": 1,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-1"
-    },
-    {
-      "id": "elem-1788858500767-538",
-      "x": 5,
-      "y": 1,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-2"
-    },
-    {
-      "id": "elem-1788888592331-699",
+      "id": "elem-1791735713707-632",
       "x": 4,
-      "y": 1,
-      "rotation": 180,
-      "type": "SIGNAL",
-      "linkedId": "sig-1"
-    },
-    {
-      "id": "elem-1788889900732-173",
-      "x": 8,
-      "y": 1,
-      "rotation": 0,
-      "type": "TURNOUT_RIGHT",
-      "linkedId": "to-1"
-    },
-    {
-      "id": "elem-1788890985410-333",
-      "x": 6,
-      "y": 1,
-      "rotation": 0,
-      "type": "BLOCK",
-      "linkedId": "block-bf-gl1"
-    },
-    {
-      "id": "elem-1788936486953-2",
-      "x": 8,
-      "y": 2,
-      "rotation": 180,
-      "type": "CURVE"
-    },
-    {
-      "id": "elem-1788936502038-655",
-      "x": 9,
-      "y": 2,
-      "rotation": 0,
-      "type": "TURNOUT_RIGHT",
-      "linkedId": "to-2"
-    },
-    {
-      "id": "elem-1788936504723-866",
-      "x": 9,
-      "y": 3,
-      "rotation": 180,
-      "type": "CURVE"
-    },
-    {
-      "id": "elem-1788936519722-588",
-      "x": 9,
-      "y": 1,
-      "rotation": 0,
-      "type": "STRAIGHT"
-    },
-    {
-      "id": "elem-1788936543270-582",
-      "x": 10,
-      "y": 1,
-      "rotation": 0,
-      "type": "SIGNAL",
-      "linkedId": "sig-2"
-    },
-    {
-      "id": "elem-1788936544551-631",
-      "x": 10,
-      "y": 2,
-      "rotation": 0,
-      "type": "SIGNAL",
-      "linkedId": "sig-3"
-    },
-    {
-      "id": "elem-1788936545003-377",
-      "x": 10,
-      "y": 3,
-      "rotation": 0,
-      "type": "SIGNAL",
-      "linkedId": "sig-4"
-    },
-    {
-      "id": "elem-1788936572056-641",
-      "x": 11,
-      "y": 1,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-4"
-    },
-    {
-      "id": "elem-1788936572349-155",
-      "x": 11,
-      "y": 2,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-5"
-    },
-    {
-      "id": "elem-1788936577930-259",
-      "x": 11,
-      "y": 3,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-3"
-    },
-    {
-      "id": "elem-1788936580314-354",
-      "x": 13,
-      "y": 2,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-7"
-    },
-    {
-      "id": "elem-1788936580610-579",
-      "x": 13,
-      "y": 3,
-      "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-8"
-    },
-    {
-      "id": "elem-1788936587264-505",
-      "x": 12,
       "y": 1,
       "rotation": 0,
       "type": "BLOCK",
       "linkedId": "block-bf-gl2"
     },
     {
-      "id": "elem-1788936587624-704",
-      "x": 12,
-      "y": 2,
-      "rotation": 0,
-      "type": "BLOCK",
-      "linkedId": "block-strecke"
-    },
-    {
-      "id": "elem-1788936588056-837",
-      "x": 12,
+      "id": "elem-1791735746470-801",
+      "x": 3,
       "y": 3,
       "rotation": 0,
-      "type": "BLOCK",
-      "linkedId": "block-bf-gl3"
+      "type": "SENSOR",
+      "linkedId": "sensor_1791733679017"
     },
     {
-      "id": "elem-1788952310896-508",
+      "id": "elem-1791735747267-996",
+      "x": 5,
+      "y": 3,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sensor_1791733853240"
+    },
+    {
+      "id": "elem-1791735758614-246",
+      "x": 5,
+      "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sensor_1791733911129"
+    },
+    {
+      "id": "elem-1791735760058-729",
       "x": 3,
       "y": 1,
+      "rotation": 0,
+      "type": "SENSOR",
+      "linkedId": "sensor_1791733919791"
+    },
+    {
+      "id": "elem-1791735766710-50",
+      "x": 2,
+      "y": 1,
+      "rotation": 180,
+      "type": "CURVE"
+    },
+    {
+      "id": "elem-1791735768100-682",
+      "x": 2,
+      "y": 0,
+      "rotation": 270,
+      "type": "CURVE"
+    },
+    {
+      "id": "elem-1791735770671-369",
+      "x": 3,
+      "y": 0,
+      "rotation": 0,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735770937-430",
+      "x": 4,
+      "y": 0,
+      "rotation": 0,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735771235-291",
+      "x": 5,
+      "y": 0,
+      "rotation": 0,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735771615-930",
+      "x": 6,
+      "y": 0,
+      "rotation": 0,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735774353-179",
+      "x": 6,
+      "y": 1,
+      "rotation": 0,
+      "type": "BUFFER"
+    },
+    {
+      "id": "elem-1791735779670-964",
+      "x": 2,
+      "y": 3,
       "rotation": 180,
       "type": "BUFFER"
     },
     {
-      "id": "elem-1788952331595-931",
-      "x": 13,
-      "y": 1,
+      "id": "elem-1791735782417-373",
+      "x": 7,
+      "y": 0,
       "rotation": 0,
-      "type": "SENSOR",
-      "linkedId": "sens-6"
+      "type": "CURVE"
     },
     {
-      "id": "elem-1788952544086-430",
-      "x": 14,
-      "y": 1,
-      "rotation": 0,
-      "type": "BUFFER"
+      "id": "elem-1791735785372-860",
+      "x": 7,
+      "y": 3,
+      "rotation": 90,
+      "type": "CURVE"
     },
     {
-      "id": "elem-1788952544693-701",
-      "x": 14,
-      "y": 2,
-      "rotation": 0,
-      "type": "BUFFER"
-    },
-    {
-      "id": "elem-1788952545236-601",
-      "x": 14,
+      "id": "elem-1791735788194-971",
+      "x": 6,
       "y": 3,
       "rotation": 0,
-      "type": "BUFFER"
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735788769-371",
+      "x": 7,
+      "y": 2,
+      "rotation": 90,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735789246-398",
+      "x": 7,
+      "y": 1,
+      "rotation": 90,
+      "type": "STRAIGHT"
+    },
+    {
+      "id": "elem-1791735808605-223",
+      "x": 4,
+      "y": 3,
+      "rotation": 0,
+      "type": "BLOCK",
+      "linkedId": "block-bf-gl1"
     }
   ],
   "routes": [
     {
       "id": "route-block-bf-gl1-to-block-bf-gl2",
-      "name": "Fahrstraße Bahnhof Gleis 1 -> Bahnhof Gleis 2 (Ausweichgleis)",
+      "name": "Fahrstraße Bahnhof Gleis 1 -> Bahnhof Gleis 2",
       "fromBlockId": "block-bf-gl1",
       "toBlockId": "block-bf-gl2",
       "direction": "+",
@@ -632,56 +477,8 @@
       "active": false
     },
     {
-      "id": "route-block-bf-gl1-to-block-strecke",
-      "name": "Fahrstraße Bahnhof Gleis 1 -> Freie Strecke Nord",
-      "fromBlockId": "block-bf-gl1",
-      "toBlockId": "block-strecke",
-      "direction": "+",
-      "turnoutSettings": [
-        {
-          "turnoutId": "to-1",
-          "state": "DIVERGENT"
-        },
-        {
-          "turnoutId": "to-2",
-          "state": "STRAIGHT"
-        }
-      ],
-      "signalSettings": [
-        {
-          "signalId": "sig-3",
-          "aspect": "HP1"
-        }
-      ],
-      "active": false
-    },
-    {
-      "id": "route-block-bf-gl1-to-block-bf-gl3",
-      "name": "Fahrstraße Bahnhof Gleis 1 -> Bahnhof Gleis 3",
-      "fromBlockId": "block-bf-gl1",
-      "toBlockId": "block-bf-gl3",
-      "direction": "+",
-      "turnoutSettings": [
-        {
-          "turnoutId": "to-1",
-          "state": "DIVERGENT"
-        },
-        {
-          "turnoutId": "to-2",
-          "state": "DIVERGENT"
-        }
-      ],
-      "signalSettings": [
-        {
-          "signalId": "sig-4",
-          "aspect": "HP1"
-        }
-      ],
-      "active": false
-    },
-    {
       "id": "route-block-bf-gl2-to-block-bf-gl1",
-      "name": "Fahrstraße Bahnhof Gleis 2 (Ausweichgleis) -> Bahnhof Gleis 1",
+      "name": "Fahrstraße Bahnhof Gleis 2 -> Bahnhof Gleis 1",
       "fromBlockId": "block-bf-gl2",
       "toBlockId": "block-bf-gl1",
       "direction": "-",
@@ -698,139 +495,247 @@
         }
       ],
       "active": false
-    },
-    {
-      "id": "route-block-strecke-to-block-bf-gl1",
-      "name": "Fahrstraße Freie Strecke Nord -> Bahnhof Gleis 1",
-      "fromBlockId": "block-strecke",
-      "toBlockId": "block-bf-gl1",
-      "direction": "-",
-      "turnoutSettings": [
-        {
-          "turnoutId": "to-2",
-          "state": "STRAIGHT"
-        },
-        {
-          "turnoutId": "to-1",
-          "state": "DIVERGENT"
-        }
-      ],
-      "signalSettings": [
-        {
-          "signalId": "sig-3",
-          "aspect": "HP1"
-        }
-      ],
-      "active": false
-    },
-    {
-      "id": "route-block-bf-gl3-to-block-bf-gl1",
-      "name": "Fahrstraße Bahnhof Gleis 3 -> Bahnhof Gleis 1",
-      "fromBlockId": "block-bf-gl3",
-      "toBlockId": "block-bf-gl1",
-      "direction": "-",
-      "turnoutSettings": [
-        {
-          "turnoutId": "to-2",
-          "state": "DIVERGENT"
-        },
-        {
-          "turnoutId": "to-1",
-          "state": "DIVERGENT"
-        }
-      ],
-      "signalSettings": [
-        {
-          "signalId": "sig-4",
-          "aspect": "HP1"
-        }
-      ],
-      "active": false
     }
   ],
   "bbt": [
     {
-      "locoId": "loco-br-218",
+      "locoId": "loco-1789734130948",
       "blockId": "block-bf-gl1",
       "direction": "+",
-      "steps": 45,
-      "intervalMs": 35,
-      "vStart": 55,
-      "vMin": 12,
+      "steps": 30,
+      "intervalMs": 300,
+      "vStart": 35,
+      "vMin": 5,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 905,
+        "creepDurationMs": 273993,
         "targetCreepDurationMs": 1200,
         "overranIn": false,
-        "timestamp": 1789036832262
-      }
+        "timestamp": 1791737982731
+      },
+      "history": [
+        {
+          "creepDurationMs": 273993,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "timestamp": 1791737982731
+        }
+      ]
     },
     {
-      "locoId": "loco-br-218",
-      "blockId": "block-strecke",
-      "direction": "+",
-      "steps": 60,
-      "intervalMs": 51,
-      "vStart": 65,
-      "vMin": 12,
+      "locoId": "loco-1789734130948",
+      "blockId": "block-bf-gl2",
+      "direction": "-",
+      "steps": 30,
+      "intervalMs": 300,
+      "vStart": 35,
+      "vMin": 5,
+      "locked": false,
+      "history": []
+    },
+    {
+      "locoId": "loco-1789734130948",
+      "blockId": "block-bf-gl1",
+      "direction": "-",
+      "steps": 30,
+      "intervalMs": 255,
+      "vStart": 45,
+      "vMin": 15,
       "locked": false,
       "lastRunMetrics": {
+        "timestamp": 1791796753654,
         "creepDurationMs": 0,
         "targetCreepDurationMs": 1200,
         "overranIn": true,
-        "timestamp": 1789036653633
-      }
+        "intervalBeforeMs": 340,
+        "intervalAfterMs": 255
+      },
+      "history": [
+        {
+          "timestamp": 1791796753654,
+          "creepDurationMs": 0,
+          "targetCreepDurationMs": 1200,
+          "overranIn": true,
+          "intervalBeforeMs": 340,
+          "intervalAfterMs": 255
+        },
+        {
+          "timestamp": 1791796640843,
+          "creepDurationMs": 6020,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 300,
+          "intervalAfterMs": 340,
+          "deltaMs": 4820
+        },
+        {
+          "creepDurationMs": 5783,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "timestamp": 1791744981653
+        }
+      ]
     },
     {
-      "locoId": "loco-ice-3",
-      "blockId": "block-bf-gl1",
-      "direction": "+",
-      "steps": 10,
-      "intervalMs": 80,
-      "vStart": 0,
-      "vMin": 15,
-      "locked": false
-    },
-    {
-      "locoId": "loco-ice-3",
-      "blockId": "block-bf-gl3",
-      "direction": "+",
-      "steps": 10,
-      "intervalMs": 80,
-      "vStart": 0,
-      "vMin": 15,
-      "locked": false
-    },
-    {
-      "locoId": "loco-br-218",
-      "blockId": "block-bf-gl3",
-      "direction": "+",
-      "steps": 10,
-      "intervalMs": 134,
-      "vStart": 0,
-      "vMin": 12,
-      "locked": false,
-      "lastRunMetrics": {
-        "creepDurationMs": 1764,
-        "targetCreepDurationMs": 1200,
-        "overranIn": false,
-        "timestamp": 1789036813378
-      }
-    },
-    {
-      "locoId": "loco-br-218",
+      "locoId": "loco-1789734130948",
       "blockId": "block-bf-gl2",
       "direction": "+",
-      "steps": 43,
-      "intervalMs": 50,
-      "vStart": 55,
-      "vMin": 12,
+      "steps": 30,
+      "intervalMs": 171,
+      "vStart": 45,
+      "vMin": 15,
       "locked": false,
       "lastRunMetrics": {
-        "creepDurationMs": 332,
+        "timestamp": 1791796812274,
+        "creepDurationMs": 0,
+        "targetCreepDurationMs": 1200,
+        "overranIn": true,
+        "intervalBeforeMs": 228,
+        "intervalAfterMs": 171
+      },
+      "history": [
+        {
+          "timestamp": 1791796812274,
+          "creepDurationMs": 0,
+          "targetCreepDurationMs": 1200,
+          "overranIn": true,
+          "intervalBeforeMs": 228,
+          "intervalAfterMs": 171
+        },
+        {
+          "timestamp": 1791796697032,
+          "creepDurationMs": 4887,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 215,
+          "intervalAfterMs": 228,
+          "deltaMs": 3687
+        },
+        {
+          "timestamp": 1791796579382,
+          "creepDurationMs": 486,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 219,
+          "intervalAfterMs": 215,
+          "deltaMs": -714
+        },
+        {
+          "creepDurationMs": 1338,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "timestamp": 1791744921347
+        }
+      ]
+    },
+    {
+      "locoId": "loco-fleischmann-vectron",
+      "blockId": "block-bf-gl2",
+      "direction": "+",
+      "steps": 30,
+      "intervalMs": 248,
+      "vStart": 50,
+      "vMin": 20,
+      "locked": false,
+      "history": [
+        {
+          "timestamp": 1791797518685,
+          "creepDurationMs": 0,
+          "targetCreepDurationMs": 1200,
+          "overranIn": true,
+          "intervalBeforeMs": 331,
+          "intervalAfterMs": 248
+        },
+        {
+          "timestamp": 1791797393210,
+          "creepDurationMs": 8093,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 225,
+          "intervalAfterMs": 331,
+          "deltaMs": 6893
+        },
+        {
+          "timestamp": 1791797249505,
+          "creepDurationMs": 0,
+          "targetCreepDurationMs": 1200,
+          "overranIn": true,
+          "intervalBeforeMs": 300,
+          "intervalAfterMs": 225
+        },
+        {
+          "timestamp": 1791797087101,
+          "creepDurationMs": 27586,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 80,
+          "intervalAfterMs": 300,
+          "deltaMs": 26386
+        }
+      ],
+      "lastRunMetrics": {
+        "timestamp": 1791797518685,
+        "creepDurationMs": 0,
+        "targetCreepDurationMs": 1200,
+        "overranIn": true,
+        "intervalBeforeMs": 331,
+        "intervalAfterMs": 248
+      }
+    },
+    {
+      "locoId": "loco-fleischmann-vectron",
+      "blockId": "block-bf-gl1",
+      "direction": "-",
+      "steps": 45,
+      "intervalMs": 281,
+      "vStart": 65,
+      "vMin": 20,
+      "locked": false,
+      "history": [
+        {
+          "timestamp": 1791797593124,
+          "creepDurationMs": 9330,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 232,
+          "intervalAfterMs": 281,
+          "deltaMs": 8130
+        },
+        {
+          "timestamp": 1791797457003,
+          "creepDurationMs": 0,
+          "targetCreepDurationMs": 1200,
+          "overranIn": true,
+          "intervalBeforeMs": 309,
+          "intervalAfterMs": 232
+        },
+        {
+          "timestamp": 1791797321911,
+          "creepDurationMs": 10571,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 228,
+          "intervalAfterMs": 309,
+          "deltaMs": 9371
+        },
+        {
+          "timestamp": 1791797177211,
+          "creepDurationMs": 27800,
+          "targetCreepDurationMs": 1200,
+          "overranIn": false,
+          "intervalBeforeMs": 80,
+          "intervalAfterMs": 228,
+          "deltaMs": 26600
+        }
+      ],
+      "lastRunMetrics": {
+        "timestamp": 1791797593124,
+        "creepDurationMs": 9330,
         "targetCreepDurationMs": 1200,
         "overranIn": false,
-        "timestamp": 1789036769777
+        "intervalBeforeMs": 232,
+        "intervalAfterMs": 281,
+        "deltaMs": 8130
       }
     }
   ],
@@ -840,7 +745,7 @@
       "connectionType": "TCP",
       "serialPort": "COM1",
       "baudRate": 115200,
-      "host": "192.168.178.210",
+      "host": "192.168.4.1",
       "port": 2560
     },
     "wio": {
@@ -850,6 +755,24 @@
     "scale": "N",
     "targetCreepMs": 1200,
     "ghostDetectionActive": true,
-    "manualSensorTriggerInRunMode": true
+    "manualSensorTriggerInRunMode": true,
+    "ambientLighting": {
+      "enabled": true,
+      "ip": "192.168.1.50",
+      "port": 5577,
+      "mode": "CIRCADIAN",
+      "modelDayMinutes": 15,
+      "currentModelHour": 16.98666666666682,
+      "manualColor": {
+        "r": 255,
+        "g": 160,
+        "b": 60
+      },
+      "weather": "CLEAR",
+      "randomWeather": false,
+      "lightningFrequencySec": 15,
+      "soundSyncEnabled": true,
+      "isPaused": true
+    }
   }
 }

@@ -80,7 +80,7 @@ Wähle unter **Werkzeuge** folgende Optionen für das Elecrow CrowPanel 1.28":
 #define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
 
 // IP-Adresse deines PCs, auf dem TrainMaster läuft:
-#define TRAINMASTER_HOST    "192.168.178.50"
+#define TRAINMASTER_HOST    "192.168.1.100"
 #define TRAINMASTER_PORT    3001
 #define TRAINMASTER_URL     "/"
 ```

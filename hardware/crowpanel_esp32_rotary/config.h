@@ -6,12 +6,16 @@
 // =============================================================================
 // 1. WLAN & DCC-EX Zentrale Konfiguration (STANDALONE MODUS)
 // =============================================================================
-#define WIFI_SSID           "DEIN_WLAN_NAME"
-#define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
+#if __has_include("config.local.h")
+  #include "config.local.h"
+#else
+  #define WIFI_SSID           "DEIN_WLAN_NAME"
+  #define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
 
-// IP-Adresse deiner DCC-EX Zentrale (Mega / ESP32)
-#define DCC_EX_HOST         "192.168.178.xxx"
-#define DCC_EX_PORT         2560
+  // IP-Adresse deiner DCC-EX Zentrale (Mega / ESP32)
+  #define DCC_EX_HOST         "192.168.4.1"
+  #define DCC_EX_PORT         2560
+#endif
 
 // =============================================================================
 // 2. Hardware Pinout (Elecrow CrowPanel 1.28" ESP32-S3 Rotary Display)
