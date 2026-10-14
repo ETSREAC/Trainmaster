@@ -9,7 +9,8 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF.svg)](https://vitejs.dev/)
 [![ESP32](https://img.shields.io/badge/ESP32-PlatformIO-red.svg)](https://platformio.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Spenden-orange?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/ibiterik)
 
 ---
 
@@ -121,6 +122,14 @@ TrainMaster bietet native Integrationen für physische Pult-Hardware:
 
 Details zu allen Releases und Neuerungen findest du in der [**CHANGELOG.md**](CHANGELOG.md).
 Richtlinien für Versionsentscheidungen sind in der [**STEERING.md**](STEERING.md) definiert.
+
+---
+
+## ☕ Projekt unterstützen
+
+Wenn dir TrainMaster gefällt und du die Weiterentwicklung, neue Hardware-Integrationen (wie den ESP32 Rotary Display Handregler) und die offene Bereitstellung unterstützen möchtest, freue ich mich über einen Kaffee:
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/ibiterik)
 
 ---
 

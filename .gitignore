@@ -36,4 +36,13 @@ server/data/layout.local.json
 server/data/*.local.json
 *.local.h
 credentials.h
+**/credentials.h
+*credentials*.h
+
+# Supporter license private keys
+scripts/.secret*
+*.secret.json
+*.secret.pem
+*.key
+*.pem
 

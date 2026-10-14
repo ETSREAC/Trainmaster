@@ -1,6 +1,7 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconEdit, iconLocos, iconPlus } from '../icons.js';
+import { t } from '../i18n.js';
 
 export let activeLocoId: string | null = null;
 
@@ -233,8 +234,8 @@ export class Throttle {
       this.container.innerHTML = `
         <div style="color:#8b949e;text-align:center;padding:40px;width:100%;">
           <div style="margin-bottom:12px;color:#58a6ff;">${iconLocos(36)}</div>
-          <h3>Noch keine Züge im Fuhrpark vorhanden</h3>
-          <p style="margin-top:8px;">Klicke oben auf <strong>"Neuen Zug anlegen"</strong>, um deine erste Lokomotive mit DCC-Adresse anzulegen.</p>
+          <h3>${t('throttle.empty_title')}</h3>
+          <p style="margin-top:8px;">${t('throttle.empty_desc')}</p>
         </div>
       `;
       return;
@@ -295,13 +296,13 @@ export class Throttle {
 
     const activeBadgeEl = document.createElement('span');
     activeBadgeEl.style.cssText = 'background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;';
-    activeBadgeEl.textContent = 'AKTIV';
+    activeBadgeEl.textContent = t('throttle.active');
     activeBadgeEl.style.display = isActive ? 'inline-block' : 'none';
     nameEl.appendChild(activeBadgeEl);
 
     const metaEl = document.createElement('span');
     metaEl.style.cssText = 'font-size:12px;color:#8b949e;';
-    metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
+    metaEl.textContent = `${t('throttle.type')}: ${loco.trainType} • ${t('throttle.length')}: ${loco.lengthCm}cm`;
 
     headerLeft.appendChild(nameEl);
     headerLeft.appendChild(metaEl);
@@ -315,7 +316,7 @@ export class Throttle {
 
     const btnEdit = document.createElement('button');
     btnEdit.className = 'btn-icon btn-edit-loco';
-    btnEdit.title = 'Lokomotive bearbeiten';
+    btnEdit.title = t('throttle.edit_tooltip');
     btnEdit.style.cssText = 'cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:4px;';
     btnEdit.innerHTML = iconEdit(15);
     btnEdit.addEventListener('click', (e) => {
@@ -342,7 +343,7 @@ export class Throttle {
 
     const speedUnit = document.createElement('div');
     speedUnit.className = 'speed-unit';
-    speedUnit.textContent = 'Fahrstufe (0 - 128)';
+    speedUnit.textContent = t('throttle.speed_step');
 
     speedDisplay.appendChild(speedNumEl);
     speedDisplay.appendChild(speedUnit);
@@ -358,7 +359,7 @@ export class Throttle {
     slider.max = '128';
     slider.value = `${loco.speed}`;
     slider.className = 'speed-slider';
-    slider.setAttribute('aria-label', `Geschwindigkeit ${loco.name}`);
+    slider.setAttribute('aria-label', `${t('throttle.speed_label')} ${loco.name}`);
 
     const ref: LocoCardRef = {
       card,
@@ -438,11 +439,11 @@ export class Throttle {
     const presets = document.createElement('div');
     presets.className = 'preset-buttons';
     const presetValues = [
-      { label: 'Stop', val: 0 },
-      { label: 'Rangier', val: loco.vMin || 12 },
-      { label: 'Reise', val: loco.vMid || 55 },
-      { label: 'Schnell', val: 85 },
-      { label: 'Vmax', val: loco.vMax || 105 }
+      { label: t('throttle.preset_stop'), val: 0 },
+      { label: t('throttle.preset_shunt'), val: loco.vMin || 12 },
+      { label: t('throttle.preset_cruise'), val: loco.vMid || 55 },
+      { label: t('throttle.preset_fast'), val: 85 },
+      { label: t('throttle.preset_vmax'), val: loco.vMax || 105 }
     ];
 
     for (const p of presetValues) {
@@ -467,7 +468,7 @@ export class Throttle {
 
     const fwdBtn = document.createElement('button');
     fwdBtn.className = `dir-btn ${loco.direction === 'FWD' ? 'active' : ''}`;
-    fwdBtn.innerHTML = '▲ Vorwärts';
+    fwdBtn.innerHTML = t('throttle.direction_fwd');
     fwdBtn.addEventListener('click', () => {
       if (navigator.vibrate) navigator.vibrate(20);
       const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
@@ -476,7 +477,7 @@ export class Throttle {
 
     const revBtn = document.createElement('button');
     revBtn.className = `dir-btn ${loco.direction === 'REV' ? 'active' : ''}`;
-    revBtn.innerHTML = '▼ Rückwärts';
+    revBtn.innerHTML = t('throttle.direction_rev');
     revBtn.addEventListener('click', () => {
       if (navigator.vibrate) navigator.vibrate(20);
       const current = wsClient.locos.find((l) => l.id === loco.id) || loco;

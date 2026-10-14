@@ -1,6 +1,7 @@
 import { BBTEntry, BBTRunMetric } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconAlert } from '../icons.js';
+import { t } from '../i18n.js';
 
 export class BBTMonitor {
   private tbody: HTMLElement;
@@ -137,8 +138,8 @@ export class BBTMonitor {
     if (!this.selectedBlockId || !this.selectedLocoId) {
       this.detailContainer.innerHTML = `
         <div style="text-align: center; color: var(--text-muted); padding: 24px;">
-          <p style="font-size: 15px; margin-bottom: 6px;">👆 Wähle oben einen <strong>Block</strong> und ein <strong>Fahrzeug</strong> aus.</p>
-          <p style="font-size: 13px;">Hier werden das aktuelle Bremsintervall, die Median-(Meridian)-Einmesskurve und die Historie angezeigt.</p>
+          <p style="font-size: 15px; margin-bottom: 6px;">${t('bbt.no_selection_prompt')}</p>
+          <p style="font-size: 13px;">${t('bbt.no_selection_desc')}</p>
         </div>
       `;
       return;
@@ -152,23 +153,22 @@ export class BBTMonitor {
     const loco = wsClient.locos.find((l) => l.id === this.selectedLocoId);
     const blockName = block ? block.name : this.selectedBlockId;
     const locoName = loco ? loco.name : this.selectedLocoId;
-    const dirLabel = this.selectedDir === '+' ? 'Vorwärts (+)' : 'Rückwärts (-)';
+    const dirLabel = this.selectedDir === '+' ? t('bbt.filter_dir_fwd') : t('bbt.filter_dir_rev');
 
     if (!entry) {
       this.detailContainer.innerHTML = `
         <div class="bbt-header-bar">
           <div class="bbt-profile-title">
             <span>🚩 Profil: <strong>${blockName}</strong> · <strong>${locoName}</strong> [${dirLabel}]</span>
-            <span class="badge" style="background: rgba(139, 148, 158, 0.2); color: var(--text-muted);">Kein Eintrag</span>
+            <span class="badge" style="background: rgba(139, 148, 158, 0.2); color: var(--text-muted);">${t('bbt.no_profile_title')}</span>
           </div>
         </div>
         <div style="padding: 16px 0; color: var(--text-muted);">
           <p style="margin-bottom: 12px; font-size: 14px;">
-            Für diese Kombination existiert noch kein aktives Bremsrampen-Profil.
-            TrainMaster lernt das Profil automatisch bei der ersten Durchfahrt im Automatikmodus, oder du kannst es direkt initialisieren:
+            ${t('bbt.no_profile_desc')}
           </p>
           <button id="btn-create-bbt-profile" class="btn btn-save" style="display: inline-flex; align-items: center; gap: 6px;">
-            ➕ Neues BBT-Profil initialisieren
+            ${t('bbt.btn_init_profile')}
           </button>
         </div>
       `;
@@ -203,7 +203,7 @@ export class BBTMonitor {
     const targetCreepMs = 1200;
     const medianDelta = medianCreepMs > 0 ? medianCreepMs - targetCreepMs : null;
 
-    let medianBadge = '<span style="color:var(--text-muted);font-size:12px;">Noch keine Messungen</span>';
+    let medianBadge = `<span style="color:var(--text-muted);font-size:12px;">${t('bbt.no_measurements')}</span>`;
     if (medianCreepMs > 0) {
       const deltaSign = medianDelta! >= 0 ? `+${medianDelta}` : `${medianDelta}`;
       const color = Math.abs(medianDelta!) <= 200 ? '#3fb950' : Math.abs(medianDelta!) <= 500 ? '#d29922' : '#f85149';
@@ -211,15 +211,15 @@ export class BBTMonitor {
     }
 
     const lockBadge = entry.locked
-      ? `<span class="bbt-badge-status bbt-badge-locked">🔒 Profil gesperrt (Haltepunkt fixiert)</span>`
-      : `<span class="bbt-badge-status bbt-badge-optimal">🟢 Lernmodus aktiv (Auto-Korrektur)</span>`;
+      ? `<span class="bbt-badge-status bbt-badge-locked">${t('bbt.locked_status')}</span>`
+      : `<span class="bbt-badge-status bbt-badge-optimal">${t('bbt.learning_status')}</span>`;
 
     const lockButtonHtml = entry.locked
       ? `<button id="btn-toggle-bbt-lock" class="btn" style="background: #238636; color: #fff; border-color: #2ea043; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-          🔓 Entsperren & Weiterlernen aktivieren
+          ${t('bbt.btn_unlock')}
         </button>`
       : `<button id="btn-toggle-bbt-lock" class="btn" style="background: #da3633; color: #fff; border-color: #f85149; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-          🔒 Profil jetzt sperren (Haltepunkt fixieren)
+          ${t('bbt.btn_lock')}
         </button>`;
 
     let lastRunDisplay = 'Noch nicht gefahren';

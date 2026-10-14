@@ -14,6 +14,7 @@ import {
   iconSearch,
   iconSensor
 } from '../icons.js';
+import { t } from '../i18n.js';
 
 export class SensorMonitor {
   private container: HTMLElement;
@@ -87,7 +88,7 @@ export class SensorMonitor {
     btnDelete?.addEventListener('click', () => {
       const idInput = document.getElementById('sensor-edit-id') as HTMLInputElement | null;
       if (idInput && idInput.value) {
-        if (confirm('Möchtest du diesen Rückmelder wirklich unwiderruflich löschen?')) {
+        if (confirm(t('sensors.confirm_delete'))) {
           wsClient.send({
             type: 'DELETE_SENSOR',
             payload: { sensorId: idInput.value }
@@ -556,18 +557,18 @@ export class SensorMonitor {
     filterToolbar.innerHTML = `
       <div class="filter-pills">
         <button class="filter-pill ${this.filter === 'all' ? 'active' : ''}" data-sfilter="all">
-          Alle (${allSensors.length})
+          ${t('sensors.filter_all')} (${allSensors.length})
         </button>
         <button class="filter-pill active-accent ${this.filter === 'active' ? 'active' : ''}" data-sfilter="active">
-          <span class="indicator-dot red"></span> Belegt (${activeCount})
+          <span class="indicator-dot red"></span> ${t('sensors.filter_active')} (${activeCount})
         </button>
         <button class="filter-pill free-accent ${this.filter === 'free' ? 'active' : ''}" data-sfilter="free">
-          <span class="indicator-dot green"></span> Frei (${freeCount})
+          <span class="indicator-dot green"></span> ${t('sensors.filter_free')} (${freeCount})
         </button>
       </div>
       <div class="filter-search-box">
         <span class="search-icon">${iconSearch(14)}</span>
-        <input type="text" class="filter-search-input" id="real-sensor-search" placeholder="Name, Adresse oder Pin suchen..." value="${this.escapeHtml(this.searchQuery)}">
+        <input type="text" class="filter-search-input" id="real-sensor-search" placeholder="${t('sensors.search_placeholder')}" value="${this.escapeHtml(this.searchQuery)}">
       </div>
     `;
 
@@ -647,7 +648,7 @@ export class SensorMonitor {
           <div class="sensor-name" style="font-weight:600;color:#f0f6fc;">${sensor.name}</div>
         </div>
         <div class="sensor-badge ${sensor.active ? 'active' : 'free'}" style="display:inline-flex;align-items:center;gap:5px;">
-          ${sensor.active ? `${iconDot('#f85149', 6)} BELEGT` : `${iconDot('#8b949e', 6)} FREI`}
+          ${sensor.active ? `${iconDot('#f85149', 6)} ${t('sensors.status_occupied')}` : `${iconDot('#8b949e', 6)} ${t('sensors.status_free')}`}
         </div>
       `;
       card.appendChild(header);
@@ -703,7 +704,7 @@ export class SensorMonitor {
       btnTest.style.alignItems = 'center';
       btnTest.style.justifyContent = 'center';
       btnTest.style.gap = '6px';
-      btnTest.innerHTML = `${iconPower(true, 14)} Test-Impuls`;
+      btnTest.innerHTML = `${iconPower(true, 14)} ${t('sensors.test_pulse')}`;
       btnTest.title = 'Löst einen virtuellen Belegt-Impuls auf diesem Kontakt aus';
       btnTest.addEventListener('click', (e) => {
         e.stopPropagation();

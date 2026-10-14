@@ -2135,6 +2135,13 @@ select:disabled,
   gap: 20px;
 }
 
+#ambient-lighting-settings-container,
+#card-supporter-settings {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+}
+
 .settings-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -2824,9 +2831,9 @@ select:disabled,
 }
 
 .segmented-pills {
-  display: inline-flex;
-  gap: 6px;
-  overflow-x: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding-bottom: 2px;
 }
 

@@ -1,8 +1,11 @@
 import { AppSettings, CommandStationConfig } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconSearch } from '../icons.js';
+import { getLanguage, setLanguage, onLanguageChange, Language, t } from '../i18n.js';
 
 export class SettingsTab {
+  private settingLanguage = document.getElementById('setting-language') as HTMLSelectElement | null;
+
   private csTypeSelect = document.getElementById('cs-type-select') as HTMLSelectElement;
   private cfgDccEx = document.getElementById('cfg-dcc-ex') as HTMLElement;
   private cfgZ21 = document.getElementById('cfg-z21') as HTMLElement;
@@ -39,11 +42,29 @@ export class SettingsTab {
   private init(): void {
     // Dirty-Tracking bei Nutzereingaben, damit Hintergrund-Updates Eingaben nicht plätten
     const settingsPanel = document.getElementById('tab-settings');
-    settingsPanel?.addEventListener('input', () => {
+    settingsPanel?.addEventListener('input', (e) => {
+      if ((e.target as HTMLElement)?.id === 'setting-language') return;
       this.isDirty = true;
     });
-    settingsPanel?.addEventListener('change', () => {
+    settingsPanel?.addEventListener('change', (e) => {
+      if ((e.target as HTMLElement)?.id === 'setting-language') return;
       this.isDirty = true;
+    });
+
+    // Sprachauswahl Dropdown
+    if (this.settingLanguage) {
+      this.settingLanguage.value = getLanguage();
+      this.settingLanguage.addEventListener('change', () => {
+        const lang = (this.settingLanguage?.value || 'de') as Language;
+        setLanguage(lang);
+        wsClient.notify();
+      });
+    }
+
+    onLanguageChange((lang) => {
+      if (this.settingLanguage && this.settingLanguage.value !== lang) {
+        this.settingLanguage.value = lang;
+      }
     });
 
     // Dropdown Zentrale Wechsel
@@ -60,11 +81,11 @@ export class SettingsTab {
 
     // COM-Ports scannen
     this.btnScanPorts?.addEventListener('click', () => {
-      this.btnScanPorts.innerHTML = `${iconSearch(14)} Scanne...`;
+      this.btnScanPorts.innerHTML = `${iconSearch(14)} ${t('settings.btn_scanning')}`;
       this.btnScanPorts.disabled = true;
       wsClient.send({ type: 'SCAN_SERIAL_PORTS' });
       setTimeout(() => {
-        this.btnScanPorts.innerHTML = `${iconSearch(14)} Suchen`;
+        this.btnScanPorts.innerHTML = `${iconSearch(14)} ${t('settings.btn_scan')}`;
         this.btnScanPorts.disabled = false;
       }, 1500);
     });
@@ -209,6 +230,10 @@ export class SettingsTab {
     if (wioPort && !this.isElementFocused(wioPort)) {
       wioPort.value = String(s.wio?.udpPort || 8051);
     }
+    // Sprache Dropdown synchronisieren
+    if (this.settingLanguage && !this.isElementFocused(this.settingLanguage)) {
+      this.settingLanguage.value = getLanguage();
+    }
   }
 
   private saveSettings(): void {
@@ -266,6 +291,6 @@ export class SettingsTab {
       payload: newSettings
     });
 
-    alert('Einstellungen gespeichert! Die Zentrale wird jetzt verbunden...');
+    alert(t('settings.saved_alert'));
   }
 }

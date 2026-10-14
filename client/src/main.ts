@@ -8,6 +8,7 @@ import { SignalMonitor } from './components/SignalMonitor.js';
 import { LayoutInspectorModal } from './components/LayoutInspectorModal.js';
 import { TrainDepotDrawer } from './components/TrainDepotDrawer.js';
 import { AmbientLightingMonitor } from './components/AmbientLightingMonitor.js';
+import { SupporterManager } from './components/SupporterManager.js';
 import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
 import { iconCommandStation, iconPower, iconAuto, iconEstop } from './icons.js';
 
@@ -52,6 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   new SettingsTab();
   new AmbientLightingMonitor();
+  const supporterManager = new SupporterManager();
+  (window as any).supporterManager = supporterManager;
 
   // Language Switcher & i18n
   applyTranslationsToDOM();
