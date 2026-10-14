@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "☕ Projekt unterstützen (Buy Me a Coffee)"
+    url: "https://buymeacoffee.com/ibiterik"
+    about: "Unterstütze die Weiterentwicklung von TrainMaster mit einem Kaffee!"
+  - name: "💬 Fragen & Community-Austausch"
+    url: "https://github.com/ETSREAC/Trainmaster/discussions"
+    about: "Für allgemeine Fragen zur Einrichtung oder Modellbahn-Hardware."

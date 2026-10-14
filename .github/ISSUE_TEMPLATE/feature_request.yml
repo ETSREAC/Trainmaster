@@ -1,0 +1,36 @@
+name: "💡 Vorschlag / Feature Request"
+description: "Schlage eine neue Funktion, Hardware-Integration oder Verbesserung vor"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hast du eine Idee für TrainMaster oder neue Hardware (z. B. Drehregler, Handsteuerungen, Signalmodule)?
+        Teile deinen Vorschlag hier!
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Zusammenfassung der Idee"
+      description: "Beschreibe deinen Vorschlag kurz und verständlich."
+      placeholder: "Ich wünsche mir Unterstützung für..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Welches Problem oder welchen Anwendungsfall löst das?"
+      placeholder: "Auf meiner Anlage habe ich das Problem, dass..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Mögliche Lösung / Hardware-Details"
+      description: "Falls du schon technische Ideen, Pinouts oder Protokolle im Kopf hast."
+      placeholder: "Man könnte z. B. über UDP..."
+    validations:
+      required: false

@@ -1,0 +1,75 @@
+name: "🐛 Bug Report / Fehlerbericht"
+description: "Melde einen Fehler oder unerwartetes Verhalten in TrainMaster"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vielen Dank, dass du dir die Zeit nimmst, einen Fehler in TrainMaster zu melden!
+        Bitte fülle die folgenden Angaben so genau wie möglich aus.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Problembeschreibung"
+      description: "Eine präzise Beschreibung des Fehlers."
+      placeholder: "Was ist passiert? Welches Verhalten hast du erwartet?"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command-station
+    attributes:
+      label: "Digitalzentrale / Schnittstelle"
+      description: "Welche Zentrale verwendest du?"
+      options:
+        - "DCC-EX CommandStation (USB / Seriell)"
+        - "DCC-EX CommandStation (WiFi / TCP)"
+        - "Roco Z21 / z21 start (LAN / WLAN)"
+        - "Virtueller Simulator (Offline-Modus)"
+        - "Andere Zentrale"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "Betriebssystem / Endgerät"
+      options:
+        - "Windows 11 / 10"
+        - "macOS"
+        - "Linux / Raspberry Pi"
+        - "iPad / Android Tablet"
+        - "Smartphone (Mobile Ansicht)"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: "TrainMaster Version"
+      placeholder: "z. B. v1.8.0 oder neuester main Commit"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Schritte zur Reproduktion"
+      description: "Wie lässt sich der Fehler nachstellen?"
+      placeholder: |
+        1. Zu Tab '...' wechseln
+        2. Auf Button '...' klicken
+        3. Fehler tritt auf: ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Relevante Log-Meldungen / Screenshots"
+      description: "Ausgaben aus der TrainMaster Konsole oder der F12-Browser-Konsole."
+      render: shell
+    validations:
+      required: false
