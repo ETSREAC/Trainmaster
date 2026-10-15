@@ -14,6 +14,18 @@
 
 ---
 
+### ☕ Support the Project
+
+If you find TrainMaster useful and want to support ongoing development, new hardware integrations, and open-source updates, feel free to buy me a coffee:
+
+<p align="left">
+  <a href="https://buymeacoffee.com/ibiterik" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="48">
+  </a>
+</p>
+
+---
+
 ## 🌟 Highlights & Features
 
 ### 🌐 Dual-Language Support (English & German)

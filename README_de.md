@@ -14,6 +14,18 @@
 
 ---
 
+### ☕ Projekt unterstützen
+
+Wenn dir TrainMaster gefällt und du die aktive Weiterentwicklung, neue Hardware-Anbindungen und Open-Source-Pflege unterstützen möchtest, freue ich mich über einen Kaffee:
+
+<p align="left">
+  <a href="https://buymeacoffee.com/ibiterik" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="48">
+  </a>
+</p>
+
+---
+
 ## 🌟 Highlights & Features
 
 ### 🌐 Zweisprachige Oberfläche (Deutsch & Englisch)
