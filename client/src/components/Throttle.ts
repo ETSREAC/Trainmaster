@@ -2,6 +2,7 @@ import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconEdit, iconLocos, iconPlus } from '../icons.js';
 import { t } from '../i18n.js';
+import { escapeHtml } from '../sanitize.js';
 
 export let activeLocoId: string | null = null;
 
@@ -292,7 +293,7 @@ export class Throttle {
     const headerLeft = document.createElement('div');
     const nameEl = document.createElement('div');
     nameEl.className = 'loco-name';
-    nameEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><span style="color:#58a6ff;">${iconLocos(18)}</span> <span>${loco.name}</span></span>`;
+    nameEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><span style="color:#58a6ff;">${iconLocos(18)}</span> <span>${escapeHtml(loco.name)}</span></span>`;
 
     const activeBadgeEl = document.createElement('span');
     activeBadgeEl.style.cssText = 'background:#2563eb;color:#fff;font-size:10px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;';

@@ -13,6 +13,8 @@
     "client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "start": "npm run start --workspace=server",
+    "test": "npm run build && node scripts/test_security_fixes.mjs",
+    "test:security": "node scripts/test_security_fixes.mjs",
     "license:gen": "node scripts/license_cli.mjs"
   },
   "keywords": ["modelrailroad", "dcc", "rocrail", "train-control", "automation", "bbt"],

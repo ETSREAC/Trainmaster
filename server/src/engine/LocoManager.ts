@@ -1,5 +1,11 @@
 import { Direction, Locomotive } from '../types.js';
 
+function sanitizeLocoName(name: string): string {
+  if (typeof name !== 'string') return 'Lokomotive';
+  const cleaned = name.replace(/<[^>]*>?/gm, '').replace(/[<>'"/`]/g, '').trim();
+  return cleaned.slice(0, 64) || 'Lokomotive';
+}
+
 export interface LocoEvents {
   onLocoUpdated: (loco: Locomotive) => void;
   onLocoDeleted?: (locoId: string) => void;
@@ -15,7 +21,7 @@ export class LocoManager {
   constructor(initialLocos: Locomotive[], events: LocoEvents) {
     this.events = events;
     for (const l of initialLocos) {
-      this.locos.set(l.id, { ...l });
+      this.locos.set(l.id, { ...l, name: sanitizeLocoName(l.name) });
     }
   }
 
@@ -68,9 +74,13 @@ export class LocoManager {
   }
 
   addLoco(loco: Locomotive): void {
-    this.locos.set(loco.id, { ...loco });
-    this.events.onLocoUpdated(loco);
-    this.events.onLog(`Neue Lokomotive "${loco.name}" (DCC #${loco.dccAddress}) erfolgreich angelegt.`, 'info');
+    const sanitized: Locomotive = {
+      ...loco,
+      name: sanitizeLocoName(loco.name)
+    };
+    this.locos.set(sanitized.id, sanitized);
+    this.events.onLocoUpdated(sanitized);
+    this.events.onLog(`Neue Lokomotive "${sanitized.name}" (DCC #${sanitized.dccAddress}) erfolgreich angelegt.`, 'info');
   }
 
   updateLoco(loco: Locomotive): void {
@@ -82,6 +92,7 @@ export class LocoManager {
 
     const updated: Locomotive = {
       ...loco,
+      name: sanitizeLocoName(loco.name),
       speed,
       targetSpeed: speed,
       direction,
@@ -90,7 +101,7 @@ export class LocoManager {
     };
     this.locos.set(loco.id, updated);
     this.events.onLocoUpdated(updated);
-    this.events.onLog(`Lokomotive "${loco.name}" aktualisiert.`, 'info');
+    this.events.onLog(`Lokomotive "${updated.name}" aktualisiert.`, 'info');
   }
 
   deleteLoco(id: string): void {

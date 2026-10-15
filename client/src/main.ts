@@ -11,6 +11,7 @@ import { AmbientLightingMonitor } from './components/AmbientLightingMonitor.js';
 import { SupporterManager } from './components/SupporterManager.js';
 import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
 import { iconCommandStation, iconPower, iconAuto, iconEstop } from './icons.js';
+import { escapeHtml } from './sanitize.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Elements
@@ -399,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let cls = 'log-entry';
             if (line.includes('[WARN]')) cls += ' warn';
             if (line.includes('[ERROR]') || line.includes('NOTHALT') || line.includes('GEISTERZUG')) cls += ' error';
-            return `<div class="${cls}">${line}</div>`;
+            return `<div class="${cls}">${escapeHtml(line)}</div>`;
           })
           .join('');
         logConsole.scrollTop = logConsole.scrollHeight;

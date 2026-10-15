@@ -1,6 +1,7 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { onLanguageChange, t } from '../i18n.js';
+import { escapeHtml, escapeAttr } from '../sanitize.js';
 import {
   iconDot,
   iconLocos,
@@ -112,7 +113,7 @@ export class TrainDepotDrawer {
       ? `
         <div class="depot-instruction active-selection">
           <div class="instruction-content">
-            <span class="instruction-title" style="display:flex;align-items:center;gap:6px;"><span style="color:#38bdf8;">${iconTarget(16)}</span> ${t('depot.instruction_selected')} (<strong>${selectedLoco.name}</strong>)</span>
+            <span class="instruction-title" style="display:flex;align-items:center;gap:6px;"><span style="color:#38bdf8;">${iconTarget(16)}</span> ${t('depot.instruction_selected')} (<strong>${escapeHtml(selectedLoco.name)}</strong>)</span>
           </div>
           <button id="btn-depot-cancel-select" class="btn-cancel-placement" title="${t('depot.btn_cancel')}">✕</button>
         </div>
@@ -358,7 +359,7 @@ export class TrainDepotDrawer {
         <div class="loco-card-top">
           <div class="loco-card-name-group">
             <span class="loco-drag-grip" title="Anfassen und auf den Gleisplan ziehen">⋮⋮</span>
-            <div class="loco-name" title="${loco.name}">${loco.name}</div>
+            <div class="loco-name" title="${escapeAttr(loco.name)}">${escapeHtml(loco.name)}</div>
           </div>
           <span class="loco-dcc-badge">#${loco.dccAddress}</span>
         </div>

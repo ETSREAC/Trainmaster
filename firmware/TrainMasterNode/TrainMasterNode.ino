@@ -147,8 +147,9 @@ void setup() {
   connectToWiFi();
   setupWebServer();
 
-  // ArduinoOTA für bequemes Flashen über Arduino IDE / Netzwerk
+  // ArduinoOTA für bequemes Flashen über Arduino IDE / Netzwerk mit Passwortschutz (TM-05)
   ArduinoOTA.setHostname(nodeName.c_str());
+  ArduinoOTA.setPassword("trainmaster");
   ArduinoOTA.onStart([]() {
     Serial.println("🔄 ArduinoOTA Flashvorgang gestartet...");
   });
@@ -480,7 +481,8 @@ void setupWebServer() {
     html += "<label>Belegtmelder Haltezeit (ms, Abfallverzögerung / Pulse-Stretching):</label><input type='number' name='hold' value='" + String(holdDelayMs) + "'>";
     html += "<label>Belegtmelder Triggerzeit (ms, Einschaltverzögerung):</label><input type='number' name='trigger' value='" + String(triggerDelayMs) + "'>";
     html += "<label>WLAN SSID:</label><input type='text' name='ssid' value='" + wifiSsid + "'>";
-    html += "<label>WLAN Passwort:</label><input type='password' name='pass' value='" + wifiPass + "'>";
+    html += "<label>WLAN Passwort (leer lassen zum Beibehalten):</label><input type='password' name='pass' placeholder='••••••••' value=''>";
+    html += "<label>Admin-PIN zur Bestätigung (Standard: 1234):</label><input type='password' name='pin' placeholder='Admin-PIN' required>";
     html += "<button type='submit' class='btn'>💾 Speichern & Neustart</button>";
     html += "</form>";
     html += "</div>";
@@ -490,6 +492,7 @@ void setupWebServer() {
     html += "<h2>🔄 Over-The-Air Update (OTA)</h2>";
     html += "<p style='color:#8b949e;font-size:13px;'>Aktualisiere die Firmware direkt über das Netzwerk mit einer compilierten .bin Datei:</p>";
     html += "<form method='POST' action='/update' enctype='multipart/form-data'>";
+    html += "<label>Admin-PIN:</label><input type='password' name='pin' placeholder='Admin-PIN' required style='margin-bottom:10px;'><br>";
     html += "<input type='file' name='update' style='margin-bottom:10px;'><br>";
     html += "<button type='submit' class='btn' style='background:#1f6feb;'>🚀 Firmware flashen</button>";
     html += "</form>";
@@ -499,10 +502,16 @@ void setupWebServer() {
     webServer.send(200, "text/html", html);
   });
 
-  // Einstellungen speichern
+  // Einstellungen speichern (geschützt mit Admin-PIN)
   webServer.on("/save", HTTP_POST, []() {
+    String adminPin = prefs.getString("admin_pin", "1234");
+    if (!webServer.hasArg("pin") || webServer.arg("pin") != adminPin) {
+      webServer.send(401, "text/html", "<h2>⛔ Zugriff verweigert: Ungültige Admin-PIN!</h2><script>setTimeout(()=>window.location='/', 3000);</script>");
+      return;
+    }
+
     if (webServer.hasArg("ssid")) prefs.putString("ssid", webServer.arg("ssid"));
-    if (webServer.hasArg("pass")) prefs.putString("pass", webServer.arg("pass"));
+    if (webServer.hasArg("pass") && webServer.arg("pass").length() > 0) prefs.putString("pass", webServer.arg("pass"));
     if (webServer.hasArg("server")) prefs.putString("server", webServer.arg("server"));
     if (webServer.hasArg("port")) prefs.putInt("port", webServer.arg("port").toInt());
     if (webServer.hasArg("unit")) prefs.putInt("unit", webServer.arg("unit").toInt());
@@ -515,8 +524,13 @@ void setupWebServer() {
     ESP.restart();
   });
 
-  // OTA Firmware Upload Handler
+  // OTA Firmware Upload Handler (geschützt mit Admin-PIN)
   webServer.on("/update", HTTP_POST, []() {
+    String adminPin = prefs.getString("admin_pin", "1234");
+    if (!webServer.hasArg("pin") || webServer.arg("pin") != adminPin) {
+      webServer.send(401, "text/plain", "ACCESS DENIED: INVALID PIN");
+      return;
+    }
     webServer.sendHeader("Connection", "close");
     webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
     ESP.restart();

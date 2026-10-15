@@ -263,8 +263,8 @@ export class WioDriver {
       }
     }
 
-    // 3. HTTP POST Versuch
-    if (targetIp !== '127.0.0.1') {
+    // 3. HTTP POST Versuch (nur an gültige IP-Adressen)
+    if (targetIp !== '127.0.0.1' && net.isIP(targetIp)) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 1000);
       fetch(`http://${targetIp}/api/signal`, {
@@ -316,7 +316,7 @@ export class WioDriver {
     payload?: string,
     meta?: Partial<WioNodeInfo>
   ): void {
-    if (this.isLocalServerIp(sourceIp)) {
+    if (!net.isIP(sourceIp) || this.isLocalServerIp(sourceIp)) {
       return;
     }
 
@@ -734,11 +734,11 @@ export class WioDriver {
       return espPrefixes.some((p) => cleanMac.startsWith(p));
     };
 
-    // 5. Parallel auf Port 80 abfragen
-    const candidates = Array.from(arpMap.keys()).filter((ip) => ip !== localIp && ip !== '127.0.0.1');
+    // 5. Parallel auf Port 80 abfragen (ausschließlich echte, validierte IP-Adressen)
+    const candidates = Array.from(arpMap.keys()).filter((ip) => ip !== localIp && ip !== '127.0.0.1' && Boolean(net.isIP(ip)));
     // Stelle sicher, dass bereits verbundene echte Nodes in der Liste sind
     for (const node of this.discoveredNodes.values()) {
-      if (node.ip !== localIp && node.ip !== '127.0.0.1' && !candidates.includes(node.ip)) {
+      if (node.ip !== localIp && node.ip !== '127.0.0.1' && Boolean(net.isIP(node.ip)) && !candidates.includes(node.ip)) {
         candidates.push(node.ip);
       }
     }

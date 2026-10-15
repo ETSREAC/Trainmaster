@@ -1,4 +1,5 @@
 import http from 'http';
+import net from 'net';
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -35,11 +36,41 @@ import { SerialPort } from 'serialport';
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 const app = express();
-app.use(cors());
+// TM-01: CORS-Einschränkung auf Localhost, LAN & mDNS
+const allowedOrigins = [
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^http:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+  /^http:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+  /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+(:\d+)?$/,
+  /^http:\/\/.*\.local(:\d+)?$/
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const isAllowed = allowedOrigins.some((pattern) => pattern.test(origin));
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[Security] Abgewiesene CORS-Anfrage von unzulässigem Origin: ${origin}`);
+      callback(new Error('CORS Origin not allowed'));
+    }
+  }
+}));
 app.use(express.json());
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+
+// TM-03: maxPayload (2MB) gegen Memory-DoS & unhandled error handler
+const wss = new WebSocketServer({ 
+  server,
+  maxPayload: 2 * 1024 * 1024
+});
+
+wss.on('error', (err) => {
+  console.error('[WSS] Globaler WebSocket-Server-Fehler abgefangen:', err);
+});
 
 // Daten & Einstellungen laden
 const storage = new StorageManager();
@@ -488,6 +519,35 @@ applyCommandStation(data.settings.commandStation);
 
 // WebSocket Verbindungen
 wss.on('connection', (ws, req) => {
+  // TM-03: Socket-Fehlerbehandlung (verhindert ungefangene Abstürze bei ungültigen Frames wie Bad UTF-8)
+  ws.on('error', (err) => {
+    console.warn('[WSS] Client-Socket-Fehler abgefangen:', err.message);
+  });
+
+  // TM-01: WebSocket Origin-Validierung
+  const origin = req?.headers?.origin;
+  if (origin) {
+    try {
+      const parsedUrl = new URL(origin);
+      const host = parsedUrl.hostname;
+      const isAllowedHost = 
+        host === 'localhost' || 
+        host === '127.0.0.1' || 
+        host.startsWith('192.168.') || 
+        host.startsWith('10.') || 
+        (host.startsWith('172.') && parseInt(host.split('.')[1], 10) >= 16 && parseInt(host.split('.')[1], 10) <= 31) ||
+        host.endsWith('.local');
+      if (!isAllowedHost) {
+        console.warn(`[WSS] Abgewiesene Verbindung von unzulässigem Origin: ${origin}`);
+        ws.close(1008, 'Origin not allowed');
+        return;
+      }
+    } catch {
+      ws.close(1008, 'Invalid Origin');
+      return;
+    }
+  }
+
   const isThrottle = req?.url?.includes('throttle') || req?.url?.includes('hmi');
   const initialMsg: WSServerMessage = {
     type: 'INITIAL_STATE',
@@ -776,10 +836,27 @@ wss.on('connection', (ws, req) => {
           break;
 
         case 'UPDATE_SETTINGS': {
+          const payload = action.payload;
+          if (!payload || typeof payload !== 'object') {
+            console.warn('[Security] UPDATE_SETTINGS ignoriert: Payload ist kein gültiges Objekt.');
+            break;
+          }
           const prevWioPort = data.settings.wio?.udpPort;
           const prevWioEnabled = data.settings.wio?.enabled;
-          data.settings = action.payload;
-          bbtEngine.targetCreepDurationMs = data.settings.targetCreepMs;
+          // TM-04: Sichere Zusammenführung mit Schema-Garantien gegen korrupte Payloads
+          data.settings = storage.ensureSettings({
+            ...data,
+            settings: {
+              ...data.settings,
+              ...payload,
+              commandStation: {
+                ...data.settings.commandStation,
+                ...(payload.commandStation && typeof payload.commandStation === 'object' ? payload.commandStation : {})
+              }
+            }
+          }).settings;
+
+          bbtEngine.targetCreepDurationMs = data.settings.targetCreepMs || 1000;
           saveAllData();
           await applyCommandStation(data.settings.commandStation);
 
@@ -966,34 +1043,39 @@ app.get('/api/locos', (_req, res) => {
   res.json(locoManager.getAllLocos());
 });
 
-// WIO REST API Endpunkte für ESP32 (HTTP POST / GET)
+// TM-09: Sichere IP-Bereinigung & Validierung gegen SSRF / Header-Spoofing
+function getCleanClientIp(req: express.Request): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    const candidate = forwarded.split(',')[0].trim();
+    if (net.isIP(candidate)) {
+      return candidate;
+    }
+  }
+  const remote = req.socket.remoteAddress || '127.0.0.1';
+  const clean = remote.includes('::ffff:') ? remote.replace('::ffff:', '') : remote;
+  if (clean === '::1' || clean === 'localhost') return '127.0.0.1';
+  return net.isIP(clean) ? clean : '127.0.0.1';
+}
+
+// WIO REST API Endpunkte für ESP32 (HTTP POST)
 app.post('/api/wio/sensor', (req, res) => {
   const payload = req.body;
-  const rawIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'HTTP';
-  const cleanIp = rawIp.includes('::1') || rawIp === '127.0.0.1' ? '127.0.0.1' : rawIp.replace(/^.*:/, '');
+  if (!payload || typeof payload !== 'object') {
+    res.status(400).json({ error: 'Ungültiger JSON-Payload' });
+    return;
+  }
+  const cleanIp = getCleanClientIp(req);
   wioDriver.parseJsonPacket(payload, JSON.stringify(payload), cleanIp);
   res.json({ success: true, processed: payload });
 });
 
-app.get('/api/wio/sensor', (req, res) => {
-  const query = req.query;
-  const unit = query.unit ? parseInt(String(query.unit), 10) : undefined;
-  const pin = query.pin ? parseInt(String(query.pin), 10) : undefined;
-  const address = query.address ? parseInt(String(query.address), 10) : query.addr ? parseInt(String(query.addr), 10) : undefined;
-  const state = query.state === '1' || query.state === 'true' || query.state === 'on';
-  const id = query.id ? String(query.id) : undefined;
-  const rawIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'HTTP';
-  const cleanIp = rawIp.includes('::1') || rawIp === '127.0.0.1' ? '127.0.0.1' : rawIp.replace(/^.*:/, '');
-
-  wioDriver.recordNodeActivity(
-    cleanIp,
-    unit || 1,
-    pin,
-    state,
-    `GET unit=${unit || 1} pin=${pin || '?'} state=${state ? '1' : '0'}`
-  );
-  handleWioEvent({ id, unit, pin, address, state, sourceIp: cleanIp });
-  res.json({ success: true, processed: { id, unit, pin, address, state } });
+// TM-01: GET /api/wio/sensor erlaubt keine zustandsändernden Mutationen mehr (CSRF-Schutz)
+app.get('/api/wio/sensor', (_req, res) => {
+  res.status(405).json({
+    error: 'Method Not Allowed',
+    message: 'Zustandsänderungen via GET sind aus Sicherheitsgründen deaktiviert. Bitte POST /api/wio/sensor verwenden.'
+  });
 });
 
 app.get('/api/wio/status', (_req, res) => {

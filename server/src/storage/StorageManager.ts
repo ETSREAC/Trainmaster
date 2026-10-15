@@ -52,29 +52,34 @@ export class StorageManager {
   }
 
   ensureSettings(data: StorageData): StorageData {
-    if (!data.settings) {
-      data.settings = this.getDefaultData().settings;
-    }
-    if (!data.settings.wio) {
-      data.settings.wio = {
-        enabled: true,
-        udpPort: 8051
+    const defaultSettings = this.getDefaultData().settings;
+    if (!data.settings || typeof data.settings !== 'object') {
+      data.settings = defaultSettings;
+    } else {
+      const mergedCS = {
+        ...defaultSettings.commandStation,
+        ...(data.settings.commandStation && typeof data.settings.commandStation === 'object' ? data.settings.commandStation : {})
       };
-    }
-    if (!data.settings.ambientLighting) {
-      data.settings.ambientLighting = {
-        enabled: true,
-        ip: '192.168.1.50',
-        port: 5577,
-        mode: 'CIRCADIAN',
-        modelDayMinutes: 15,
-        currentModelHour: 14.0,
-        manualColor: { r: 255, g: 160, b: 60 },
-        weather: 'CLEAR',
-        randomWeather: false,
-        lightningFrequencySec: 25,
-        soundSyncEnabled: true,
-        isPaused: false
+      if (!mergedCS.type) {
+        mergedCS.type = 'VIRTUAL';
+      }
+
+      const mergedWio = defaultSettings.wio ? {
+        ...defaultSettings.wio,
+        ...(data.settings.wio && typeof data.settings.wio === 'object' ? data.settings.wio : {})
+      } : undefined;
+
+      const mergedLighting = defaultSettings.ambientLighting ? {
+        ...defaultSettings.ambientLighting,
+        ...(data.settings.ambientLighting && typeof data.settings.ambientLighting === 'object' ? data.settings.ambientLighting : {})
+      } : undefined;
+
+      data.settings = {
+        ...defaultSettings,
+        ...data.settings,
+        commandStation: mergedCS,
+        wio: mergedWio,
+        ambientLighting: mergedLighting
       };
     }
     if (!data.bbt) {

@@ -524,10 +524,18 @@ export class SensorMonitor {
     const protocol = window.location.protocol;
     const host = window.location.hostname || 'localhost';
     const port = '3001';
-    fetch(`${protocol}//${host}:${port}/api/wio/sensor?unit=1&pin=1&state=1&addr=101`)
+    fetch(`${protocol}//${host}:${port}/api/wio/sensor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unit: 1, pin: 1, state: true, address: 101 })
+    })
       .then(() => {
         setTimeout(() => {
-          fetch(`${protocol}//${host}:${port}/api/wio/sensor?unit=1&pin=1&state=0&addr=101`);
+          fetch(`${protocol}//${host}:${port}/api/wio/sensor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unit: 1, pin: 1, state: false, address: 101 })
+          });
         }, 1200);
       })
       .catch((err) => console.error('Simulations-Fehler:', err));
