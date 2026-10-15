@@ -26,7 +26,7 @@
 #include <ArduinoOTA.h>
 
 // --- Standard-Konfiguration (kann im Web-Interface geändert werden) ---
-#define FIRMWARE_VERSION "2.1.0"
+#define FIRMWARE_VERSION "2.1.1"
 
 #if __has_include("credentials.h")
   #include "credentials.h"
@@ -176,21 +176,53 @@ void loop() {
   }
 
   // Daten vom TrainMaster Server empfangen
-  if (tcpClient.connected() && tcpClient.available()) {
-    String incoming = "";
-    while (tcpClient.available()) {
-      char c = (char)tcpClient.read();
-      if (c == '\n') {
-        processIncomingData(incoming);
-        incoming = "";
-      } else if (c != '\r') {
-        incoming += c;
+  // CR-12: Persistenter Zeilenpuffer - nur vollständige, mit '\n' abgeschlossene Zeilen verarbeiten
+  static String rxLine = "";
+  while (tcpClient.connected() && tcpClient.available()) {
+    char c = (char)tcpClient.read();
+    if (c == '\n') {
+      processIncomingData(rxLine);
+      rxLine = "";
+    } else if (c != '\r') {
+      if (rxLine.length() < 1024) {
+        rxLine += c;
+      } else {
+        Serial.println("⚠️ RX-Zeile zu lang, verworfen.");
+        rxLine = "";
       }
     }
-    if (incoming.length() > 0) {
-      processIncomingData(incoming);
-    }
   }
+  if (!tcpClient.connected()) {
+    rxLine = "";
+  }
+}
+
+// CR-11: Liefert true, wenn ein Befehl eine fremde Unit adressiert (unit="X" bzw. "unit":X)
+bool isForOtherUnit(const String& data) {
+  int idx = data.indexOf("unit=\"");
+  int offset = 6;
+  if (idx < 0) {
+    idx = data.indexOf("\"unit\":");
+    offset = 7;
+  }
+  if (idx < 0) return false; // Ohne Unit-Angabe: abwärtskompatibel annehmen
+  int target = data.substring(idx + offset).toInt();
+  return target != unitId;
+}
+
+// CR-13: Aktuellen Zustand aller Sensor-Pins (auch FREI) nach jeder Verbindung melden
+void sendSensorSnapshot() {
+  for (int i = 0; i < NUM_PINS; i++) {
+    PinModeType mode = configuredPins[i].mode;
+    if (mode != PIN_SENSOR_PULLUP && mode != PIN_SENSOR_NOPULL) continue;
+    uint8_t pin = configuredPins[i].pin;
+    String json = "{\"event\":\"sensor\",\"snapshot\":true,\"unit\":" + String(unitId) +
+                  ",\"pin\":" + String(pin) +
+                  ",\"state\":" + (configuredPins[i].isOccupied ? "true" : "false") +
+                  ",\"addr\":" + String(unitId * 100 + pin) + "}\n";
+    tcpClient.print(json);
+  }
+  Serial.println("📤 Sensor-Snapshot an TrainMaster gesendet.");
 }
 
 // --- Hardware-Pins initialisieren ---
@@ -311,6 +343,11 @@ void processIncomingData(String data) {
 
   Serial.println("RX <- TrainMaster: " + data);
 
+  if (isForOtherUnit(data)) {
+    Serial.println("↪️ Befehl für andere Unit ignoriert.");
+    return;
+  }
+
   // 1. XML Aspect oder Output Befehl: <output unit="33" port="12" val="1"/>
   if (data.startsWith("<output") || data.indexOf("port=") > 0) {
     int portIdx = data.indexOf("port=\"");
@@ -411,6 +448,9 @@ void maintainServerConnection() {
 
         // Auch Rocrail-kompatiblen Handshake für abwärtskompatiblen WIO-Treiber mitsenden
         tcpClient.printf("<xmlh><wio type=\"tm-esp\" id=\"%d\" nodename=\"%s\" clientver=\"2000\"/></xmlh>\n", unitId, nodeName.c_str());
+
+        // CR-13: Belegtzustände nach jeder (Wieder-)Verbindung abgleichen
+        sendSensorSnapshot();
       } else {
         Serial.println("❌ Verbindung fehlgeschlagen. Neuer Versuch in 3.5s...");
       }

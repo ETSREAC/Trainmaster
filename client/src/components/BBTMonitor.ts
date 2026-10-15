@@ -200,7 +200,8 @@ export class BBTMonitor {
       .map((h) => h.creepDurationMs);
 
     const medianCreepMs = this.calculateMedian(validCreepTimes);
-    const targetCreepMs = 1200;
+    // CR-19: Sollwert aus den Einstellungen statt fest codiert
+    const targetCreepMs = wsClient.settings.targetCreepMs || 1200;
     const medianDelta = medianCreepMs > 0 ? medianCreepMs - targetCreepMs : null;
 
     let medianBadge = `<span style="color:var(--text-muted);font-size:12px;">${t('bbt.no_measurements')}</span>`;
@@ -400,7 +401,7 @@ export class BBTMonitor {
       .map((metric, idx) => {
         const runNum = history.length - idx;
         const timeStr = metric.timestamp ? new Date(metric.timestamp).toLocaleTimeString() : '-';
-        const targetMs = metric.targetCreepDurationMs || 1200;
+        const targetMs = metric.targetCreepDurationMs || wsClient.settings.targetCreepMs || 1200;
 
         let creepStr = `${metric.creepDurationMs} ms`;
         let deltaStr = '-';
@@ -480,7 +481,7 @@ export class BBTMonitor {
 
       let medianText = '-';
       if (medianCreep > 0) {
-        const delta = medianCreep - 1200;
+        const delta = medianCreep - (wsClient.settings.targetCreepMs || 1200);
         const color = Math.abs(delta) <= 200 ? '#3fb950' : Math.abs(delta) <= 500 ? '#d29922' : '#f85149';
         medianText = `<span style="color:${color};font-weight:600;">${medianCreep} ms</span> <span style="font-size:11px;color:var(--text-muted);">(${validCreeps.length})</span>`;
       }

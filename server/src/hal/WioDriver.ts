@@ -12,6 +12,8 @@ export interface WioSensorEvent {
   state: boolean;
   rawPayload?: string;
   sourceIp?: string;
+  /** CR-13: Zustandsabgleich nach (Wieder-)Verbindung statt Flankenereignis */
+  snapshot?: boolean;
 }
 
 export interface WioDriverCallbacks {
@@ -35,6 +37,22 @@ export class WioDriver {
   public packetsReceived: number = 0;
   public lastPacketTime: number = 0;
   public lastSourceIp: string = '';
+
+  private static readonly MAX_TCP_BUFFER = 64 * 1024;
+
+  /** Prüft, ob ein ungerahmter Rest eine vollständige Nachricht ist (JSON muss parsebar sein). */
+  private static isCompleteFrame(msg: string): boolean {
+    if (msg.startsWith('{')) {
+      try {
+        JSON.parse(msg);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (msg.startsWith('<')) return msg.endsWith('>');
+    return true;
+  }
 
   constructor(port = 8051, callbacks: WioDriverCallbacks) {
     this.port = port;
@@ -83,8 +101,47 @@ export class WioDriver {
           this.callbacks.onLog?.(`[WIO] 🟢 ESP32 TCP-Verbindung aufgebaut von ${clientIp}`, 'info');
           this.tcpClients.set(clientIp, socket);
 
+          // CR-12: TCP ist ein Bytestrom -> pro Socket puffern und nur vollständige Zeilen verarbeiten
+          let rxBuf = '';
+          let flushTimer: NodeJS.Timeout | null = null;
+
           socket.on('data', (buf) => {
-            this.handleIncomingDatagram(buf, clientIp, socket);
+            // RocNet-Binärpakete (ohne Zeilenrahmung) unverändert durchreichen
+            if (rxBuf.length === 0 && buf.length >= 8 && buf[0] === 0x00 && buf[5] === 0x01) {
+              this.handleIncomingDatagram(buf, clientIp, socket);
+              return;
+            }
+
+            rxBuf += buf.toString('utf-8');
+            if (rxBuf.length > WioDriver.MAX_TCP_BUFFER) {
+              this.callbacks.onLog?.(`[WIO] TCP-Empfangspuffer von ${clientIp} übergelaufen (> ${WioDriver.MAX_TCP_BUFFER} Bytes), verworfen.`, 'warn');
+              rxBuf = '';
+              return;
+            }
+
+            let nl: number;
+            while ((nl = rxBuf.indexOf('\n')) !== -1) {
+              const line = rxBuf.slice(0, nl).replace(/\r$/, '');
+              rxBuf = rxBuf.slice(nl + 1);
+              if (line.trim()) {
+                this.handleIncomingDatagram(Buffer.from(line, 'utf-8'), clientIp, socket);
+              }
+            }
+
+            // Gegenstellen ohne Zeilenende (ältere WIO-Firmware): Rest nach kurzer Ruhepause
+            // verarbeiten, sofern er einen vollständigen Frame bildet
+            if (flushTimer) clearTimeout(flushTimer);
+            flushTimer = null;
+            if (rxBuf.trim()) {
+              flushTimer = setTimeout(() => {
+                flushTimer = null;
+                const rest = rxBuf.trim();
+                if (rest && WioDriver.isCompleteFrame(rest)) {
+                  rxBuf = '';
+                  this.handleIncomingDatagram(Buffer.from(rest, 'utf-8'), clientIp, socket);
+                }
+              }, 100);
+            }
           });
 
           socket.on('error', (err) => {
@@ -92,6 +149,7 @@ export class WioDriver {
           });
 
           socket.on('close', () => {
+            if (flushTimer) clearTimeout(flushTimer);
             this.tcpClients.delete(clientIp);
             this.callbacks.onLog?.(`[WIO] ESP32 TCP-Verbindung beendet (${clientIp})`, 'info');
           });
@@ -169,9 +227,9 @@ export class WioDriver {
    */
   public async sendSignalCommand(signal: Signal, aspect: SignalAspect): Promise<boolean> {
     const unit = signal.wioUnit || 33;
-    let targetIp = '127.0.0.1';
+    let targetIp: string | null = null;
 
-    // Suche IP von erkanntem Node mit dieser Unit
+    // CR-11: Ausschließlich den Node mit exakt dieser Unit ansprechen, keine Ersatz-Geräte
     for (const node of this.discoveredNodes.values()) {
       if (node.unit === unit) {
         targetIp = node.ip;
@@ -179,9 +237,12 @@ export class WioDriver {
       }
     }
 
-    // Wenn kein passender Node gefunden, nimm den ersten verfügbaren oder 127.0.0.1
-    if (targetIp === '127.0.0.1' && this.discoveredNodes.size > 0) {
-      targetIp = Array.from(this.discoveredNodes.values())[0].ip;
+    if (!targetIp) {
+      this.callbacks.onLog?.(
+        `[WIO] Signal "${signal.name}" nicht gesendet: Kein ESP32 mit Unit #${unit} bekannt/verbunden.`,
+        'error'
+      );
+      return false;
     }
 
     // Berechne Pin-Zustände (Rot, Grün, Gelb, Weiß)
@@ -228,7 +289,7 @@ export class WioDriver {
     });
 
     // 1. Per TCP senden (falls Client verbunden)
-    const clientSocket = this.tcpClients.get(targetIp) || (this.tcpClients.size > 0 ? Array.from(this.tcpClients.values())[0] : null);
+    const clientSocket = this.tcpClients.get(targetIp) || null;
     if (clientSocket && !clientSocket.destroyed) {
       try {
         for (const [pinStr, state] of Object.entries(pinLevels)) {
@@ -289,7 +350,7 @@ export class WioDriver {
     this.callbacks.onLog?.(`[WIO] 🚦 Signal "${signal.name}" geschaltet auf ${aspect} -> ESP32 (${targetIp})`, 'info');
 
     const nodeKey = `${targetIp}_${unit}`;
-    const node = this.discoveredNodes.get(nodeKey) || Array.from(this.discoveredNodes.values())[0];
+    const node = this.discoveredNodes.get(nodeKey);
     if (node) {
       this.callbacks.onNodeUpdated?.(node);
     }
@@ -603,7 +664,8 @@ export class WioDriver {
       pin,
       state,
       rawPayload,
-      sourceIp
+      sourceIp,
+      snapshot: json.snapshot === true
     };
 
     this.callbacks.onSensorTriggered(event);

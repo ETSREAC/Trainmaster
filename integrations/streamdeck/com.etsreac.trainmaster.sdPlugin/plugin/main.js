@@ -247,7 +247,10 @@ function handleTrainMasterMessage(msg) {
     // Gleisplan-, Signal-, Sensor- & Block-Änderungen
     case "LAYOUT_UPDATED":
       if (msg.payload) {
-        tmState.layout = msg.payload.elements || msg.payload.layout || [];
+        // CR-20: Server sendet das TrackElement-Array direkt als Payload
+        tmState.layout = Array.isArray(msg.payload)
+          ? msg.payload
+          : (msg.payload.elements || msg.payload.layout || tmState.layout);
       }
       updateKeysByAction("com.etsreac.trainmaster.tracktile");
       break;

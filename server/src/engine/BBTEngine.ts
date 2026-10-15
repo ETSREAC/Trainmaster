@@ -110,6 +110,8 @@ export class BBTEngine {
     this.events.onLog(`[BBT] Bremsphase gestartet: Lok ${loco.name}, ${vStart} -> ${vMin} in ${totalSteps} Schritten (${entry.intervalMs}ms/Schritt)`, 'info');
 
     const runStep = () => {
+      // CR-02: Veraltete Rampe (abgebrochen / Not-Halt) darf keine Fahrstufe mehr setzen
+      if (this.activeBraking.get(loco.id)?.enterTime !== enterTime) return;
       currentStep++;
       const newSpeed = Math.round(vStart - (currentStep * stepSpeedDecrement));
 
@@ -246,5 +248,13 @@ export class BBTEngine {
       clearTimeout(active.timerId);
       this.activeBraking.delete(locoId);
     }
+  }
+
+  /** CR-02: Bricht alle laufenden Bremsrampen ab (Not-Halt). */
+  cancelAll(): void {
+    for (const active of this.activeBraking.values()) {
+      clearTimeout(active.timerId);
+    }
+    this.activeBraking.clear();
   }
 }

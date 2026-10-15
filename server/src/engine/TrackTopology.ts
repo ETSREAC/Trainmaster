@@ -342,9 +342,11 @@ export class TrackTopology {
       let sensorsMinus: BlockSensors = { enter: '', in: '' };
 
       if (sensorsOrderedFromMinusToPlus.length === 1) {
+        // CR-07: Mit nur einem Sensor ist keine BBT-Bremsrampe möglich -> Sensor nur als IN
+        // (sofortiger Halt) zuordnen. Ohne ENTER wird der Block von der Automatik nicht angefahren.
         const sId = sensorsOrderedFromMinusToPlus[0];
-        sensorsPlus = { enter: sId, in: sId };
-        sensorsMinus = { enter: sId, in: sId };
+        sensorsPlus = { enter: '', in: sId };
+        sensorsMinus = { enter: '', in: sId };
       } else if (sensorsOrderedFromMinusToPlus.length >= 2) {
         const firstMinus = sensorsOrderedFromMinusToPlus[0];
         const lastPlus = sensorsOrderedFromMinusToPlus[sensorsOrderedFromMinusToPlus.length - 1];

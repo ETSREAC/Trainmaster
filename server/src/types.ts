@@ -181,6 +181,8 @@ export interface Route {
   direction: '+' | '-';
   turnoutSettings: RouteTurnoutSetting[];
   signalSettings?: { signalId: string; aspect: SignalAspect }[];
+  /** CR-05: IDs der überfahrenen CROSSING-Gleiselemente (gemeinsame Ressource) */
+  crossingIds?: string[];
   active: boolean;
 }
 

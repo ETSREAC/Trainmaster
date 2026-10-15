@@ -29,6 +29,8 @@ export class RouteEngine {
   // Zeitpläne für geplante Abfahrten und Soundtrigger
   private departureTimers: Map<string, NodeJS.Timeout> = new Map();
   private soundTimers: Map<string, NodeJS.Timeout> = new Map();
+  // CR-03: Verzögerte Abfahrtsbefehle je Fahrstraße
+  private pendingStarts: Map<string, { timer: NodeJS.Timeout; locoId: string }> = new Map();
 
   constructor(
     initialRoutes: Route[],
@@ -142,15 +144,24 @@ export class RouteEngine {
   /**
    * Click & Drive: Startet eine Fahrstraße zwischen zwei Blöcken
    */
-  requestRoute(fromBlockId: string, toBlockId: string): boolean {
+  requestRoute(fromBlockId: string, toBlockId: string, routeId?: string): boolean {
     if (this.events.isEmergencyStop?.()) {
       this.events.onLog('Fahrstraße abgelehnt: GENERAL-NOTHALT ist aktiv!', 'warn');
       return false;
     }
 
-    const route = this.findRoute(fromBlockId, toBlockId);
+    // CR-22: Konkret ausgewählte Routenvariante verwenden statt des ersten Treffers
+    const byId = routeId ? this.routes.get(routeId) : undefined;
+    const route = byId && byId.fromBlockId === fromBlockId && byId.toBlockId === toBlockId
+      ? byId
+      : (routeId ? undefined : this.findRoute(fromBlockId, toBlockId));
     if (!route) {
       this.events.onLog(`Keine gültige Fahrstraße von Block ${fromBlockId} nach ${toBlockId} gefunden!`, 'warn');
+      return false;
+    }
+
+    if (route.active) {
+      this.events.onLog(`Fahrstraße ${route.name} ist bereits aktiv.`, 'warn');
       return false;
     }
 
@@ -170,6 +181,33 @@ export class RouteEngine {
     if (toBlock.state !== 'FREE') {
       this.events.onLog(`Zielblock ${toBlock.name} ist nicht frei (${toBlock.state})!`, 'warn');
       return false;
+    }
+
+    // CR-06: Pro Lok / Startblock höchstens eine aktive Fahrt
+    for (const r of this.routes.values()) {
+      if (!r.active) continue;
+      const rTo = this.blockManager.getBlock(r.toBlockId);
+      if (
+        r.fromBlockId === fromBlockId ||
+        rTo?.reservedForLocoId === loco.id ||
+        rTo?.currentLocoId === loco.id ||
+        this.pendingStarts.get(r.id)?.locoId === loco.id
+      ) {
+        this.events.onLog(`Fahrstraße ${route.name} abgelehnt: Lok ${loco.name} hat bereits eine aktive Fahrt (${r.name}).`, 'warn');
+        return false;
+      }
+    }
+
+    // CR-05: Kreuzungen sind gemeinsame Ressourcen und dürfen nur von einer aktiven Fahrstraße genutzt werden
+    if (route.crossingIds && route.crossingIds.length > 0) {
+      for (const r of this.routes.values()) {
+        if (!r.active || !r.crossingIds) continue;
+        const shared = route.crossingIds.find((c) => r.crossingIds!.includes(c));
+        if (shared) {
+          this.events.onLog(`Fahrstraße ${route.name} abgelehnt: Kreuzung ${shared} ist durch ${r.name} belegt.`, 'warn');
+          return false;
+        }
+      }
     }
 
     // Weichen verriegeln
@@ -215,14 +253,52 @@ export class RouteEngine {
     }
 
     // Zug beschleunigen (unter Beibehaltung/Setzen der korrekten Ziel-Richtung targetDirection)
-    setTimeout(() => {
+    // CR-03: Timer verwalten und unmittelbar vor der Abfahrt alle Sicherungen erneut prüfen
+    const locoId = loco.id;
+    const timer = setTimeout(() => {
+      this.pendingStarts.delete(route.id);
+      const current = this.locoManager.getLoco(locoId);
+      const from = this.blockManager.getBlock(fromBlockId);
+      const to = this.blockManager.getBlock(toBlockId);
+      const stillValid =
+        !!current &&
+        route.active &&
+        !this.events.isEmergencyStop?.() &&
+        from?.currentLocoId === locoId &&
+        to?.state === 'RESERVED' &&
+        to.reservedForLocoId === locoId &&
+        route.turnoutSettings.every((ts) => {
+          const t = this.turnoutManager.getTurnout(ts.turnoutId);
+          return !!t && t.locked && t.lockedByRouteId === route.id && t.state === ts.state;
+        });
+      if (!stillValid || !current) {
+        this.events.onLog(`Abfahrt über ${route.name} abgebrochen: Fahrstraße nicht mehr gesichert.`, 'warn');
+        return;
+      }
       // Spitzenlicht (F0 / F1) vor/bei Abfahrt automatisch einschalten
-      this.ensureLocoLights(loco.id);
-      this.locoManager.setSpeed(loco.id, loco.vMid, targetDirection);
-      this.events.onLog(`Zug ${loco.name} fährt ab (${targetDirection}) mit Reisegeschwindigkeit (${loco.vMid}) [💡 Licht an]`, 'info');
+      this.ensureLocoLights(locoId);
+      this.locoManager.setSpeed(locoId, current.vMid, targetDirection);
+      this.events.onLog(`Zug ${current.name} fährt ab (${targetDirection}) mit Reisegeschwindigkeit (${current.vMid}) [💡 Licht an]`, 'info');
     }, 500);
+    this.pendingStarts.set(route.id, { timer, locoId });
 
     return true;
+  }
+
+  private cancelPendingStart(routeId: string): void {
+    const p = this.pendingStarts.get(routeId);
+    if (p) {
+      clearTimeout(p.timer);
+      this.pendingStarts.delete(routeId);
+    }
+  }
+
+  /** CR-18: Alle Laufzeitreferenzen auf eine gelöschte Lok entfernen. */
+  forgetLoco(locoId: string): void {
+    this.locoArrivalDirection.delete(locoId);
+    for (const [routeId, p] of this.pendingStarts) {
+      if (p.locoId === locoId) this.cancelPendingStart(routeId);
+    }
   }
 
   /**
@@ -232,6 +308,7 @@ export class RouteEngine {
     for (const r of this.routes.values()) {
       if (r.toBlockId === toBlockId && r.active) {
         r.active = false;
+        this.cancelPendingStart(r.id); // CR-03
         this.turnoutManager.unlockTurnouts(r.id);
         this.events.onRouteUpdated(r);
         this.events.onLog(`Fahrstraße ${r.name} aufgelöst.`, 'info');
@@ -430,11 +507,27 @@ export class RouteEngine {
     }
   }
 
+  /**
+   * Löst alle aktiven Fahrstraßen vollständig und konsistent auf (z. B. nach Not-Halt, wenn alle Züge stehen):
+   * Abfahrtstimer, Weichen, Zielreservierungen und Signale.
+   */
   resetActiveRoutes(): void {
     for (const r of this.routes.values()) {
+      this.cancelPendingStart(r.id); // CR-03
       if (r.active) {
         r.active = false;
         this.turnoutManager.unlockTurnouts(r.id);
+        // CR-04: Noch nicht erreichte Zielreservierung aufheben
+        const toBlock = this.blockManager.getBlock(r.toBlockId);
+        if (toBlock && toBlock.state === 'RESERVED') {
+          this.blockManager.freeBlock(toBlock.id);
+        }
+        // CR-04: Signale zuverlässig auf Halt
+        if (r.signalSettings) {
+          for (const ss of r.signalSettings) {
+            this.events.onSignalSet?.(ss.signalId, 'HP0');
+          }
+        }
         this.events.onRouteUpdated(r);
         this.events.onLog(`[Fahrstraße] ${r.name} aufgelöst / zurückgesetzt.`, 'info');
       }
@@ -460,8 +553,12 @@ export class RouteEngine {
         clearInterval(this.autoLoopTimer);
         this.autoLoopTimer = undefined;
       }
+      // CR-04: Nur neue Abfahrten stoppen. Laufende Fahrstraßen bleiben bis zur Ankunft (IN) verriegelt.
       this.clearAllTimers();
-      this.resetActiveRoutes();
+      const running = this.getAllRoutes().filter((r) => r.active).length;
+      if (running > 0) {
+        this.events.onLog(`[Automatik] ${running} laufende Fahrt(en) bleiben bis zur Ankunft gesichert.`, 'info');
+      }
     }
     return this.automaticModeActive;
   }
@@ -562,7 +659,7 @@ export class RouteEngine {
       // Zufällige Route auswählen (Aquarium-Modus)
       const selected = candidateRoutes[Math.floor(Math.random() * candidateRoutes.length)];
       this.events.onLog(`[Automatik] Wähle Route für Abfahrt: ${selected.name}`, 'info');
-      const ok = this.requestRoute(selected.fromBlockId, selected.toBlockId);
+      const ok = this.requestRoute(selected.fromBlockId, selected.toBlockId, selected.id);
       if (ok) {
         fromBlock.waitTimer = null;
         this.events.onBlockUpdated?.(fromBlock);

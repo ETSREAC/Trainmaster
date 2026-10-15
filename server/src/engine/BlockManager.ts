@@ -69,6 +69,14 @@ export class BlockManager {
     this.events.onBlockUpdated(updatedBlock);
   }
 
+  /** CR-17: Block dauerhaft entfernen (inkl. Sensorzuordnung). */
+  deleteBlock(blockId: string): boolean {
+    const existed = this.blocks.delete(blockId);
+    this.recentlyFreedBlocks.delete(blockId);
+    if (existed) this.rebuildSensorMapping();
+    return existed;
+  }
+
   setBlockState(blockId: string, state: BlockState, currentLocoId?: string | null): void {
     const block = this.blocks.get(blockId);
     if (!block) return;
@@ -182,6 +190,16 @@ export class BlockManager {
     }
 
     if (!chosenBlock || !chosenMapping) return;
+
+    // CR-07: Ist derselbe Sensor für Block+Richtung zugleich ENTER und IN (Ein-Sensor-Block),
+    // wird er als IN (sofortiger Halt) behandelt, damit der Haltepunkt sicher erreicht wird.
+    if (chosenMapping.role === 'enter') {
+      const cm = chosenMapping;
+      const inMapping = mappings.find((m) => m.blockId === cm.blockId && m.direction === cm.direction && m.role === 'in');
+      if (inMapping) {
+        chosenMapping = inMapping;
+      }
+    }
 
     // Prüfe Geisterzug vs. manuelle Gleisbelegung vs. Ausfahr-/Nachlauf-Ereignisse
     if (chosenBlock.state === 'FREE') {

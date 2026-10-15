@@ -271,7 +271,9 @@ export class SettingsTab {
     const wioEnabled = document.getElementById('wio-enabled') as HTMLInputElement | null;
     const wioPort = document.getElementById('wio-port') as HTMLInputElement | null;
 
+    // CR-15: Nicht hier bearbeitete Bereiche (z. B. ambientLighting) unverändert übernehmen
     const newSettings: AppSettings = {
+      ...wsClient.settings,
       commandStation,
       wio: {
         enabled: wioEnabled ? wioEnabled.checked : true,

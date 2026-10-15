@@ -237,10 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Leertaste: NOT-HALT
+    // Leertaste: NOT-HALT (CR-01: immer nur Halt, nie Freigabe; Tastenwiederholung ignorieren)
     if (e.code === 'Space') {
       e.preventDefault();
-      toggleEstop();
+      if (e.repeat) return;
+      if (!wsClient.status.emergencyStop) {
+        wsClient.send({ type: 'EMERGENCY_STOP' });
+      }
       return;
     }
 
@@ -393,8 +396,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Live Logs
     if (logConsole) {
-      const currentCount = logConsole.childElementCount;
-      if (currentCount !== wsClient.status.log.length) {
+      // CR-21: Signatur statt Anzahl, da das Log bei 200 Einträgen rotiert
+      const logs = wsClient.status.log;
+      const signature = `${logs.length}|${logs[logs.length - 1] ?? ''}|${logs[0] ?? ''}`;
+      if (logConsole.dataset.signature !== signature) {
+        logConsole.dataset.signature = signature;
         logConsole.innerHTML = wsClient.status.log
           .map((line) => {
             let cls = 'log-entry';

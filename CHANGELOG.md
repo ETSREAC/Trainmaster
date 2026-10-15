@@ -10,6 +10,40 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.7.9] - 2026-10-15
+
+Patch-Release: Behebt die 22 funktionalen Befunde CR-01 bis CR-22 aus dem Code Review vom 15.10.2026. ESP32-Firmware `TrainMasterNode.ino` auf v2.1.1.
+
+### Fixed
+- **Not-Halt**
+  - CR-01: Leertaste löst nur noch Not-Halt aus (Tastenwiederholung ignoriert, keine versehentliche Freigabe).
+  - CR-02: Laufende BBT-Bremsrampen werden beim Not-Halt abgebrochen und können keine alten Fahrstufen mehr setzen.
+  - CR-08: DCC-EX sendet für den globalen Not-Halt `<!>` statt `<->`.
+- **Fahrstraßen**
+  - CR-03: Verzögerter Abfahrtsbefehl wird bei Auflösung abgebrochen und prüft vor der Fahrt Route, Reservierung, Weichen und Not-Halt erneut.
+  - CR-04: Automatik aus stoppt nur neue Abfahrten; laufende Fahrstraßen bleiben bis zur Ankunft verriegelt. `resetActiveRoutes` hebt Zielreservierungen auf und stellt Signale auf HP0.
+  - CR-05: Überfahrene Kreuzungen werden als `crossingIds` in generierten Routen gespeichert und gegenseitig ausgeschlossen (Fahrstraßen neu generieren!).
+  - CR-06: Pro Lok/Startblock ist nur eine aktive Fahrt möglich.
+  - CR-07: Ein-Sensor-Blöcke: Sensor wird als IN (sofortiger Halt) behandelt; Auto-Zuordnung setzt nur IN.
+  - CR-22: Automatik fordert die konkret ausgewählte Routenvariante per ID an.
+- **Gerätekommunikation**
+  - CR-09: DCC-EX-Sensormeldungen `<Q id>`/`<q id>` werden korrekt ausgewertet.
+  - CR-10: Z21-Weichenbefehl setzt das Aktivierungsbit (`0x88|P` / `0x80|P`).
+  - CR-11: WIO-Signalbefehle gehen nur an den Node mit passender Unit; die Firmware ignoriert Befehle für fremde Units.
+  - CR-12: WIO-TCP-Empfang mit Zeilenpuffer pro Socket (Server und Firmware).
+  - CR-13: ESP32 sendet nach jeder Verbindung einen Sensor-Snapshot; der Server übernimmt nur Abweichungen.
+  - CR-14: Z21-Lokfunktionen F0–F31 über `LAN_X_SET_LOCO_FUNCTION` (E4 F8).
+- **Zustand & Bedienung**
+  - CR-15: Speichern der allgemeinen Einstellungen behält die Raumlicht-Konfiguration.
+  - CR-16: Geschwindigkeits-Presets verwenden die aktuelle Kalibrierung der Lok.
+  - CR-17: Block-/Weichenlöschung wirkt dauerhaft und entfernt abhängige Fahrstraßen.
+  - CR-18: Lok löschen ist während der Fahrt gesperrt und bereinigt Blöcke, Reservierungen und Timer.
+  - CR-19: Gespeicherte BBT-Kriechzeit wird beim Start übernommen; BBT-Anzeige nutzt den eingestellten Sollwert.
+  - CR-20: Stream-Deck-Plugin übernimmt den `LAYOUT_UPDATED`-Array-Payload.
+  - CR-21: Live-Protokoll aktualisiert sich auch nach 200 Einträgen.
+
+---
+
 ## [1.7.8] - 2026-10-12
 
 ### 📡 ESP32 WIO-Firmware: Asymmetrisches Pulse-Stretching & Haltezeit für gepufferte Wagen

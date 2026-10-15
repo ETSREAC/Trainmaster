@@ -264,13 +264,15 @@ export class DccExDriver implements ICommandStation {
         this.callbacks?.onLog?.(`[DCC-EX] Weiche #${addr} steht auf: ${state === 'STRAIGHT' ? 'Gerade' : 'Abzweig'}`, 'info');
       }
     }
-    // Sensor-Rückmeldung: <Q SENSOR_ID STATE> oder <q SENSOR_ID STATE>
+    // CR-09: Sensor-Rückmeldung: <Q ID> = aktiv, <q ID> = inaktiv.
+    // <Q ID PIN PULLUP> ist eine Sensor-Definitionsantwort (keine Zustandsänderung).
     else if (msg.startsWith('Q ') || msg.startsWith('q ')) {
-      const parts = msg.split(' ');
-      if (parts.length >= 3) {
+      const parts = msg.split(/\s+/);
+      if (parts.length === 2) {
         const addr = parseInt(parts[1], 10);
-        const state = parts[2] === '1';
-        this.callbacks?.onSensorChanged(addr, state);
+        if (!isNaN(addr)) {
+          this.callbacks?.onSensorChanged(addr, msg[0] === 'Q');
+        }
       }
     }
     // Versions- & Hardware-Kennung: z.B. <iDCC-EX V-5.6.0 ...>
@@ -288,7 +290,8 @@ export class DccExDriver implements ICommandStation {
     if (address !== undefined) {
       this.sendRaw(`<t 1 ${address} -1 1>`);
     } else {
-      this.sendRaw('<->');
+      // CR-08: <!> = globaler Not-Halt aller Loks (<-> würde nur die Reminder-Liste leeren)
+      this.sendRaw('<!>');
     }
   }
 

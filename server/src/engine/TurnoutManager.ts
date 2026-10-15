@@ -29,6 +29,11 @@ export class TurnoutManager {
     this.events.onTurnoutUpdated(updatedTo);
   }
 
+  /** CR-17: Weiche dauerhaft entfernen. */
+  deleteTurnout(id: string): boolean {
+    return this.turnouts.delete(id);
+  }
+
   setTurnoutState(id: string, state: TurnoutState, force = false): boolean {
     const to = this.turnouts.get(id);
     if (!to) return false;

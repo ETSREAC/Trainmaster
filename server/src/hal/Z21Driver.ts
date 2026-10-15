@@ -124,22 +124,25 @@ export class Z21Driver implements ICommandStation {
     const adrMsb = isLong ? (0xC0 | (address >> 8)) : 0x00;
     const adrLsb = isLong ? (address & 0xFF) : address;
 
-    // F0-F4 Gruppe
-    if (functionIndex <= 4) {
-      let fByte = active ? (1 << (functionIndex === 0 ? 4 : functionIndex - 1)) : 0;
-      this.sendXPressNet([0xF8, 0x13, adrMsb, adrLsb, fByte]);
+    // CR-14: LAN_X_SET_LOCO_FUNCTION (Z21-Spez. §4.3.1): E4 F8 MSB LSB TTNNNNNN
+    // TT: 00 = aus, 01 = ein; NNNNNN = Funktionsindex 0..31
+    if (functionIndex < 0 || functionIndex > 31) {
+      this.callbacks?.onLog?.(`Z21: Funktion F${functionIndex} wird nicht unterstützt (0-31).`, 'warn');
+      return;
     }
+    const db3 = ((active ? 0x01 : 0x00) << 6) | (functionIndex & 0x3F);
+    this.sendXPressNet([0xE4, 0xF8, adrMsb, adrLsb, db3]);
   }
 
   async setTurnout(address: number, state: TurnoutState): Promise<void> {
     const adrMsb = (address - 1) >> 8;
     const adrLsb = (address - 1) & 0xFF;
     const posBit = state === 'STRAIGHT' ? 0x01 : 0x00;
-    // 0x53 Weichenbefehl (Aktivieren)
-    this.sendXPressNet([0x53, adrMsb, adrLsb, 0x80 | posBit]);
+    // CR-10: LAN_X_SET_TURNOUT (Z21-Spez. §5.2): DB2 = 10Q0A00P (A = Ausgang aktivieren)
+    this.sendXPressNet([0x53, adrMsb, adrLsb, 0x88 | posBit]);
     // Nach kurzem Impuls deaktivieren
     setTimeout(() => {
-      this.sendXPressNet([0x53, adrMsb, adrLsb, posBit]);
+      this.sendXPressNet([0x53, adrMsb, adrLsb, 0x80 | posBit]);
     }, 150);
   }
 

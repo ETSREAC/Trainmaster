@@ -20,6 +20,7 @@ interface PathState {
   inPort: PortDirection;
   turnoutSettings: RouteTurnoutSetting[];
   signalsEncountered: string[];
+  crossingIds: string[];
   visitedKeys: Set<string>;
   pathLength: number;
 }
@@ -155,6 +156,7 @@ export class RouteGenerator {
             direction: dep.dir,
             turnoutSettings: consolidatedTurnouts,
             signalSettings: signalSettings.length > 0 ? signalSettings : undefined,
+            crossingIds: p.crossingIds.length > 0 ? p.crossingIds : undefined,
             active: false
           });
         }
@@ -169,11 +171,12 @@ export class RouteGenerator {
     startX: number,
     startY: number,
     startExitPort: PortDirection
-  ): Array<{ destBlockId: string; turnoutSettings: RouteTurnoutSetting[]; signalsEncountered: string[] }> {
+  ): Array<{ destBlockId: string; turnoutSettings: RouteTurnoutSetting[]; signalsEncountered: string[]; crossingIds: string[] }> {
     const results: Array<{
       destBlockId: string;
       turnoutSettings: RouteTurnoutSetting[];
       signalsEncountered: string[];
+      crossingIds: string[];
     }> = [];
 
     const firstNeighbor = getNeighborCoords(startX, startY, startExitPort);
@@ -186,6 +189,7 @@ export class RouteGenerator {
         inPort: firstInPort,
         turnoutSettings: [],
         signalsEncountered: [],
+        crossingIds: [],
         visitedKeys: new Set<string>([`${startX},${startY}`]),
         pathLength: 1
       }
@@ -214,7 +218,8 @@ export class RouteGenerator {
           results.push({
             destBlockId: elem.linkedId,
             turnoutSettings: [...state.turnoutSettings],
-            signalsEncountered: [...state.signalsEncountered]
+            signalsEncountered: [...state.signalsEncountered],
+            crossingIds: [...state.crossingIds]
           });
         }
         // In jedem Fall Pfad hier beenden (Fahrstraßen enden am Block)
@@ -228,6 +233,11 @@ export class RouteGenerator {
           currentSignals.push(elem.linkedId);
         }
       }
+
+      // CR-05: Überfahrene Kreuzungen als gemeinsame Ressource erfassen
+      const currentCrossings = elem.type === 'CROSSING' && !state.crossingIds.includes(elem.id)
+        ? [...state.crossingIds, elem.id]
+        : state.crossingIds;
 
       // Weiche behandeln
       if (elem.type === 'TURNOUT_LEFT' || elem.type === 'TURNOUT_RIGHT') {
@@ -247,6 +257,7 @@ export class RouteGenerator {
             inPort: oppositePort(toInfo.straightPort),
             turnoutSettings: [...state.turnoutSettings, { turnoutId, state: 'STRAIGHT' }],
             signalsEncountered: currentSignals,
+            crossingIds: currentCrossings,
             visitedKeys: nextVisited,
             pathLength: state.pathLength + 1
           });
@@ -259,6 +270,7 @@ export class RouteGenerator {
             inPort: oppositePort(toInfo.branchPort),
             turnoutSettings: [...state.turnoutSettings, { turnoutId, state: 'DIVERGENT' }],
             signalsEncountered: currentSignals,
+            crossingIds: currentCrossings,
             visitedKeys: nextVisited,
             pathLength: state.pathLength + 1
           });
@@ -274,6 +286,7 @@ export class RouteGenerator {
             inPort: oppositePort(toInfo.rootPort),
             turnoutSettings: [...state.turnoutSettings, { turnoutId, state: 'STRAIGHT' }],
             signalsEncountered: currentSignals,
+            crossingIds: currentCrossings,
             visitedKeys: nextVisited,
             pathLength: state.pathLength + 1
           });
@@ -289,6 +302,7 @@ export class RouteGenerator {
             inPort: oppositePort(toInfo.rootPort),
             turnoutSettings: [...state.turnoutSettings, { turnoutId, state: 'DIVERGENT' }],
             signalsEncountered: currentSignals,
+            crossingIds: currentCrossings,
             visitedKeys: nextVisited,
             pathLength: state.pathLength + 1
           });
@@ -310,6 +324,7 @@ export class RouteGenerator {
         inPort: oppositePort(nextStep.outPort),
         turnoutSettings: [...state.turnoutSettings],
         signalsEncountered: currentSignals,
+        crossingIds: currentCrossings,
         visitedKeys: nextVisited,
         pathLength: state.pathLength + 1
       });

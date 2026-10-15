@@ -439,23 +439,27 @@ export class Throttle {
     // Speed Presets
     const presets = document.createElement('div');
     presets.className = 'preset-buttons';
-    const presetValues = [
-      { label: t('throttle.preset_stop'), val: 0 },
-      { label: t('throttle.preset_shunt'), val: loco.vMin || 12 },
-      { label: t('throttle.preset_cruise'), val: loco.vMid || 55 },
-      { label: t('throttle.preset_fast'), val: 85 },
-      { label: t('throttle.preset_vmax'), val: loco.vMax || 105 }
+    // CR-16: Presetwert erst beim Klick aus der aktuellen Lok-Kalibrierung auflösen
+    const presetValues: Array<{ label: string; resolve: (l: typeof loco) => number }> = [
+      { label: t('throttle.preset_stop'), resolve: () => 0 },
+      { label: t('throttle.preset_shunt'), resolve: (l) => l.vMin || 12 },
+      { label: t('throttle.preset_cruise'), resolve: (l) => l.vMid || 55 },
+      { label: t('throttle.preset_fast'), resolve: () => 85 },
+      { label: t('throttle.preset_vmax'), resolve: (l) => l.vMax || 105 }
     ];
 
     for (const p of presetValues) {
+      const isStop = p.resolve(loco) === 0;
       const btn = document.createElement('button');
-      btn.className = `preset-btn ${p.val === 0 ? 'stop' : ''}`;
+      btn.className = `preset-btn ${isStop ? 'stop' : ''}`;
       btn.textContent = p.label;
       btn.addEventListener('click', () => {
-        if (navigator.vibrate) navigator.vibrate(p.val === 0 ? 35 : 15);
-        slider.value = `${p.val}`;
-        speedNumEl.textContent = `${p.val}`;
-        this.sendSpeed(loco.id, p.val);
+        const current = wsClient.locos.find((l) => l.id === loco.id) || loco;
+        const val = p.resolve(current);
+        if (navigator.vibrate) navigator.vibrate(val === 0 ? 35 : 15);
+        slider.value = `${val}`;
+        speedNumEl.textContent = `${val}`;
+        this.sendSpeed(loco.id, val);
       });
       presets.appendChild(btn);
       ref.presetBtns.push(btn);

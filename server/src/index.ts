@@ -222,6 +222,8 @@ turnoutManager = new TurnoutManager(data.turnouts, {
 
 bbtEngine = new BBTEngine(data.bbt, {
   onSpeedStep: (locoId, speed) => {
+    // CR-02: Während Not-Halt darf keine Rampe den Lokzustand wieder erhöhen
+    if (status.emergencyStop && speed > 0) return;
     locoManager.setSpeed(locoId, speed);
   },
   onBBTUpdated: (entry) => {
@@ -231,6 +233,10 @@ bbtEngine = new BBTEngine(data.bbt, {
   },
   onLog: addLog
 });
+// CR-19: Gespeicherte Ziel-Kriechzeit beim Start übernehmen
+if (typeof data.settings.targetCreepMs === 'number' && data.settings.targetCreepMs > 0) {
+  bbtEngine.targetCreepDurationMs = data.settings.targetCreepMs;
+}
 
 blockManager = new BlockManager(data.blocks, {
   onBlockUpdated: (block) => {
@@ -430,6 +436,10 @@ function handleWioEvent(event: WioSensorEvent): void {
 
   if (sensor) {
     const effectiveState = sensor.inverted ? !event.state : event.state;
+    // CR-13: Zustandsabgleich nach Verbindung nur bei tatsächlicher Abweichung weiterverarbeiten
+    if (event.snapshot && !!sensor.active === effectiveState) {
+      return;
+    }
     addLog(
       `[WIO] ESP32 Rückmeldung: "${sensor.name}" (${sensor.id}) -> ${effectiveState ? 'BELEGT' : 'FREI'}${event.sourceIp ? ` von ${event.sourceIp}` : ''}`,
       'info'
@@ -467,6 +477,7 @@ function triggerEmergencyStop(): void {
   status.emergencyStop = true;
   status.automaticMode = false;
   hal.emergencyStop();
+  bbtEngine.cancelAll(); // CR-02
   locoManager.emergencyStopAll();
   if (routeEngine) {
     routeEngine.toggleAutomaticMode(false);
@@ -722,7 +733,22 @@ wss.on('connection', (ws, req) => {
 
         case 'DELETE_BLOCK': {
           const { blockId } = action.payload;
-          data.blocks = data.blocks.filter((b) => b.id !== blockId);
+          // CR-17: Aus dem Manager (Quelle für saveAllData) löschen und Referenzen bereinigen
+          if (routeEngine.getAllRoutes().some((r) => r.active && (r.fromBlockId === blockId || r.toBlockId === blockId))) {
+            addLog(`Block #${blockId} kann nicht gelöscht werden: aktive Fahrstraße vorhanden.`, 'warn');
+            break;
+          }
+          blockManager.deleteBlock(blockId);
+          data.blocks = blockManager.getAllBlocks();
+          for (const l of locoManager.getAllLocos()) {
+            if (l.currentBlockId === blockId) locoManager.setLocoBlock(l.id, null);
+          }
+          const remainingRoutes = routeEngine.getAllRoutes().filter((r) => r.fromBlockId !== blockId && r.toBlockId !== blockId);
+          if (remainingRoutes.length !== routeEngine.getAllRoutes().length) {
+            routeEngine.setRoutes(remainingRoutes);
+            data.routes = remainingRoutes;
+            broadcast({ type: 'ROUTES_UPDATED', payload: remainingRoutes });
+          }
           saveAllData();
           broadcast({ type: 'BLOCK_DELETED', payload: { blockId } });
           addLog(`Block #${blockId} gelöscht.`, 'warn');
@@ -753,7 +779,20 @@ wss.on('connection', (ws, req) => {
 
         case 'DELETE_TURNOUT': {
           const { turnoutId } = action.payload;
-          data.turnouts = data.turnouts.filter((t) => t.id !== turnoutId);
+          // CR-17: Aus dem Manager löschen; verriegelte Weichen nicht entfernen
+          if (turnoutManager.getTurnout(turnoutId)?.locked) {
+            addLog(`Weiche #${turnoutId} kann nicht gelöscht werden: durch aktive Fahrstraße verriegelt.`, 'warn');
+            break;
+          }
+          turnoutManager.deleteTurnout(turnoutId);
+          data.turnouts = turnoutManager.getAllTurnouts();
+          const routesWithoutTurnout = routeEngine.getAllRoutes().filter((r) => !r.turnoutSettings.some((ts) => ts.turnoutId === turnoutId));
+          if (routesWithoutTurnout.length !== routeEngine.getAllRoutes().length) {
+            routeEngine.setRoutes(routesWithoutTurnout);
+            data.routes = routesWithoutTurnout;
+            broadcast({ type: 'ROUTES_UPDATED', payload: routesWithoutTurnout });
+            addLog(`Fahrstraßen über Weiche #${turnoutId} entfernt.`, 'warn');
+          }
           saveAllData();
           broadcast({ type: 'TURNOUT_DELETED', payload: { turnoutId } });
           addLog(`Weiche #${turnoutId} gelöscht.`, 'warn');
@@ -932,10 +971,32 @@ wss.on('connection', (ws, req) => {
           saveAllData();
           break;
 
-        case 'DELETE_LOCO':
-          locoManager.deleteLoco(action.payload.locoId);
+        case 'DELETE_LOCO': {
+          // CR-18: Fahrende Lok nicht löschen; danach alle Block-/Routen-/BBT-Referenzen auflösen
+          const { locoId } = action.payload;
+          const loco = locoManager.getLoco(locoId);
+          if (!loco) break;
+          if (loco.speed > 0) {
+            addLog(`Lok "${loco.name}" kann während der Fahrt nicht gelöscht werden. Bitte zuerst anhalten.`, 'warn');
+            break;
+          }
+          bbtEngine.cancelBraking(locoId);
+          for (const b of blockManager.getAllBlocks()) {
+            if (b.currentLocoId === locoId || b.reservedForLocoId === locoId) {
+              routeEngine.releaseRoute(b.id);
+              for (const r of routeEngine.getAllRoutes()) {
+                if (r.active && r.fromBlockId === b.id) routeEngine.releaseRoute(r.toBlockId);
+              }
+              routeEngine.clearBlockTimer(b.id);
+              blockManager.freeBlock(b.id);
+            }
+          }
+          routeEngine.forgetLoco(locoId);
+          locoManager.deleteLoco(locoId);
+          data.blocks = blockManager.getAllBlocks();
           saveAllData();
           break;
+        }
 
         case 'AUTO_CREATE_WIO_SENSORS': {
           const { unit, count } = action.payload;
@@ -1102,5 +1163,5 @@ app.post('/api/wio/scan', async (_req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit (v1.7.8 - WIO Pulse-Stretching & Haltezeit aktiv).`);
+  console.log(`🔌 WebSocket Server bereit (v1.7.9).`);
 });
