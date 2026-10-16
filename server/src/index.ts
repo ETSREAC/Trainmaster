@@ -16,6 +16,7 @@ import { RouteEngine } from './engine/RouteEngine.js';
 import { TrackTopology } from './engine/TrackTopology.js';
 import { RouteGenerator } from './engine/RouteGenerator.js';
 import { AmbientLightingEngine } from './engine/AmbientLightingEngine.js';
+import { SplitBlockEngine } from './engine/SplitBlockEngine.js';
 import { WioDriver, WioSensorEvent } from './hal/WioDriver.js';
 import {
   AppSettings,
@@ -121,15 +122,22 @@ const halCallbacks: CommandStationCallbacks = {
     triggerEmergencyStop();
   },
   onPowerChanged: (power) => {
+    const wasOn = status.trackPower;
     status.trackPower = power;
     broadcast({ type: 'STATUS_UPDATE', payload: { trackPower: power } });
-    if (power) {
+    // Funktionen nur beim echten Wechsel AUS -> EIN neu senden, nicht bei jeder Statusmeldung
+    if (power && !wasOn) {
       syncAllLocoFunctionsToHardware();
     }
   },
   onConnectionChanged: (connected) => {
+    const wasConnected = status.connected;
     status.connected = connected;
     broadcast({ type: 'STATUS_UPDATE', payload: { connected } });
+    // Nach (Wieder-)Verbindung, z. B. Neustart der Zentrale: Lokfunktionen wiederherstellen
+    if (connected && !wasConnected) {
+      syncAllLocoFunctionsToHardware();
+    }
   },
   onTurnoutFeedback: (address, state) => {
     const to = data.turnouts.find((t) => t.address === address);
@@ -174,6 +182,7 @@ let blockManager: BlockManager;
 let bbtEngine: BBTEngine;
 let routeEngine: RouteEngine;
 let lightingEngine: AmbientLightingEngine;
+let splitEngine: SplitBlockEngine;
 
 locoManager = new LocoManager(data.locos, {
   onLocoUpdated: (loco) => {
@@ -187,6 +196,7 @@ locoManager = new LocoManager(data.locos, {
     broadcast({ type: 'LOCO_DELETED', payload: { locoId } });
   },
   onSpeedChanged: (loco) => {
+    splitEngine?.notifySpeed(loco.id, loco.speed); // 50/50-Geschwindigkeitsmessung
     if (status.emergencyStop && loco.speed > 0) {
       addLog(`[Not-Halt] Fahrbefehl für ${loco.name} (Speed: ${loco.speed}) blockiert, da Not-Halt aktiv ist!`, 'warn');
       return;
@@ -233,6 +243,20 @@ bbtEngine = new BBTEngine(data.bbt, {
   },
   onLog: addLog
 });
+// 50/50-Gleisaufteilung: Halteplan nach Zuglänge, Ende = virtueller IN
+splitEngine = new SplitBlockEngine({
+  onSpeedStep: (locoId, speed) => {
+    if (status.emergencyStop && speed > 0) return;
+    locoManager.setSpeed(locoId, speed);
+  },
+  onVirtualIn: (locoId, blockId) => {
+    if (status.emergencyStop) return;
+    const loco = locoManager.getLoco(locoId);
+    if (loco) blockManager.triggerVirtualIn(blockId, loco);
+  },
+  onLog: addLog
+});
+
 // CR-19: Gespeicherte Ziel-Kriechzeit beim Start übernehmen
 if (typeof data.settings.targetCreepMs === 'number' && data.settings.targetCreepMs > 0) {
   bbtEngine.targetCreepDurationMs = data.settings.targetCreepMs;
@@ -249,7 +273,21 @@ blockManager = new BlockManager(data.blocks, {
     data.locos = locoManager.getAllLocos();
     data.blocks = blockManager.getAllBlocks();
     saveAllData();
+    // 50/50: Langzug fährt ohne Bremsung bis Melder B; Wiederholungs-/Prell-Ereignisse starten nichts neu
+    const split = splitEngine.onFirstSensor(block, loco, block.direction);
+    if (split.mode === 'SPLIT' && (split.duplicate || split.target === 'SIGNAL')) return;
     bbtEngine.startBraking(loco, block.id, block.direction);
+  },
+  onSplitSecondSensor: (block, loco, direction) => {
+    // BBT-Profil aus der ersten Hälfte lernen lassen, ohne die Lok anzuhalten
+    bbtEngine.handleInEvent(loco, block.id, direction, { stop: false });
+    const handled = splitEngine.onSecondSensor(block, loco, direction, bbtEngine.getEntry(loco.id, block.id, direction));
+    if (handled) {
+      locoManager.setLocoBlock(loco.id, block.id);
+      data.blocks = blockManager.getAllBlocks();
+      saveAllData();
+    }
+    return handled;
   },
   onInTriggered: (block, loco) => {
     locoManager.setLocoBlock(loco.id, block.id);
@@ -478,6 +516,7 @@ function triggerEmergencyStop(): void {
   status.automaticMode = false;
   hal.emergencyStop();
   bbtEngine.cancelAll(); // CR-02
+  splitEngine.cancelAll(); // 50/50-Haltepläne abbrechen, kein virtueller IN
   locoManager.emergencyStopAll();
   if (routeEngine) {
     routeEngine.toggleAutomaticMode(false);
@@ -820,6 +859,9 @@ wss.on('connection', (ws, req) => {
           const targetBlock = blockManager.getBlock(blockId);
           const currentLocoId = targetBlock?.currentLocoId;
           const reservedLocoId = targetBlock?.reservedForLocoId;
+          // Laufenden 50/50-Halteplan abbrechen, sonst belegt der virtuelle IN den Block erneut
+          if (currentLocoId) splitEngine.cancel(currentLocoId);
+          if (reservedLocoId) splitEngine.cancel(reservedLocoId);
 
           // Eventuelle Fahrstraßen auflösen, die von/zu diesem Block führen
           routeEngine.releaseRoute(blockId);
@@ -981,6 +1023,7 @@ wss.on('connection', (ws, req) => {
             break;
           }
           bbtEngine.cancelBraking(locoId);
+          splitEngine.cancel(locoId);
           for (const b of blockManager.getAllBlocks()) {
             if (b.currentLocoId === locoId || b.reservedForLocoId === locoId) {
               routeEngine.releaseRoute(b.id);
@@ -1163,5 +1206,5 @@ app.post('/api/wio/scan', async (_req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit (v1.7.9).`);
+  console.log(`🔌 WebSocket Server bereit (v1.8.0).`);
 });

@@ -23,6 +23,12 @@ export class DccExDriver implements ICommandStation {
   private isClosing: boolean = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private lastRxTime = 0;
+  /** Zuletzt gemeldete Gleisspannung; nur Änderungen werden weitergegeben */
+  private lastPower: boolean | null = null;
+
+  private static readonly SERIAL_POLL_MS = 30000;
+  private static readonly SERIAL_TIMEOUT_MS = 75000;
 
   constructor(isSerial: boolean, portOrHost: string, baudRate = 115200, tcpPort = 2560) {
     this.isSerial = isSerial;
@@ -141,6 +147,7 @@ export class DccExDriver implements ICommandStation {
   private handleDisconnected(reason: string): void {
     const wasConnected = this.connected;
     this.connected = false;
+    this.lastPower = null; // nach Wiederverbinden Spannungszustand neu übernehmen
     this.stopHeartbeat();
 
     if (wasConnected) {
@@ -177,13 +184,25 @@ export class DccExDriver implements ICommandStation {
     }
   }
 
+  /**
+   * Lebenszeichen-Überwachung.
+   * TCP: kein Polling, der Socket-Keepalive (setKeepAlive) erkennt tote Verbindungen.
+   * Seriell: alle 30 s das schlanke <#> (Antwort <# n>); bleibt jede Antwort > 75 s aus,
+   * gilt die Zentrale als hängend und es wird neu verbunden.
+   * Bewusst nicht <s>: liefert Version + jede Weiche und erzeugt unnötige Last.
+   */
   private startHeartbeat(): void {
     this.stopHeartbeat();
+    this.lastRxTime = Date.now();
+    if (!this.isSerial) return;
     this.heartbeatInterval = setInterval(() => {
-      if (this.connected && !this.isClosing) {
-        this.sendRaw('<s>');
+      if (!this.connected || this.isClosing) return;
+      if (Date.now() - this.lastRxTime > DccExDriver.SERIAL_TIMEOUT_MS) {
+        this.handleDisconnected('Keine Antwort der Zentrale (Timeout)');
+        return;
       }
-    }, 10000);
+      this.sendRaw('<#>');
+    }, DccExDriver.SERIAL_POLL_MS);
   }
 
   private stopHeartbeat(): void {
@@ -232,6 +251,7 @@ export class DccExDriver implements ICommandStation {
   }
 
   private handleIncomingData(dataStr: string): void {
+    this.lastRxTime = Date.now();
     this.rxBuffer += dataStr;
     let startIdx: number;
     let endIdx: number;
@@ -243,16 +263,26 @@ export class DccExDriver implements ICommandStation {
     }
   }
 
+  private reportPower(on: boolean): void {
+    if (this.lastPower === on) return;
+    this.lastPower = on;
+    this.callbacks?.onPowerChanged?.(on);
+    this.callbacks?.onLog?.(`DCC-EX Gleisspannung: ${on ? 'EIN' : 'AUS'}`, on ? 'info' : 'warn');
+  }
+
   private parseDccExMessage(msg: string): void {
     // Gleisspannung EIN: z.B. <p1 MAIN>, <p1>, <1>
+    // (mehrere Gleisausgänge melden je eine Zeile -> nur echte Änderungen weitergeben)
     if (msg.startsWith('p1') || msg === '1') {
-      this.callbacks?.onPowerChanged?.(true);
-      this.callbacks?.onLog?.('DCC-EX Gleisspannung: EIN', 'info');
+      this.reportPower(true);
     }
     // Gleisspannung AUS: z.B. <p0 MAIN>, <p0>, <0>
     else if (msg.startsWith('p0') || msg === '0') {
-      this.callbacks?.onPowerChanged?.(false);
-      this.callbacks?.onLog?.('DCC-EX Gleisspannung: AUS', 'warn');
+      this.reportPower(false);
+    }
+    // Antwort auf das Lebenszeichen <#>: nichts zu tun (lastRxTime ist bereits aktualisiert)
+    else if (msg.startsWith('#')) {
+      return;
     }
     // Weichen-Rückmeldung: <H ID STATE> (0 = gerade/geschlossen, 1 = abzweig)
     else if (msg.startsWith('H ') || msg.startsWith('h ')) {

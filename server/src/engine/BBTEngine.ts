@@ -76,6 +76,10 @@ export class BBTEngine {
     // Falls bereits eine Bremsung für diese Lok läuft, abbrechen
     this.cancelBraking(loco.id);
 
+    // Stehende Lok nicht "abbremsen": sonst würde die Rampe ab entry.vStart die Lok wieder anfahren
+    // (z. B. wenn das Zugende auf dem ENTER-Belegtmelder prellt)
+    if (loco.speed <= 0) return;
+
     let entry = this.getEntry(loco.id, blockId, direction);
     if (!entry) {
       // Automatisches Anlegen eines neuen BBT-Profils
@@ -155,12 +159,14 @@ export class BBTEngine {
   /**
    * Wird aufgerufen, wenn der IN-Sensor auslöst (Ziel-Haltepunkt)
    */
-  handleInEvent(loco: Locomotive, blockId: string, direction: '+' | '-'): void {
+  handleInEvent(loco: Locomotive, blockId: string, direction: '+' | '-', opts: { stop?: boolean } = {}): void {
     const active = this.activeBraking.get(loco.id);
     const now = Date.now();
 
-    // Lok sofort auf 0 stoppen
-    this.events.onSpeedStep(loco.id, 0);
+    // Lok sofort auf 0 stoppen (50/50-Modus: stop=false -> nur lernen, Halteplan übernimmt)
+    if (opts.stop !== false) {
+      this.events.onSpeedStep(loco.id, 0);
+    }
 
     if (!active) {
       return;

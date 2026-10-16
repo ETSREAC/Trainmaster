@@ -388,15 +388,19 @@ export class TrackTopology {
     exitPort: PortDirection,
     originalBlockId: string
   ): { sensorIds: string[]; signalIds: string[] } {
-    const sensorIds: string[] = [];
-    const signalIds: string[] = [];
+    // Melder/Signale mit Schrittabstand vom Startblock merken
+    const sensorHits: Array<{ id: string; step: number }> = [];
+    const signalHits: Array<{ id: string; step: number }> = [];
     const visited = new Set<string>();
+    let reachedOtherBlockAt = -1;
+    let step = 0;
 
     let curX = startX;
     let curY = startY;
     let curExitPort = exitPort;
 
     while (true) {
+      step++;
       const nextCoords = getNeighborCoords(curX, curY, curExitPort);
       const key = `${nextCoords.x},${nextCoords.y}`;
       if (visited.has(key)) break;
@@ -416,6 +420,7 @@ export class TrackTopology {
 
       // Wenn wir auf einen anderen Block treffen
       if (nextElem.type === 'BLOCK' && nextElem.linkedId !== originalBlockId) {
+        reachedOtherBlockAt = step;
         break;
       }
 
@@ -426,12 +431,12 @@ export class TrackTopology {
 
       // Sensor erfassen
       if (nextElem.type === 'SENSOR' && nextElem.linkedId) {
-        sensorIds.push(nextElem.linkedId);
+        sensorHits.push({ id: nextElem.linkedId, step });
       }
 
       // Signal erfassen
       if (nextElem.type === 'SIGNAL' && nextElem.linkedId) {
-        signalIds.push(nextElem.linkedId);
+        signalHits.push({ id: nextElem.linkedId, step });
       }
 
       // Ausgangsport ermitteln
@@ -443,6 +448,12 @@ export class TrackTopology {
       curExitPort = nextStep.outPort;
     }
 
-    return { sensorIds, signalIds };
+    // Führt der Abschnitt ohne Weiche direkt in einen anderen Block (z. B. Gleisschleife),
+    // gehören Melder/Signale in dessen Hälfte zum anderen Block und nicht zu diesem.
+    const ownHalf = (h: { step: number }) => reachedOtherBlockAt < 0 || h.step * 2 < reachedOtherBlockAt;
+    return {
+      sensorIds: sensorHits.filter(ownHalf).map((h) => h.id),
+      signalIds: signalHits.filter(ownHalf).map((h) => h.id)
+    };
   }
 }

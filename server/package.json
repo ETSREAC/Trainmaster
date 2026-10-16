@@ -1,6 +1,6 @@
 {
   "name": "trainmaster-server",
-  "version": "1.7.9",
+  "version": "1.8.0",
   "description": "TrainMaster Core Engine & DCC Server",
   "license": "MIT",
   "main": "dist/index.js",

@@ -18,7 +18,7 @@
         <img src="/logo.png" alt="TrainMaster" class="brand-logo">
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.7.9 • Clean Dispatcher Edition</span>
+          <span class="version-tag">v1.8.0 • Clean Dispatcher Edition</span>
         </div>
       </div>
 
@@ -775,6 +775,41 @@
             <div style="flex:1;">
               <label for="block-form-sound-lead" style="font-size:11px;color:#8b949e;" data-i18n="modal.block_sound_lead_label">Vorlaufzeit vor Abfahrt (Sek.):</label>
               <input type="number" id="block-form-sound-lead" class="form-control" value="3" min="1" max="30">
+            </div>
+          </div>
+        </div>
+
+        <!-- 50/50-Gleisaufteilung (optional) -->
+        <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d;margin-top:12px;">
+          <label for="block-form-split" style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#f0f6fc;font-weight:600;">
+            <input type="checkbox" id="block-form-split" aria-describedby="block-form-split-hint">
+            <span data-i18n="modal.block_split_label">50/50-Gleisaufteilung (zwei Belegtmelder)</span>
+          </label>
+          <p id="block-form-split-hint" style="font-size:11px;color:#8b949e;margin:6px 0 0 24px;" data-i18n="modal.block_split_hint">Ohne Häkchen: Punktmelder (ENTER = Bremsbeginn, IN = Halt). Mit Häkchen: ENTER = Melder A (erste Hälfte), IN = Melder B (ab Teilungsmarke); der Haltepunkt richtet sich nach der Zuglänge.</p>
+          <div id="block-form-split-options" style="display:none;margin-top:10px;">
+            <div style="display:flex;gap:12px;margin-bottom:10px;">
+              <div style="flex:2;">
+                <label for="block-form-stop-policy" style="font-size:11px;color:#8b949e;" data-i18n="modal.block_stop_policy_label">Haltestrategie:</label>
+                <select id="block-form-stop-policy" class="form-control">
+                  <option value="AUTO_BY_LENGTH" data-i18n="modal.block_stop_policy_auto">Automatisch nach Zuglänge</option>
+                  <option value="PLATFORM_CENTER" data-i18n="modal.block_stop_policy_center">Immer Bahnsteigmitte</option>
+                  <option value="SIGNAL" data-i18n="modal.block_stop_policy_signal">Immer am Signal</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label for="block-form-split-ratio" style="font-size:11px;color:#8b949e;" data-i18n="modal.block_split_ratio_label">Teilung bei (%):</label>
+                <input type="number" id="block-form-split-ratio" class="form-control" value="50" min="20" max="80">
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <div style="flex:1;">
+                <label for="block-form-center-margin" style="font-size:11px;color:#8b949e;" data-i18n="modal.block_center_margin_label">Zugmitte hinter Teilung (cm):</label>
+                <input type="number" id="block-form-center-margin" class="form-control" value="10" min="0" max="100">
+              </div>
+              <div style="flex:1;">
+                <label for="block-form-signal-margin" style="font-size:11px;color:#8b949e;" data-i18n="modal.block_signal_margin_label">Abstand zum Signal (cm):</label>
+                <input type="number" id="block-form-signal-margin" class="form-control" value="8" min="0" max="100">
+              </div>
             </div>
           </div>
         </div>

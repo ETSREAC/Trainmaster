@@ -112,6 +112,15 @@ export interface BlockSoundConfig {
   clientSoundId?: string;           // Optionaler Web Audio Sound-Name im Browser
 }
 
+/** Melder-Ausstattung eines Blocks: Punktmelder (ENTER/IN) oder 50/50-Belegtmelder */
+export type BlockStopMode = 'POINT' | 'SPLIT';
+
+/** Haltestrategie im 50/50-Modus */
+export type BlockStopPolicy =
+  | 'AUTO_BY_LENGTH'  // Kurzzug -> Bahnsteigmitte, Langzug -> Signal (Standard)
+  | 'PLATFORM_CENTER' // Immer Bahnsteigmitte
+  | 'SIGNAL';         // Immer bis vor das Signal
+
 export interface BlockWaitTimer {
   departureTimestamp: number; // Unix-Zeitstempel in ms für geplante Abfahrt
   totalWaitSec: number;        // Gesamte geplante Haltezeit in Sekunden
@@ -133,6 +142,12 @@ export interface Block {
   maxWaitTimeSec?: number;    // Max. Wartezeit in Sekunden (Default 25s)
   soundConfig?: BlockSoundConfig;
   waitTimer?: BlockWaitTimer | null;
+  // 50/50-Gleisaufteilung (optional, Standard: Punktmelder)
+  stopMode?: BlockStopMode;          // Standard 'POINT'
+  stopPolicy?: BlockStopPolicy;      // Standard 'AUTO_BY_LENGTH'
+  trackSplitRatio?: number;          // Standard 0.5 (Bereich 0.2–0.8)
+  centerStopMarginCm?: number;       // Standard 10: Zugmitte hinter der Teilungsmarke
+  signalStopMarginCm?: number;       // Standard 8: Abstand Zugspitze zum Blockende
 }
 
 export interface BBTRunMetric {

@@ -274,6 +274,15 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.block_in_label': 'IN-Melder (Haltepunkt):',
     'modal.block_no_sensor': '(Kein Melder)',
     'modal.block_btn_save': '💾 Block speichern',
+    'modal.block_split_label': '50/50-Gleisaufteilung (zwei Belegtmelder)',
+    'modal.block_split_hint': 'Ohne Häkchen: Punktmelder (ENTER = Bremsbeginn, IN = Halt). Mit Häkchen: ENTER = Melder A (erste Hälfte), IN = Melder B (ab Teilungsmarke); der Haltepunkt richtet sich nach der Zuglänge.',
+    'modal.block_stop_policy_label': 'Haltestrategie:',
+    'modal.block_stop_policy_auto': 'Automatisch nach Zuglänge',
+    'modal.block_stop_policy_center': 'Immer Bahnsteigmitte',
+    'modal.block_stop_policy_signal': 'Immer am Signal',
+    'modal.block_split_ratio_label': 'Teilung bei (%):',
+    'modal.block_center_margin_label': 'Zugmitte hinter Teilung (cm):',
+    'modal.block_signal_margin_label': 'Abstand zum Signal (cm):',
 
     // Turnout Modal
     'modal.turnout_title': '⎇ Weiche konfigurieren',
@@ -582,6 +591,15 @@ export const translations: Record<Language, Record<string, string>> = {
     'modal.block_in_label': 'IN Sensor (Stopping Point):',
     'modal.block_no_sensor': '(No sensor)',
     'modal.block_btn_save': '💾 Save Block',
+    'modal.block_split_label': '50/50 track split (two occupancy detectors)',
+    'modal.block_split_hint': 'Unchecked: point detectors (ENTER = start braking, IN = stop). Checked: ENTER = detector A (first half), IN = detector B (from split mark); the stopping point depends on train length.',
+    'modal.block_stop_policy_label': 'Stopping strategy:',
+    'modal.block_stop_policy_auto': 'Automatic by train length',
+    'modal.block_stop_policy_center': 'Always platform center',
+    'modal.block_stop_policy_signal': 'Always at signal',
+    'modal.block_split_ratio_label': 'Split at (%):',
+    'modal.block_center_margin_label': 'Train center past split (cm):',
+    'modal.block_signal_margin_label': 'Distance to signal (cm):',
 
     // Turnout Modal
     'modal.turnout_title': '⎇ Configure Turnout',

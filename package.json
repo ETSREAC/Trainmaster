@@ -1,6 +1,6 @@
 {
   "name": "trainmaster",
-  "version": "1.7.9",
+  "version": "1.8.0",
   "private": true,
   "description": "Moderne, modulare Modellbahn-Steuerung mit Gleisplan, BBT und Automatikbetrieb",
   "workspaces": [
@@ -13,8 +13,10 @@
     "client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "start": "npm run start --workspace=server",
-    "test": "npm run build && node scripts/test_security_fixes.mjs",
+    "test": "npm run build && node scripts/test_security_fixes.mjs && node --test scripts/test_split_block.mjs scripts/test_dccex_driver.mjs",
     "test:security": "node scripts/test_security_fixes.mjs",
+    "test:split": "node --test scripts/test_split_block.mjs",
+    "test:dccex": "node --test scripts/test_dccex_driver.mjs",
     "license:gen": "node scripts/license_cli.mjs"
   },
   "keywords": ["modelrailroad", "dcc", "rocrail", "train-control", "automation", "bbt"],

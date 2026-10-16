@@ -10,6 +10,27 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.8.0] - 2026-10-15
+
+Minor-Release: neues, rückwärtskompatibles Automatik-Feature.
+
+### Added
+- **50/50-Gleisaufteilung mit dynamischem Haltepunkt** (Ticket `TICKET_50_50_BLOCK_HALTEPUNKT`):
+  - Pro Block per Checkbox aktivierbar; ohne Häkchen bleibt der Punktmelder-Modus (Standard) unverändert.
+  - Haltestrategie `Automatisch nach Zuglänge` / `Immer Bahnsteigmitte` / `Immer am Signal`, Teilung (20–80 %), Margen für Mitte und Signal.
+  - Kurzzug hält mit der Zugmitte in Bahnsteigmitte, Langzug fährt ohne Vorbremsung bis Melder B und hält kurz vor dem Signal.
+  - Geschwindigkeitsmessung ohne Einmessen: Aus der ersten Gleishälfte und den gesendeten Fahrstufen wird die Bremsrampe zum Haltepunkt berechnet, Abschluss per virtuellem IN.
+  - Zweirichtungsbetrieb spiegelverkehrt, Not-Halt bricht Haltepläne ab, Prellschutz für Belegtmelder.
+- Tests: `npm run test:split` (Node-Testrunner, 20 Fälle inkl. Fahrsimulation), Teil von `npm test`.
+
+### Fixed
+- DCC-EX: Kein `<s>`-Polling mehr alle 10 s. TCP nutzt nur den Socket-Keepalive, seriell gibt es alle 30 s ein schlankes `<#>` mit Timeout-Erkennung (75 s). `<s>` wird nur noch beim Verbinden gesendet.
+- DCC-EX: Wiederholte Spannungsmeldungen (je Gleisausgang) lösen kein erneutes Senden aller Lokfunktionen mehr aus. Funktionen werden nur beim Wechsel AUS → EIN und nach einem Wiederverbinden synchronisiert.
+- Automatische Melderzuordnung: Bei Gleisschleifen ohne Weiche werden keine Melder des Nachbarblocks mehr übernommen (verursachte vertauschte Melder und Geisterzug-Not-Halt).
+- BBT: Eine stehende Lok wird bei erneutem ENTER-Ereignis (z. B. prellender Belegtmelder unter dem Zugende) nicht mehr per Bremsrampe angefahren.
+
+---
+
 ## [1.7.9] - 2026-10-15
 
 Patch-Release: Behebt die 22 funktionalen Befunde CR-01 bis CR-22 aus dem Code Review vom 15.10.2026. ESP32-Firmware `TrainMasterNode.ino` auf v2.1.1.

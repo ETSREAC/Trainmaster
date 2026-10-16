@@ -1,4 +1,4 @@
-import { Block, BlockType, Sensor, Signal, TrackElement, Turnout, getSignalSupportedAspects } from '../types.js';
+import { Block, BlockStopPolicy, BlockType, Sensor, Signal, TrackElement, Turnout, getSignalSupportedAspects } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { TrainDepotDrawer } from './TrainDepotDrawer.js';
 import { t } from '../i18n.js';
@@ -299,6 +299,12 @@ export class TrackCanvas {
   }
 
   private initModals(): void {
+    // 50/50-Optionen nur bei gesetztem Häkchen zeigen
+    document.getElementById('block-form-split')?.addEventListener('change', (e) => {
+      const opts = document.getElementById('block-form-split-options');
+      if (opts) opts.style.display = (e.target as HTMLInputElement).checked ? 'block' : 'none';
+    });
+
     // Block Modal Close & Submit
     document.getElementById('btn-block-close')?.addEventListener('click', () => {
       const m = document.getElementById('block-modal');
@@ -328,6 +334,15 @@ export class TrackCanvas {
       const plusInSelect = document.getElementById('block-form-plus-in') as HTMLSelectElement | null;
       const minusEnterSelect = document.getElementById('block-form-minus-enter') as HTMLSelectElement | null;
       const minusInSelect = document.getElementById('block-form-minus-in') as HTMLSelectElement | null;
+      const splitCheck = document.getElementById('block-form-split') as HTMLInputElement | null;
+      const policySelect = document.getElementById('block-form-stop-policy') as HTMLSelectElement | null;
+      const ratioInput = document.getElementById('block-form-split-ratio') as HTMLInputElement | null;
+      const centerMarginInput = document.getElementById('block-form-center-margin') as HTMLInputElement | null;
+      const signalMarginInput = document.getElementById('block-form-signal-margin') as HTMLInputElement | null;
+      const intIn = (el: HTMLInputElement | null, fallback: number, min: number, max: number) => {
+        const v = parseInt(el?.value || '', 10);
+        return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+      };
 
       const newLocoId = locoSelect?.value || null;
       const fKeyVal = soundFKeyInput?.value ? parseInt(soundFKeyInput.value, 10) : undefined;
@@ -356,7 +371,13 @@ export class TrackCanvas {
         sensorsMinus: {
           enter: minusEnterSelect?.value || '',
           in: minusInSelect?.value || ''
-        }
+        },
+        // 50/50-Gleisaufteilung (Einstellungen bleiben beim Abwählen erhalten, wirken aber nur bei SPLIT)
+        stopMode: splitCheck?.checked ? 'SPLIT' : 'POINT',
+        stopPolicy: (policySelect?.value as BlockStopPolicy) || 'AUTO_BY_LENGTH',
+        trackSplitRatio: intIn(ratioInput, 50, 20, 80) / 100,
+        centerStopMarginCm: intIn(centerMarginInput, 10, 0, 100),
+        signalStopMarginCm: intIn(signalMarginInput, 8, 0, 100)
       };
 
       wsClient.send({ type: 'UPDATE_BLOCK', payload: updatedBlock });
@@ -798,6 +819,20 @@ export class TrackCanvas {
     if (maxWaitInput) maxWaitInput.value = String(block.maxWaitTimeSec !== undefined ? block.maxWaitTimeSec : 25);
     if (soundFKeyInput) soundFKeyInput.value = block.soundConfig?.departureFKey ? String(block.soundConfig.departureFKey) : '';
     if (soundLeadInput) soundLeadInput.value = String(block.soundConfig?.departureLeadTimeSec ?? 3);
+
+    // 50/50-Gleisaufteilung
+    const splitCheck = document.getElementById('block-form-split') as HTMLInputElement | null;
+    const splitOptions = document.getElementById('block-form-split-options');
+    const setVal = (id: string, v: string) => {
+      const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+      if (el) el.value = v;
+    };
+    if (splitCheck) splitCheck.checked = block.stopMode === 'SPLIT';
+    if (splitOptions) splitOptions.style.display = block.stopMode === 'SPLIT' ? 'block' : 'none';
+    setVal('block-form-stop-policy', block.stopPolicy || 'AUTO_BY_LENGTH');
+    setVal('block-form-split-ratio', String(Math.round((block.trackSplitRatio ?? 0.5) * 100)));
+    setVal('block-form-center-margin', String(block.centerStopMarginCm ?? 10));
+    setVal('block-form-signal-margin', String(block.signalStopMarginCm ?? 8));
 
     // Lok-Liste
     if (locoSelect) {

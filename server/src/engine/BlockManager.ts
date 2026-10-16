@@ -5,6 +5,8 @@ export interface BlockEvents {
   onEnterTriggered: (block: Block, loco: Locomotive) => void;
   onInTriggered: (block: Block, loco: Locomotive) => void;
   onGhostDetected: (block: Block, sensorId: string) => void;
+  /** 50/50-Block: Melder B ausgelöst. true = Halteplan übernimmt, false = sofortiger IN. */
+  onSplitSecondSensor?: (block: Block, loco: Locomotive, direction: '+' | '-') => boolean;
   isAutomaticMode?: () => boolean;
   isBlockDeparting?: (blockId: string) => boolean;
   isSensorInActiveRoute?: (sensorId: string) => boolean;
@@ -275,28 +277,49 @@ export class BlockManager {
       this.events.onEnterTriggered(chosenBlock, loco);
       this.events.onLog(`[ENTER] Lok ${loco.name} in Block ${chosenBlock.name} eingefahren.`, 'info');
     } else if (chosenMapping.role === 'in') {
-      const wasMoving = loco.speed > 0;
-      chosenBlock.state = 'OCCUPIED';
-      chosenBlock.currentLocoId = loco.id;
-      chosenBlock.reservedForLocoId = null;
-
-      // Automatische Block-Freigabe: Wenn die Lok im Zielblock am Haltepunkt (IN) angekommen ist,
-      // darf kein vorheriger Block mehr als durch diese Lok belegt gelten
-      for (const [bId, b] of this.blocks.entries()) {
-        if (bId !== chosenBlock.id && b.currentLocoId === loco.id) {
-          b.currentLocoId = null;
-          b.state = 'FREE';
-          this.recentlyFreedBlocks.set(bId, Date.now());
-          this.events.onBlockUpdated(b);
-          this.events.onLog(`[Block] Vorheriger Block ${b.name} freigegeben (Lok ${loco.name} hat Haltepunkt in ${chosenBlock.name} erreicht).`, 'info');
+      // 50/50-Block: Melder B ist kein sofortiger Halt, der Halteplan übernimmt (Ende = virtueller IN)
+      if (chosenBlock.stopMode === 'SPLIT' && this.events.onSplitSecondSensor) {
+        chosenBlock.state = 'OCCUPIED';
+        chosenBlock.currentLocoId = loco.id;
+        chosenBlock.reservedForLocoId = null;
+        if (this.events.onSplitSecondSensor(chosenBlock, loco, chosenMapping.direction)) {
+          this.events.onBlockUpdated(chosenBlock);
+          return;
         }
       }
+      this.applyIn(chosenBlock, loco);
+    }
+  }
 
-      this.events.onBlockUpdated(chosenBlock);
-      this.events.onInTriggered(chosenBlock, loco);
-      if (wasMoving) {
-        this.events.onLog(`[IN] Lok ${loco.name} hat Haltepunkt in Block ${chosenBlock.name} erreicht (Stopp).`, 'info');
+  /** Virtueller IN (50/50-Halteplan abgeschlossen): gleiche Folgen wie ein physischer IN-Melder. */
+  triggerVirtualIn(blockId: string, loco: Locomotive): void {
+    const block = this.blocks.get(blockId);
+    if (!block) return;
+    this.applyIn(block, loco);
+  }
+
+  private applyIn(chosenBlock: Block, loco: Locomotive): void {
+    const wasMoving = loco.speed > 0;
+    chosenBlock.state = 'OCCUPIED';
+    chosenBlock.currentLocoId = loco.id;
+    chosenBlock.reservedForLocoId = null;
+
+    // Automatische Block-Freigabe: Wenn die Lok im Zielblock am Haltepunkt (IN) angekommen ist,
+    // darf kein vorheriger Block mehr als durch diese Lok belegt gelten
+    for (const [bId, b] of this.blocks.entries()) {
+      if (bId !== chosenBlock.id && b.currentLocoId === loco.id) {
+        b.currentLocoId = null;
+        b.state = 'FREE';
+        this.recentlyFreedBlocks.set(bId, Date.now());
+        this.events.onBlockUpdated(b);
+        this.events.onLog(`[Block] Vorheriger Block ${b.name} freigegeben (Lok ${loco.name} hat Haltepunkt in ${chosenBlock.name} erreicht).`, 'info');
       }
+    }
+
+    this.events.onBlockUpdated(chosenBlock);
+    this.events.onInTriggered(chosenBlock, loco);
+    if (wasMoving) {
+      this.events.onLog(`[IN] Lok ${loco.name} hat Haltepunkt in Block ${chosenBlock.name} erreicht (Stopp).`, 'info');
     }
   }
 }

@@ -1,7 +1,7 @@
 # [Feature] 50/50-Gleisaufteilung: Dynamischer Haltepunkt nach Zuglänge (Bahnsteigmitte vs. Signalhalt)
 
 **Typ:** Feature / Automation Enhancement  
-**Status:** Open / Geplant  
+**Status:** Umgesetzt in v1.8.0 (Spec: `.kiro/specs/split-block-haltepunkt/`)  
 **Komponenten:** `server/src/engine/BlockManager.ts`, `server/src/engine/BBTEngine.ts`, `server/src/types.ts`, `client` (Block-Editor)  
 **Labels:** `enhancement`, `automation`, `bbt`, `signals-sensors`
 
@@ -21,6 +21,16 @@ Auf der Modellbahnanlage soll jedes Bahnhofsgleis im Automatikbetrieb mit genau 
    - Sobald die Lok bei der 50%-Kante in Melder B einfährt, meldet dieser `BELEGT`.
    - Würde Melder B als sofortiges `IN`-Event (Stopp) interpretiert, bleibt der Zug mitten im Gleis stehen und das Zugende blockiert die Einfahrweichenstraße.
    - Der lange Zug muss bis kurz vor das Signal ($90\dots95\%$ der Gleislänge) vorziehen.
+
+---
+
+### Opt-in pro Block (Ergänzung)
+
+Nicht jedes Gleis hat zwei Belegtmelder, viele Blöcke arbeiten mit **Punktmeldern**. Die 50/50-Logik wird deshalb **pro Block per Checkbox** im Block-Editor aktiviert („50/50-Gleisaufteilung (zwei Belegtmelder)“).
+
+- **Standard (kein Häkchen):** Punktmelder-Modus wie bisher (ENTER = Bremsbeginn, IN = sofortiger Halt).
+- **Mit Häkchen:** 50/50-Modus. Die vorhandenen Felder werden wiederverwendet: ENTER der Fahrtrichtung = Melder A, IN = Melder B.
+- Fehlen im 50/50-Modus zwei verschiedene Melder oder die Blocklänge, fällt der Block für diese Fahrt auf den Punktmelder-Modus zurück (Warnung im Log).
 
 ---
 
