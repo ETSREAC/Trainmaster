@@ -1206,5 +1206,5 @@ app.post('/api/wio/scan', async (_req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit (v1.8.0).`);
+  console.log(`🔌 WebSocket Server bereit (v1.8.1).`);
 });

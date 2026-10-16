@@ -10,6 +10,16 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.8.1] - 2026-10-16
+
+### Fixed
+- DCC-EX: Fahrstufe wird auf 0–127 begrenzt. Vorher konnte 128 gesendet werden, was außerhalb des gültigen Bereichs liegt.
+
+### Added
+- Tickets: Lokbilder im Fahrregler/Blöcken, DCC-EX-Verbindungssicherheit & Lok-Broadcasts.
+
+---
+
 ## [1.8.0] - 2026-10-15
 
 Minor-Release: neues, rückwärtskompatibles Automatik-Feature.

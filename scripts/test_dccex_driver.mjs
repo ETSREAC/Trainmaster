@@ -77,3 +77,13 @@ describe('DCC-EX Gleisspannung', () => {
     assert.deepEqual(power, [true, true]);
   });
 });
+
+describe('DCC-EX Fahrbefehle', () => {
+  test('Fahrstufe wird auf den gültigen Bereich 0–127 begrenzt', async () => {
+    const { d, sent } = makeDriver(false);
+    await d.setLocoSpeed(3, 128, 'FWD');
+    await d.setLocoSpeed(3, 50, 'REV');
+    await d.setLocoSpeed(3, -5, 'FWD');
+    assert.deepEqual(sent, ['<t 1 3 127 1>', '<t 1 3 50 0>', '<t 1 3 0 1>']);
+  });
+});

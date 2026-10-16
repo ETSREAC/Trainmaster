@@ -1,6 +1,6 @@
 {
   "name": "trainmaster",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "description": "Moderne, modulare Modellbahn-Steuerung mit Gleisplan, BBT und Automatikbetrieb",
   "workspaces": [

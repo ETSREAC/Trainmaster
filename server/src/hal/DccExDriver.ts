@@ -331,7 +331,9 @@ export class DccExDriver implements ICommandStation {
 
   async setLocoSpeed(address: number, speed: number, direction: Direction): Promise<void> {
     const dirBit = direction === 'FWD' ? 1 : 0;
-    this.sendRaw(`<t 1 ${address} ${speed} ${dirBit}>`);
+    // DCC-EX erwartet Fahrstufe 0–127 (TrainMaster intern bis 128)
+    const dccSpeed = Math.max(0, Math.min(127, Math.round(speed)));
+    this.sendRaw(`<t 1 ${address} ${dccSpeed} ${dirBit}>`);
   }
 
   async setLocoFunction(address: number, functionIndex: number, active: boolean): Promise<void> {
