@@ -1,7 +1,7 @@
 # [Feature] 50/50-Gleisaufteilung: Dynamischer Haltepunkt nach Zuglänge (Bahnsteigmitte vs. Signalhalt)
 
 **Typ:** Feature / Automation Enhancement  
-**Status:** Umgesetzt in v1.8.0 (Spec: `.kiro/specs/split-block-haltepunkt/`)  
+**Status:** ✅ Geschlossen – umgesetzt in v1.8.0 (Commit `580e7c0`, Spec: `.kiro/specs/split-block-haltepunkt/`)  
 **Komponenten:** `server/src/engine/BlockManager.ts`, `server/src/engine/BBTEngine.ts`, `server/src/types.ts`, `client` (Block-Editor)  
 **Labels:** `enhancement`, `automation`, `bbt`, `signals-sensors`
 
@@ -86,15 +86,15 @@ export interface Block {
 
 ## 5. Implementierungs-Schritte
 
-- [ ] **Data Model:** `types.ts` um `stopPolicy`, `trackSplitRatio` und `centerStopMarginCm` erweitern.
-- [ ] **BlockManager:** In `handleSensorTrigger` bei Auslösung des zweiten Sensors prüfen:
+- [x] **Data Model:** `types.ts` um `stopPolicy`, `trackSplitRatio` und `centerStopMarginCm` erweitern (zusätzlich `stopMode` und `signalStopMarginCm`).
+- [x] **BlockManager:** In `handleSensorTrigger` bei Auslösung des zweiten Sensors prüfen:
   - Ist `loco.lengthCm <= block.lengthCm * splitRatio`?
     - $\rightarrow$ Triggere `IN` mit kurzem Kriechauslauf (Halt in Mitte).
   - Ist `loco.lengthCm > block.lengthCm * splitRatio`?
     - $\rightarrow$ Triggere `BRAKE` (BBT-Rampe bis Signalhalt via berechnetem Virtual-IN-Timer).
-- [ ] **BBTEngine:** Unterstützung für zeitgesteuerte Zielankunft (`Virtual IN`) für die 2. Hälfte von 50/50-Blöcken.
-- [ ] **UI / Block-Settings:** Einstellungs-Dropdown im Block-Editor für `Haltestrategie` (`Automatisch nach Zuglänge`, `Immer Signal`, `Immer Mitte`).
-- [ ] **Zweirichtungs-Symmetrie:** Verifikation, dass das Verhalten in `-`-Richtung (Melder B = ENTER, Melder A = IN/BRAKE) spiegelbildlich identisch greift.
+- [x] **BBTEngine:** Unterstützung für zeitgesteuerte Zielankunft (`Virtual IN`) für die 2. Hälfte von 50/50-Blöcken (umgesetzt in der eigenen `SplitBlockEngine`).
+- [x] **UI / Block-Settings:** Einstellungs-Dropdown im Block-Editor für `Haltestrategie` (`Automatisch nach Zuglänge`, `Immer Signal`, `Immer Mitte`).
+- [x] **Zweirichtungs-Symmetrie:** Verifikation, dass das Verhalten in `-`-Richtung (Melder B = ENTER, Melder A = IN/BRAKE) spiegelbildlich identisch greift.
 
 ---
 
@@ -103,3 +103,11 @@ export interface Block {
 1. **Kurzzug:** Schienenbus (z. B. $25\,\text{cm}$) stoppt bei einem $200\,\text{cm}$-Block mit seiner Zugmitte im Bereich $100\dots115\,\text{cm}$.
 2. **Langzug:** 5-Wagen-Zug (z. B. $160\,\text{cm}$) stoppt erst bei $190\dots195\,\text{cm}$ kurz vor dem Signal; die Einfahrweiche ist frei gemeldet.
 3. **Zweirichtungsbetrieb:** Fährt derselbe Zug von der Gegenseite ein, gelten die Rollen spiegelverkehrt.
+
+---
+
+## 7. Abschluss
+
+- Alle drei Akzeptanzkriterien sind per Fahrsimulation in `scripts/test_split_block.mjs` abgedeckt (Kurzzug: Zugmitte 110 cm; Langzug: Spitze 192 cm, Zugende im Block; Gegenrichtung identisch).
+- Auf der realen Anlage (Bahnhof Gleis 2, 144 cm, „Immer am Signal“) hält die Lok zuverlässig vor dem Signal.
+- Abweichung vom Ticket: Statt `Δt · k_brems` wird ein Faktor cm pro (Fahrstufe·ms) aus der ersten Gleishälfte bestimmt; das funktioniert auch, wenn in der ersten Hälfte bereits gebremst wird.
