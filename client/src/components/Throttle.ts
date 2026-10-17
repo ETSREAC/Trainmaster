@@ -3,6 +3,25 @@ import { wsClient } from '../wsClient.js';
 import { iconEdit, iconLocos, iconPlus } from '../icons.js';
 import { t } from '../i18n.js';
 import { escapeHtml } from '../sanitize.js';
+import { deleteLocoImage, locoImageSrc, locoPlaceholderIcon, resizeImageFile, uploadLocoImage } from '../locoImage.js';
+
+/** Füllt einen Bild-Container mit Lokfoto oder Platzhalter (Fallback auch bei Ladefehler). */
+export function renderLocoPhoto(el: HTMLElement, loco: Locomotive, src: string | null = locoImageSrc(loco)): void {
+  el.replaceChildren();
+  el.classList.toggle('has-image', !!src);
+  const placeholder = () => {
+    el.classList.remove('has-image');
+    el.innerHTML = `<span class="loco-photo-placeholder" aria-hidden="true">${locoPlaceholderIcon(loco.trainType, 32)}</span>`;
+  };
+  if (!src) return placeholder();
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = loco.name;
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  img.addEventListener('error', placeholder, { once: true });
+  el.appendChild(img);
+}
 
 export let activeLocoId: string | null = null;
 
@@ -39,6 +58,8 @@ interface LocoCardRef {
   fnBox: HTMLElement;
   fnBtns: Map<number, HTMLButtonElement>;
   presetBtns: HTMLButtonElement[];
+  photoEl: HTMLElement;
+  photoKey: string;
   isDragging: boolean;
   pendingSpeed: number | null;
   throttleTimer: number | null;
@@ -58,6 +79,15 @@ export class Throttle {
   private vMaxInput: HTMLInputElement | null = null;
   private lengthInput: HTMLInputElement | null = null;
   private btnModalDelete: HTMLButtonElement | null = null;
+
+  // Lokbild im Dialog
+  private imageInput: HTMLInputElement | null = null;
+  private imagePreview: HTMLElement | null = null;
+  private btnImageRemove: HTMLButtonElement | null = null;
+  private pendingImage: Blob | null = null;
+  private pendingPreviewUrl: string | null = null;
+  private pendingRemove = false;
+  private modalLoco: Locomotive | null = null;
 
   // Cache für DOM-Referenzen jeder Lokkarte (Performance & kein Flackern bei Slider-Bedienung)
   private cards: Map<string, LocoCardRef> = new Map();
@@ -110,11 +140,38 @@ export class Throttle {
       if (e.target === this.modal) closeModal();
     });
 
+    // Lokbild wählen / entfernen
+    this.imageInput = document.getElementById('loco-form-image') as HTMLInputElement | null;
+    this.imagePreview = document.getElementById('loco-form-image-preview');
+    this.btnImageRemove = document.getElementById('btn-loco-image-remove') as HTMLButtonElement | null;
+
+    this.imageInput?.addEventListener('change', async () => {
+      const file = this.imageInput?.files?.[0];
+      if (!file) return;
+      try {
+        const blob = await resizeImageFile(file);
+        this.setPendingImage(blob);
+      } catch (err) {
+        alert(`${t('modal.loco_image_error')} ${err instanceof Error ? err.message : err}`);
+      } finally {
+        if (this.imageInput) this.imageInput.value = '';
+      }
+    });
+
+    this.typeSelect?.addEventListener('change', () => this.refreshImagePreview());
+
+    this.btnImageRemove?.addEventListener('click', () => {
+      this.setPendingImage(null);
+      this.pendingRemove = true;
+      this.refreshImagePreview();
+    });
+
     // Formular absenden (Speichern)
     this.formLoco?.addEventListener('submit', (e) => {
       e.preventDefault();
-      this.saveLocoFromForm();
+      const locoId = this.saveLocoFromForm();
       closeModal();
+      if (locoId) void this.applyPendingImage(locoId);
     });
 
     // Löschen
@@ -143,6 +200,7 @@ export class Throttle {
     if (this.vMidInput) this.vMidInput.value = '50';
     if (this.vMaxInput) this.vMaxInput.value = '100';
     if (this.lengthInput) this.lengthInput.value = '25';
+    this.resetImageState(null);
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
@@ -161,12 +219,50 @@ export class Throttle {
     if (this.vMidInput) this.vMidInput.value = `${loco.vMid || 50}`;
     if (this.vMaxInput) this.vMaxInput.value = `${loco.vMax || 100}`;
     if (this.lengthInput) this.lengthInput.value = `${loco.lengthCm || 25}`;
+    this.resetImageState(loco);
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
   }
 
-  private saveLocoFromForm(): void {
+  private resetImageState(loco: Locomotive | null): void {
+    this.modalLoco = loco;
+    this.setPendingImage(null);
+    this.pendingRemove = false;
+    this.refreshImagePreview();
+  }
+
+  private setPendingImage(blob: Blob | null): void {
+    if (this.pendingPreviewUrl) URL.revokeObjectURL(this.pendingPreviewUrl);
+    this.pendingImage = blob;
+    this.pendingPreviewUrl = blob ? URL.createObjectURL(blob) : null;
+    if (blob) this.pendingRemove = false;
+    this.refreshImagePreview();
+  }
+
+  private refreshImagePreview(): void {
+    if (!this.imagePreview) return;
+    const trainType = (this.typeSelect?.value as Locomotive['trainType']) || this.modalLoco?.trainType || 'PASSENGER';
+    const previewLoco = { name: this.nameInput?.value || this.modalLoco?.name || '', trainType, image: this.modalLoco?.image } as Locomotive;
+    const src = this.pendingPreviewUrl ?? (this.pendingRemove ? null : locoImageSrc(previewLoco));
+    renderLocoPhoto(this.imagePreview, previewLoco, src);
+    if (this.btnImageRemove) this.btnImageRemove.disabled = !src;
+  }
+
+  private async applyPendingImage(locoId: string): Promise<void> {
+    const blob = this.pendingImage;
+    const remove = this.pendingRemove;
+    this.setPendingImage(null);
+    this.pendingRemove = false;
+    try {
+      if (blob) await uploadLocoImage(locoId, blob);
+      else if (remove) await deleteLocoImage(locoId);
+    } catch (err) {
+      alert(`${t('modal.loco_image_error')} ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  private saveLocoFromForm(): string | null {
     const editId = this.editIdInput?.value;
     const name = this.nameInput?.value.trim() || 'Neue Lok';
     const dccAddress = parseInt(this.addressInput?.value || '3', 10);
@@ -194,7 +290,9 @@ export class Throttle {
           type: 'UPDATE_LOCO',
           payload: updatedLoco
         });
+        return editId;
       }
+      return null;
     } else {
       // Neue Lokomotive anlegen
       const newLoco: Locomotive = {
@@ -216,6 +314,7 @@ export class Throttle {
         type: 'CREATE_LOCO',
         payload: newLoco
       });
+      return newLoco.id;
     }
   }
 
@@ -285,6 +384,12 @@ export class Throttle {
       if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return;
       setActiveLocoId(loco.id);
     });
+
+    // Lokbild oben auf der Karte
+    const photoEl = document.createElement('div');
+    photoEl.className = 'loco-photo loco-photo-throttle';
+    renderLocoPhoto(photoEl, loco);
+    card.appendChild(photoEl);
 
     // Header mit Name, Typ, DCC-Adresse und Bearbeiten-Stift
     const header = document.createElement('div');
@@ -378,7 +483,9 @@ export class Throttle {
       presetBtns: [],
       isDragging: false,
       pendingSpeed: null,
-      throttleTimer: null
+      throttleTimer: null,
+      photoEl,
+      photoKey: `${loco.image ?? ''}|${loco.trainType}`
     };
 
     // Pointer-Capture für flüssiges Draggen ohne Hängenbleiben
@@ -561,6 +668,13 @@ export class Throttle {
       ref.nameEl.appendChild(ref.activeBadgeEl);
     }
     ref.metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
+
+    // Lokbild nur neu setzen, wenn sich Pfad oder Zugart geändert haben
+    const photoKey = `${loco.image ?? ''}|${loco.trainType}`;
+    if (photoKey !== ref.photoKey) {
+      ref.photoKey = photoKey;
+      renderLocoPhoto(ref.photoEl, loco);
+    }
     ref.dccAddrEl.textContent = `DCC #${loco.dccAddress}`;
 
     // Geschwindigkeits-Slider: NUR aktualisieren, wenn der Nutzer NICHT gerade draggt!

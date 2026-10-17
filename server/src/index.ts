@@ -17,6 +17,8 @@ import { TrackTopology } from './engine/TrackTopology.js';
 import { RouteGenerator } from './engine/RouteGenerator.js';
 import { AmbientLightingEngine } from './engine/AmbientLightingEngine.js';
 import { SplitBlockEngine } from './engine/SplitBlockEngine.js';
+import { LocoImageStore, LocoImageError } from './storage/LocoImageStore.js';
+import path from 'path';
 import { WioDriver, WioSensorEvent } from './hal/WioDriver.js';
 import {
   AppSettings,
@@ -77,6 +79,11 @@ wss.on('error', (err) => {
 const storage = new StorageManager();
 const rawData = storage.loadData();
 const data = storage.ensureSettings(rawData);
+const imageStore = new LocoImageStore(path.join(storage.getDataDir(), 'loco-images'));
+// Nicht über den Upload-Endpunkt gesetzte Bildpfade verwerfen (z. B. Altdaten)
+for (const l of data.locos) {
+  if (l.image !== undefined && !LocoImageStore.isValidUrl(l.image)) delete l.image;
+}
 
 // System-Status
 const status: SystemStatus = {
@@ -1035,6 +1042,7 @@ wss.on('connection', (ws, req) => {
             }
           }
           routeEngine.forgetLoco(locoId);
+          imageStore.remove(loco.image);
           locoManager.deleteLoco(locoId);
           data.blocks = blockManager.getAllBlocks();
           saveAllData();
@@ -1147,6 +1155,63 @@ app.get('/api/locos', (_req, res) => {
   res.json(locoManager.getAllLocos());
 });
 
+// Lokbilder (Hinweis: wie die übrige API im LAN ohne Anmeldung erreichbar)
+app.post(
+  '/api/locos/:id/image',
+  express.raw({ type: () => true, limit: LocoImageStore.MAX_BYTES }),
+  (req, res) => {
+    const loco = locoManager.getLoco(req.params.id);
+    if (!loco) {
+      res.status(404).json({ error: 'Lok nicht gefunden.' });
+      return;
+    }
+    try {
+      const url = imageStore.save(loco.id, req.body as Buffer);
+      const old = loco.image;
+      locoManager.setImage(loco.id, url);
+      if (old && old !== url) imageStore.remove(old);
+      addLog(`Bild für Lok "${loco.name}" gespeichert.`, 'info');
+      res.json({ image: url });
+    } catch (err) {
+      const status = err instanceof LocoImageError ? err.status : 500;
+      res.status(status).json({ error: err instanceof Error ? err.message : 'Fehler beim Speichern.' });
+    }
+  }
+);
+
+app.delete('/api/locos/:id/image', (req, res) => {
+  const loco = locoManager.getLoco(req.params.id);
+  if (!loco) {
+    res.status(404).json({ error: 'Lok nicht gefunden.' });
+    return;
+  }
+  imageStore.remove(loco.image);
+  locoManager.setImage(loco.id, undefined);
+  res.json({ image: null });
+});
+
+app.get('/api/loco-images/:file', (req, res) => {
+  const file = imageStore.resolve(req.params.file);
+  if (!file) {
+    res.status(404).end();
+    return;
+  }
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.sendFile(file, (err) => {
+    if (err && !res.headersSent) res.status(404).end();
+  });
+});
+
+// Zu große Uploads (express.raw-Limit) mit verständlicher Meldung beantworten
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err?.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Bild ist größer als 1 MB.' });
+    return;
+  }
+  next(err);
+});
+
 // TM-09: Sichere IP-Bereinigung & Validierung gegen SSRF / Header-Spoofing
 function getCleanClientIp(req: express.Request): string {
   const forwarded = req.headers['x-forwarded-for'];
@@ -1206,5 +1271,5 @@ app.post('/api/wio/scan', async (_req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit (v1.8.1).`);
+  console.log(`🔌 WebSocket Server bereit (v1.9.0).`);
 });

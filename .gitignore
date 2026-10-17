@@ -35,6 +35,7 @@ Desktop.ini
 server/data/layout.local.json
 server/data/*.local.json
 server/data/*.backup*.json
+server/data/loco-images/
 *.local.h
 credentials.h
 **/credentials.h

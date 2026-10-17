@@ -1,7 +1,7 @@
 # [Feature] Lokbilder im Fahrregler, in belegten Blöcken und im Depot
 
 **Typ:** Feature / Frontend UX & Fleet Management  
-**Status:** Open / Konzipiert  
+**Status:** ✅ Umgesetzt in v1.9.0 (Spec: `.kiro/specs/loco-images/`), auf der Anlage abgenommen  
 **Priorität:** Hoch (Wunsch des Anlagenbetreibers)  
 **Komponenten:** `server/src/index.ts` (Upload-/Bild-Endpunkte), `server/src/storage/StorageManager.ts`, `server/src/types.ts`, `client/src/components/Throttle.ts`, `client/src/components/TrackCanvas.ts`, `client/src/components/TrainDepotDrawer.ts`, `client/src/i18n.ts`  
 **Labels:** `ui`, `throttle`, `trackplan`, `loco-management`, `images`
@@ -88,14 +88,14 @@ imageFocusX?: number; // 0..1, horizontaler Bildausschnitt für kleine Vorschaue
 
 ## 5. Implementierungs-Schritte
 
-- [ ] **Server:** Endpunkte `POST/DELETE /api/locos/:id/image`, statische Auslieferung `/api/loco-images/*` mit Cache-Headern, Validierung (Magic Bytes, Größe, Lok-ID).
-- [ ] **Server:** Bild beim Löschen der Lok bzw. beim Ersetzen entfernen; `server/data/loco-images/` in `.gitignore`.
-- [ ] **Client:** Bildfeld im Lok-Dialog inkl. Verkleinerung/WebP-Konvertierung und Vorschau.
-- [ ] **Client:** Anzeige im Fahrregler (`Throttle.ts`, `createLocoCard`/`updateLocoCard`).
-- [ ] **Client:** Anzeige in belegten/reservierten Blöcken und im Block-Kontextmenü (`TrackCanvas.ts`).
-- [ ] **Client:** Anzeige im Depot inkl. Drag-Ghost (`TrainDepotDrawer.ts`).
-- [ ] **Client:** Platzhalter je `trainType`, Fallback bei Ladefehler, DE/EN-Texte in `i18n.ts`.
-- [ ] **Tests:** Upload-Validierung (falsches Format, SVG, zu groß, unbekannte Lok, Path-Traversal-Versuch), Aufräumen beim Löschen.
+- [x] **Server:** Endpunkte `POST/DELETE /api/locos/:id/image`, statische Auslieferung `/api/loco-images/*` mit Cache-Headern, Validierung (Magic Bytes, Größe, Lok-ID).
+- [x] **Server:** Bild beim Löschen der Lok bzw. beim Ersetzen entfernen; `server/data/loco-images/` in `.gitignore`.
+- [x] **Client:** Bildfeld im Lok-Dialog inkl. Verkleinerung/WebP-Konvertierung und Vorschau.
+- [x] **Client:** Anzeige im Fahrregler (`Throttle.ts`, `createLocoCard`/`updateLocoCard`).
+- [x] **Client:** Anzeige in belegten/reservierten Blöcken und im Block-Kontextmenü (`TrackCanvas.ts`).
+- [x] **Client:** Anzeige im Depot inkl. Drag-Ghost (`TrainDepotDrawer.ts`).
+- [x] **Client:** Platzhalter je `trainType`, Fallback bei Ladefehler, DE/EN-Texte in `i18n.ts`.
+- [x] **Tests:** Upload-Validierung (falsches Format, SVG, zu groß, unbekannte Lok, Path-Traversal-Versuch), Aufräumen beim Löschen.
 
 ---
 

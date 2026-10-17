@@ -2,6 +2,7 @@ import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { onLanguageChange, t } from '../i18n.js';
 import { escapeHtml, escapeAttr } from '../sanitize.js';
+import { locoImageSrc, locoPlaceholderIcon } from '../locoImage.js';
 import {
   iconDot,
   iconLocos,
@@ -163,6 +164,15 @@ export class TrainDepotDrawer {
       const card = document.getElementById(`depot-card-${loco.id}`);
       if (!card) continue;
 
+      // Lokbild nicht ladbar -> Platzhalter
+      const photoImg = card.querySelector<HTMLImageElement>('.loco-photo-depot img');
+      photoImg?.addEventListener('error', () => {
+        const box = photoImg.parentElement;
+        if (!box) return;
+        box.classList.remove('has-image');
+        box.innerHTML = `<span class="loco-photo-placeholder" aria-hidden="true">${locoPlaceholderIcon(loco.trainType, 22)}</span>`;
+      }, { once: true });
+
       // 1. Klick / Tap auf Karte -> Auswählen zum Aufgleisen (Touch-First & Desktop)
       card.addEventListener('click', (e) => {
         if (this.touchDragInProgress) return;
@@ -216,7 +226,10 @@ export class TrainDepotDrawer {
           if (!this.touchGhostEl) {
             this.touchGhostEl = document.createElement('div');
             this.touchGhostEl.className = 'touch-drag-ghost';
-            this.touchGhostEl.innerHTML = `<span style="color:#58a6ff;display:inline-flex;align-items:center;">${iconLocos(16)}</span> <strong>${loco.name}</strong>`;
+            const ghostSrc = locoImageSrc(loco);
+            this.touchGhostEl.innerHTML = ghostSrc
+              ? `<img class="ghost-loco-photo" src="${escapeAttr(ghostSrc)}" alt="" width="32" height="18"> <strong>${escapeHtml(loco.name)}</strong>`
+              : `<span style="color:#58a6ff;display:inline-flex;align-items:center;">${iconLocos(16)}</span> <strong>${escapeHtml(loco.name)}</strong>`;
             document.body.appendChild(this.touchGhostEl);
           }
         }
@@ -329,6 +342,7 @@ export class TrainDepotDrawer {
     const isAssigned = !!loco.currentBlockId;
     const isSelected = TrainDepotDrawer.selectedLocoId === loco.id;
     const currentBlock = isAssigned ? blocks.find((b) => b.id === loco.currentBlockId) : null;
+    const photoSrc = locoImageSrc(loco);
 
     let typeBadge = '';
     switch (loco.trainType) {
@@ -356,6 +370,11 @@ export class TrainDepotDrawer {
            id="depot-card-${loco.id}" 
            draggable="true" 
            title="Antippen zum Aufgleisen oder auf einen Block ziehen">
+        <div class="loco-photo loco-photo-depot ${photoSrc ? 'has-image' : ''}">
+          ${photoSrc
+            ? `<img src="${escapeAttr(photoSrc)}" alt="${escapeAttr(loco.name)}" width="96" height="54" loading="lazy" decoding="async" draggable="false">`
+            : `<span class="loco-photo-placeholder" aria-hidden="true">${locoPlaceholderIcon(loco.trainType, 22)}</span>`}
+        </div>
         <div class="loco-card-top">
           <div class="loco-card-name-group">
             <span class="loco-drag-grip" title="Anfassen und auf den Gleisplan ziehen">⋮⋮</span>

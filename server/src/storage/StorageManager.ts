@@ -93,6 +93,10 @@ export class StorageManager {
     return data;
   }
 
+  getDataDir(): string {
+    return this.dataDir;
+  }
+
   saveData(data: StorageData): void {
     try {
       if (!fs.existsSync(this.dataDir)) {

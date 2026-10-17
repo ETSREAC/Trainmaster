@@ -2,6 +2,8 @@ import { Block, BlockStopPolicy, BlockType, Sensor, Signal, TrackElement, Turnou
 import { wsClient } from '../wsClient.js';
 import { TrainDepotDrawer } from './TrainDepotDrawer.js';
 import { t } from '../i18n.js';
+import { locoImageSrc } from '../locoImage.js';
+import { escapeAttr, escapeHtml } from '../sanitize.js';
 
 export type EditorTool =
   | 'STRAIGHT'
@@ -1884,6 +1886,13 @@ export class TrackCanvas {
     const isTargetForDepotLoco = !!TrainDepotDrawer.selectedLocoId;
 
     const loco = block.currentLocoId ? wsClient.locos.find((l) => l.id === block.currentLocoId) : null;
+    // Lokbild: belegender Zug oder (bei Reservierung) der erwartete Zug
+    const imageLoco = loco ?? (block.state === 'RESERVED' && block.reservedForLocoId
+      ? wsClient.locos.find((l) => l.id === block.reservedForLocoId) ?? null
+      : null);
+    const imageSrc = locoImageSrc(imageLoco);
+    const imageW = 40;
+    const imageExtra = imageSrc ? imageW + 6 : 0;
     const dirArrow = block.direction === '+' ? '➔' : '⬅';
     let typeIcon = '🏢';
     if (block.type === 'LOCAL_STATION') typeIcon = '🚏';
@@ -1897,8 +1906,8 @@ export class TrackCanvas {
     // Dynamische Breite & Typografie berechnen, damit lange Namen perfekt reinpassen und nichts abgeschnitten wird
     const maxChars = Math.max(blockTitle.length, locoTitle.length);
     const calculatedWidth = Math.max(this.cellSize * 1.5, maxChars * 6.5 + 22);
-    // Begrenzung, damit er nicht zu tief in Nachbarkacheln ragt
-    const width = Math.min(this.cellSize * 1.85, calculatedWidth);
+    // Begrenzung, damit er nicht zu tief in Nachbarkacheln ragt (Bild bekommt eigenen Platz)
+    const width = Math.min(this.cellSize * 1.85, calculatedWidth) + imageExtra;
     const height = hasTimer ? 48 : 34;
 
     // 1. Blickdichte Trägerplatte (GARANTIERT, dass darunterliegende Gleise NIEMALS durch den Text schneiden!)
@@ -2041,8 +2050,43 @@ export class TrackCanvas {
       blockLabelGroup.setAttribute('transform', `rotate(${-elem.rotation}, 0, 0)`);
     }
 
+    // Lokbild links im Badge (aufrecht, da in der gegenläufig rotierten Label-Gruppe)
+    const textX = `${imageExtra / 2}`;
+    if (imageSrc && imageLoco) {
+      const clipId = `blk-img-clip-${block.id}`.replace(/[^A-Za-z0-9_-]/g, '_');
+      // Bei 90°/270° liegt das Label quer zur Trägerplatte: am Text statt an der Plattenbreite ausrichten
+      const imgX = elem.rotation % 180 === 0 ? -width / 2 + 4 : -(width - imageExtra) / 2 - imageExtra / 2 + 4;
+      const imgY = -12;
+      const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+      clip.setAttribute('id', clipId);
+      const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      clipRect.setAttribute('x', `${imgX}`);
+      clipRect.setAttribute('y', `${imgY}`);
+      clipRect.setAttribute('width', `${imageW}`);
+      clipRect.setAttribute('height', '24');
+      clipRect.setAttribute('rx', '4');
+      clip.appendChild(clipRect);
+      blockLabelGroup.appendChild(clip);
+
+      const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      img.setAttribute('href', imageSrc);
+      img.setAttribute('x', `${imgX}`);
+      img.setAttribute('y', `${imgY}`);
+      img.setAttribute('width', `${imageW}`);
+      img.setAttribute('height', '24');
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      if (!loco) img.setAttribute('opacity', '0.55'); // nur reserviert
+      img.style.pointerEvents = 'none';
+      const imgTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      imgTitle.textContent = imageLoco.name;
+      img.appendChild(imgTitle);
+      img.addEventListener('error', () => img.remove(), { once: true });
+      blockLabelGroup.appendChild(img);
+    }
+
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x', '0');
+    text.setAttribute('x', textX);
     text.setAttribute('y', hasTimer ? '-9' : (block.currentLocoId ? '-2' : '4'));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('fill', '#f0f6fc');
@@ -2063,7 +2107,7 @@ export class TrackCanvas {
     // Wenn Zug im Block ist: Zug-Label anzeigen
     if (block.currentLocoId) {
       const locoText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      locoText.setAttribute('x', '0');
+      locoText.setAttribute('x', textX);
       locoText.setAttribute('y', hasTimer ? '4' : '12');
       locoText.setAttribute('text-anchor', 'middle');
       locoText.setAttribute('fill', '#58a6ff');
@@ -2088,7 +2132,7 @@ export class TrackCanvas {
       timerText.setAttribute('id', `block-timer-text-${block.id}`);
       timerText.setAttribute('class', 'block-live-timer');
       timerText.setAttribute('data-block-id', block.id);
-      timerText.setAttribute('x', '0');
+      timerText.setAttribute('x', textX);
       timerText.setAttribute('y', '17');
       timerText.setAttribute('text-anchor', 'middle');
       timerText.setAttribute('font-size', '9.5px');
@@ -2282,9 +2326,10 @@ export class TrackCanvas {
       statusHtml = `
         <div class="ctx-block-status occupied">
           <span class="status-indicator">🔴</span>
+          ${locoImageSrc(currentLoco) ? `<img class="ctx-loco-photo" src="${escapeAttr(locoImageSrc(currentLoco)!)}" alt="${escapeAttr(currentLoco.name)}" width="64" height="36">` : ''}
           <div class="status-details">
             <div class="status-label">Belegt von:</div>
-            <div class="status-loco-name">🚂 ${currentLoco.name} <span class="loco-dcc">#${currentLoco.dccAddress}</span></div>
+            <div class="status-loco-name">🚂 ${escapeHtml(currentLoco.name)} <span class="loco-dcc">#${currentLoco.dccAddress}</span></div>
           </div>
         </div>
       `;

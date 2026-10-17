@@ -10,6 +10,22 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.9.0] - 2026-10-16
+
+Minor-Release: Lokbilder (Ticket `TICKET_LOCO_IMAGES_THROTTLE_AND_BLOCKS`).
+
+### Added
+- Lokbild im Lok-Dialog wählen oder entfernen. Fotos werden im Browser auf max. 640 × 360 px verkleinert und als WebP (Fallback JPEG) hochgeladen.
+- Anzeige im Fahrregler, in belegten Blöcken (reserviert: halbtransparent), im Block-Kontextmenü, im Depot und im Touch-Drag. Ohne Bild erscheint ein Platzhalter passend zur Zugart.
+- Server-Endpunkte `POST/DELETE /api/locos/:id/image` und `GET /api/loco-images/:file`. Bilder liegen als Dateien in `server/data/loco-images/`, nicht im Layout-JSON, damit Fahrstufen-Updates klein bleiben.
+- Tests: `npm run test:images` (Formaterkennung, Validierung, HTTP-Ende-zu-Ende).
+
+### Security
+- Nur JPEG, PNG und WebP (geprüft an der Dateisignatur, kein SVG), max. 1 MB, Dateinamen ausschließlich serverseitig erzeugt. Das Bildfeld kann über `CREATE_LOCO`/`UPDATE_LOCO` nicht gesetzt werden.
+- Hinweis: Wie die übrige API sind die Endpunkte im LAN ohne Anmeldung erreichbar.
+
+---
+
 ## [1.8.1] - 2026-10-16
 
 ### Fixed

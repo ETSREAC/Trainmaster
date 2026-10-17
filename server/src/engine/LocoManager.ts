@@ -76,7 +76,8 @@ export class LocoManager {
   addLoco(loco: Locomotive): void {
     const sanitized: Locomotive = {
       ...loco,
-      name: sanitizeLocoName(loco.name)
+      name: sanitizeLocoName(loco.name),
+      image: undefined // nur über den Upload-Endpunkt setzbar
     };
     this.locos.set(sanitized.id, sanitized);
     this.events.onLocoUpdated(sanitized);
@@ -97,11 +98,21 @@ export class LocoManager {
       targetSpeed: speed,
       direction,
       functions,
-      currentBlockId
+      currentBlockId,
+      image: existing?.image // Client-Wert ignorieren, nur Upload-Endpunkt setzt das Bild
     };
     this.locos.set(loco.id, updated);
     this.events.onLocoUpdated(updated);
     this.events.onLog(`Lokomotive "${updated.name}" aktualisiert.`, 'info');
+  }
+
+  /** Setzt oder entfernt das Lokbild (Pfad vom LocoImageStore). */
+  setImage(id: string, image: string | undefined): boolean {
+    const loco = this.locos.get(id);
+    if (!loco) return false;
+    loco.image = image;
+    this.events.onLocoUpdated(loco);
+    return true;
   }
 
   deleteLoco(id: string): void {
