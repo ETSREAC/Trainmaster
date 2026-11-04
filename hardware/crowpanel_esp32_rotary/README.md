@@ -70,22 +70,46 @@ Wähle unter **Werkzeuge** folgende Optionen für das Elecrow CrowPanel 1.28":
 
 ---
 
-## 📶 Konfiguration anpassen (`config.h`)
+## 📶 Konfiguration anpassen (`config.local.h`)
 
-Öffne die Datei [config.h](file:///c:/Users/etswr/Downloads/TrainMaster/hardware/crowpanel_esp32_rotary/config.h) und passe die folgenden Zeilen an:
+Der Handregler verbindet sich **direkt** mit der Zentrale, ohne PC. Lege im Sketch-Ordner eine Datei `config.local.h` an. Sie wird nicht ins Git übernommen. Alles, was dort nicht steht, nimmt die Standardwerte aus [config.h](config.h).
+
+**DCC-EX** (Standard):
 
 ```cpp
-// WLAN-Zugangsdaten
-#define WIFI_SSID           "DEIN_WLAN_NAME"
-#define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
-
-// IP-Adresse deines PCs, auf dem TrainMaster läuft:
-#define TRAINMASTER_HOST    "192.168.1.100"
-#define TRAINMASTER_PORT    3001
-#define TRAINMASTER_URL     "/"
+#define WIFI_SSID      "DEIN_WLAN_NAME"
+#define WIFI_PASSWORD  "DEIN_WLAN_PASSWORT"
+#define DCC_EX_HOST    "192.168.4.1"   // IP der DCC-EX Zentrale
+#define DCC_EX_PORT    2560
 ```
 
-> **Tipp:** Die IP-Adresse deines PCs findest du in Windows heraus, indem du in der Eingabeaufforderung / PowerShell `ipconfig` eingibst (die IPv4-Adresse deines WLAN- oder LAN-Adapters).
+**Roco Z21 / z21 start:**
+
+```cpp
+#define WIFI_SSID      "DEIN_WLAN_NAME"      // WLAN, in dem die Z21 haengt
+#define WIFI_PASSWORD  "DEIN_WLAN_PASSWORT"
+#define CS_PROTOCOL    CS_PROTOCOL_Z21
+#define Z21_HOST       "192.168.0.111"       // Werkseinstellung der Z21
+```
+
+Im Z21-Betrieb gilt:
+- Die Gleisspannung wird beim Start **nicht** automatisch eingeschaltet, weil meist weitere Regler an der Z21 hängen.
+- Beim Lokwechsel übernimmt der Knob den echten Zustand der Lok von der Z21 (Fahrstufe, Richtung, Licht).
+- Steuert jemand dieselbe Lok mit der Z21-App oder einer multiMAUS, zeigt der Knob das an.
+- Antwortet die Z21 8 s lang nicht, zeigt das Display „Z21 getrennt“ und Fahren ist gesperrt. Sobald sie wieder da ist, meldet sich der Knob von selbst neu an.
+- Long-Press = Not-Halt aller Loks (`LAN_X_SET_STOP`), nochmal Long-Press = Gleisspannung wieder ein.
+
+### Z21-Test ohne Z21
+
+Auf dem PC den Simulator starten:
+
+```bash
+node scripts/z21_simulator.mjs
+```
+
+Dann im Knob als `Z21_HOST` die IPv4-Adresse des PCs eintragen (`ipconfig`). Knob und PC müssen im selben WLAN sein, und die Windows-Firewall muss UDP-Port 21105 für Node erlauben. Der Simulator zeigt jeden Befehl des Knobs im Klartext, z. B. `LAN_X_SET_LOCO_DRIVE Lok 3 vorwaerts Stufe 50 (128 FS)`.
+
+Automatische Tests: `npm run test:z21` (braucht einen C++-Compiler: g++, clang++ oder `pip install ziglang`).
 
 ---
 

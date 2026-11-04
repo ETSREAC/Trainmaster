@@ -10,6 +10,26 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.10.0] - 2026-11-04
+
+Minor-Release: CrowPanel-Drehregler steuert eine Roco Z21 eigenständig (Ticket `TICKET_CROWPANEL_ROTARY_Z21_STANDALONE`).
+
+### Added
+- CrowPanel 1.28" Rotary: neuer Z21-Betrieb über UDP (Z21 LAN Protokoll V1.13), ohne PC. Aktivieren in `config.local.h` mit `#define CS_PROTOCOL CS_PROTOCOL_Z21` und `Z21_HOST`.
+  - Fahren mit 128 Fahrstufen, Richtung, F0–F11, Not-Halt (`LAN_X_SET_STOP`), Gleisspannung.
+  - Lok-Abo per `LAN_X_GET_LOCO_INFO`: Beim Lokwechsel übernimmt der Knob den echten Zustand. Änderungen durch andere Regler (Z21-App, multiMAUS) werden angezeigt.
+  - Lebenszeichen alle 3 s. Antwortet die Z21 8 s lang nicht, zeigt das Display „Z21 getrennt“ und Fahren ist gesperrt. Danach meldet sich der Knob von selbst neu an.
+- `hardware/crowpanel_esp32_rotary/z21_protocol.*`: Z21-Protokoll als reines C++ ohne Arduino-Abhängigkeit (läuft auf ESP32 und PC).
+- `scripts/z21_simulator.mjs` (`npm run z21:sim`): Z21-Nachbildung mit strenger Paketprüfung, für Tests und für den echten Knob ohne Z21.
+- Tests: `npm run test:z21` (40 Tests). Exakte Paket-Bytes, Parser, und Ende-zu-Ende des Firmware-Codes gegen den Simulator (Fremdsteuerung, Ausfall/Neuanmeldung, kaputte Pakete). Braucht einen C++-Compiler (g++, clang++ oder `pip install ziglang`), sonst wird der Test übersprungen.
+
+### Changed
+- `config.h`: Jeder Wert in `config.local.h` ist jetzt optional (Standardwerte per `#ifndef`). Bestehende `config.local.h` funktionieren unverändert, Standard bleibt DCC-EX.
+- CrowPanel-Firmware: Sendefunktionen heißen protokollneutral `csThrottle`, `csFunction`, `csPower` und `csEmergencyStop`. Die DCC-EX-Befehle sind unverändert.
+- CrowPanel-README: Konfigurationsabschnitt aktualisiert (zeigte noch die alte `TRAINMASTER_HOST`-Konfiguration).
+
+---
+
 ## [1.9.0] - 2026-10-16
 
 Minor-Release: Lokbilder (Ticket `TICKET_LOCO_IMAGES_THROTTLE_AND_BLOCKS`).

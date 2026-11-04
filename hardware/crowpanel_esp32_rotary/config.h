@@ -4,17 +4,51 @@
 #include <Arduino.h>
 
 // =============================================================================
-// 1. WLAN & DCC-EX Zentrale Konfiguration (STANDALONE MODUS)
+// 1. WLAN & Zentrale Konfiguration (STANDALONE MODUS)
 // =============================================================================
+// Eigene Werte gehoeren in config.local.h (wird nicht ins Git uebernommen).
+// Alles, was dort nicht steht, nimmt die Standardwerte unten.
+#define CS_PROTOCOL_DCCEX   1    // DCC-EX, TCP Port 2560
+#define CS_PROTOCOL_Z21     2    // Roco Z21 / z21 start, UDP Port 21105
+
 #if __has_include("config.local.h")
   #include "config.local.h"
-#else
-  #define WIFI_SSID           "DEIN_WLAN_NAME"
-  #define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
+#endif
 
-  // IP-Adresse deiner DCC-EX Zentrale (Mega / ESP32)
+#ifndef WIFI_SSID
+  #define WIFI_SSID           "DEIN_WLAN_NAME"
+#endif
+#ifndef WIFI_PASSWORD
+  #define WIFI_PASSWORD       "DEIN_WLAN_PASSWORT"
+#endif
+
+// Welche Zentrale? In config.local.h z. B.: #define CS_PROTOCOL CS_PROTOCOL_Z21
+#ifndef CS_PROTOCOL
+  #define CS_PROTOCOL         CS_PROTOCOL_DCCEX
+#endif
+
+// IP-Adresse deiner DCC-EX Zentrale (Mega / ESP32)
+#ifndef DCC_EX_HOST
   #define DCC_EX_HOST         "192.168.4.1"
+#endif
+#ifndef DCC_EX_PORT
   #define DCC_EX_PORT         2560
+#endif
+
+// IP-Adresse deiner Z21 (Werkseinstellung 192.168.0.111)
+#ifndef Z21_HOST
+  #define Z21_HOST            "192.168.0.111"
+#endif
+#ifndef Z21_PORT
+  #define Z21_PORT            21105
+#endif
+
+#if CS_PROTOCOL == CS_PROTOCOL_Z21
+  #define CS_NAME             "Z21"
+  #define CS_HOST             Z21_HOST
+#else
+  #define CS_NAME             "DCC-EX"
+  #define CS_HOST             DCC_EX_HOST
 #endif
 
 // =============================================================================
