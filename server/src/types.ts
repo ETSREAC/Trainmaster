@@ -26,6 +26,8 @@ export interface Locomotive {
   currentBlockId: string | null;
   image?: string;
   functionLabels?: Record<number, string>;
+  /** Funktionen, die der Automatikbetrieb einschaltet. Fehlt das Feld: nur F0. */
+  autoFunctions?: number[];
 }
 
 export interface Turnout {

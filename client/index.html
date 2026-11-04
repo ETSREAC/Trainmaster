@@ -18,7 +18,7 @@
         <img src="/logo.png" alt="TrainMaster" class="brand-logo">
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.10.1 • Clean Dispatcher Edition</span>
+          <span class="version-tag">v1.11.0 • Clean Dispatcher Edition</span>
         </div>
       </div>
 
@@ -569,7 +569,7 @@
 
   <!-- Modal: Lokomotive anlegen / bearbeiten -->
   <div id="loco-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-dialog">
+    <div class="modal-dialog loco-editor">
       <div class="modal-header">
         <h2 id="modal-loco-title" data-i18n="modal.loco_title_new">🚂 Neue Lokomotive anlegen</h2>
         <button id="btn-modal-close" class="btn-icon" type="button">✕</button>
@@ -577,61 +577,100 @@
       <form id="form-loco">
         <input type="hidden" id="loco-edit-id" value="">
 
-        <div class="form-group">
-          <label for="loco-form-name" data-i18n="modal.loco_name_label">Lok-Name / Baureihe: *</label>
-          <input type="text" id="loco-form-name" class="form-control" required placeholder="z. B. DB BR 101 oder Taurus" data-i18n-placeholder="modal.loco_name_placeholder">
+        <div class="inspector-tabs loco-editor-tabs" role="tablist">
+          <button type="button" class="inspector-tab-btn active" role="tab" id="loco-tab-general" aria-controls="loco-panel-general" aria-selected="true" data-loco-tab="general" data-i18n="modal.loco_tab_general">Allgemein</button>
+          <button type="button" class="inspector-tab-btn" role="tab" id="loco-tab-driving" aria-controls="loco-panel-driving" aria-selected="false" tabindex="-1" data-loco-tab="driving" data-i18n="modal.loco_tab_driving">Fahrverhalten</button>
+          <button type="button" class="inspector-tab-btn" role="tab" id="loco-tab-functions" aria-controls="loco-panel-functions" aria-selected="false" tabindex="-1" data-loco-tab="functions" data-i18n="modal.loco_tab_functions">Funktionen</button>
         </div>
 
-        <div class="form-row" style="display:flex;gap:12px;">
-          <div class="form-group" style="flex:1;">
-            <label for="loco-form-address" data-i18n="modal.loco_address_label">DCC-Adresse (1 - 9999): *</label>
-            <input type="number" id="loco-form-address" class="form-control" required min="1" max="9999" value="3">
+        <!-- Tab 1: Allgemein -->
+        <div class="loco-editor-panel" role="tabpanel" id="loco-panel-general" aria-labelledby="loco-tab-general" data-loco-panel="general">
+          <div class="form-group">
+            <label for="loco-form-name" data-i18n="modal.loco_name_label">Lok-Name / Baureihe: *</label>
+            <input type="text" id="loco-form-name" class="form-control" required placeholder="z. B. DB BR 101 oder Taurus" data-i18n-placeholder="modal.loco_name_placeholder">
           </div>
-          <div class="form-group" style="flex:1;">
-            <label for="loco-form-type" data-i18n="modal.loco_type_label">Zuggattung / Typ:</label>
-            <select id="loco-form-type" class="form-control">
-              <option value="PASSENGER" data-i18n="train.type.passenger">Personenzug</option>
-              <option value="HIGH_SPEED" data-i18n="train.type.high_speed">ICE / Hochgeschwindigkeit</option>
-              <option value="FREIGHT" data-i18n="train.type.freight">Güterzug</option>
-              <option value="COMMUTER" data-i18n="train.type.commuter">Wendezug / Nahverkehr</option>
-              <option value="SHUNTER" data-i18n="train.type.shunter">Rangierlok</option>
-            </select>
-          </div>
-        </div>
 
-        <div class="form-group">
-          <label data-i18n="modal.loco_profile_label">Geschwindigkeitsprofil (Fahrstufen 0 - 128):</label>
-          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;">
-            <div>
-              <label style="font-size:11px;color:#8b949e;" data-i18n="modal.loco_vmin_label">V_Min (Kriechen):</label>
-              <input type="number" id="loco-form-vmin" class="form-control" value="12" min="1" max="128">
+          <div class="loco-editor-row">
+            <div class="form-group">
+              <label for="loco-form-address" data-i18n="modal.loco_address_label">DCC-Adresse (1 - 9999): *</label>
+              <input type="number" id="loco-form-address" class="form-control" required min="1" max="9999" value="3">
             </div>
-            <div>
-              <label style="font-size:11px;color:#8b949e;" data-i18n="modal.loco_vmid_label">V_Mid (Reise):</label>
-              <input type="number" id="loco-form-vmid" class="form-control" value="55" min="1" max="128">
-            </div>
-            <div>
-              <label style="font-size:11px;color:#8b949e;" data-i18n="modal.loco_vmax_label">V_Max (Höchst):</label>
-              <input type="number" id="loco-form-vmax" class="form-control" value="110" min="1" max="128">
+            <div class="form-group">
+              <label for="loco-form-type" data-i18n="modal.loco_type_label">Zuggattung / Typ:</label>
+              <select id="loco-form-type" class="form-control">
+                <option value="PASSENGER" data-i18n="train.type.passenger">Personenzug</option>
+                <option value="HIGH_SPEED" data-i18n="train.type.high_speed">ICE / Hochgeschwindigkeit</option>
+                <option value="FREIGHT" data-i18n="train.type.freight">Güterzug</option>
+                <option value="COMMUTER" data-i18n="train.type.commuter">Wendezug / Nahverkehr</option>
+                <option value="SHUNTER" data-i18n="train.type.shunter">Rangierlok</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="loco-form-length" data-i18n="modal.loco_length_label">Zuglänge in cm (für Blockprüfung):</label>
-          <input type="number" id="loco-form-length" class="form-control" value="20" min="5" max="1000" step="0.5">
-        </div>
-
-        <div class="form-group">
-          <label for="loco-form-image" data-i18n="modal.loco_image_label">Lokbild:</label>
-          <div class="loco-image-editor">
-            <div id="loco-form-image-preview" class="loco-photo loco-photo-preview"></div>
-            <div class="loco-image-actions">
-              <input type="file" id="loco-form-image" accept="image/jpeg,image/png,image/webp" class="visually-hidden">
-              <label class="btn btn-clear loco-image-pick" for="loco-form-image" data-i18n="modal.loco_image_pick">📷 Bild wählen</label>
-              <button type="button" id="btn-loco-image-remove" class="btn btn-clear" data-i18n="modal.loco_image_remove">Entfernen</button>
-              <small class="loco-image-hint" data-i18n="modal.loco_image_hint">Am besten eine Seitenansicht. Das Bild wird automatisch verkleinert.</small>
+          <div class="form-group">
+            <label for="loco-form-image" data-i18n="modal.loco_image_label">Lokbild:</label>
+            <div class="loco-image-editor">
+              <div id="loco-form-image-preview" class="loco-photo loco-photo-preview"></div>
+              <div class="loco-image-actions">
+                <input type="file" id="loco-form-image" accept="image/jpeg,image/png,image/webp" class="visually-hidden">
+                <label class="btn btn-clear loco-image-pick" for="loco-form-image" data-i18n="modal.loco_image_pick">📷 Bild wählen</label>
+                <button type="button" id="btn-loco-image-remove" class="btn btn-clear" data-i18n="modal.loco_image_remove">Entfernen</button>
+                <small class="loco-image-hint" data-i18n="modal.loco_image_hint">Am besten eine Seitenansicht. Das Bild wird automatisch verkleinert.</small>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Fahrverhalten -->
+        <div class="loco-editor-panel" role="tabpanel" id="loco-panel-driving" aria-labelledby="loco-tab-driving" data-loco-panel="driving" hidden>
+          <div class="form-group">
+            <label data-i18n="modal.loco_profile_label">Geschwindigkeitsprofil (Fahrstufen 0 - 128):</label>
+            <div class="loco-editor-row loco-editor-row-3">
+              <div class="form-group">
+                <label for="loco-form-vmin" class="loco-editor-sublabel" data-i18n="modal.loco_vmin_label">V_Min (Kriechen):</label>
+                <input type="number" id="loco-form-vmin" class="form-control" value="12" min="1" max="128">
+              </div>
+              <div class="form-group">
+                <label for="loco-form-vmid" class="loco-editor-sublabel" data-i18n="modal.loco_vmid_label">V_Mid (Reise):</label>
+                <input type="number" id="loco-form-vmid" class="form-control" value="55" min="1" max="128">
+              </div>
+              <div class="form-group">
+                <label for="loco-form-vmax" class="loco-editor-sublabel" data-i18n="modal.loco_vmax_label">V_Max (Höchst):</label>
+                <input type="number" id="loco-form-vmax" class="form-control" value="110" min="1" max="128">
+              </div>
+            </div>
+            <small class="loco-editor-hint" data-i18n="modal.loco_profile_hint">V_Min nutzt die Automatik zum Kriechen bis zum Halt, V_Mid ist die Reisegeschwindigkeit, V_Max die Obergrenze.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="loco-form-length" data-i18n="modal.loco_length_label">Zuglänge in cm (für Blockprüfung):</label>
+            <input type="number" id="loco-form-length" class="form-control loco-editor-narrow" value="20" min="5" max="1000" step="0.5">
+          </div>
+        </div>
+
+        <!-- Tab 3: Funktionen -->
+        <div class="loco-editor-panel" role="tabpanel" id="loco-panel-functions" aria-labelledby="loco-tab-functions" data-loco-panel="functions" hidden>
+          <p class="loco-editor-hint" data-i18n="modal.loco_fn_hint">Name der Funktionstaste und ob der Automatikbetrieb sie einschaltet (beim Start, bei jeder Abfahrt und nach einem Richtungswechsel). Leere Namen erscheinen nicht im Fahrregler.</p>
+          <div class="loco-fn-toolbar">
+            <span class="loco-fn-toolbar-label" data-i18n="modal.loco_fn_auto_presets">Automatik:</span>
+            <button type="button" class="btn btn-clear" id="btn-loco-fn-auto-f0" data-i18n="modal.loco_fn_auto_only_f0">Nur F0</button>
+            <button type="button" class="btn btn-clear" id="btn-loco-fn-auto-none" data-i18n="modal.loco_fn_auto_none">Keine</button>
+            <label class="loco-fn-filter">
+              <input type="checkbox" id="loco-fn-show-all">
+              <span data-i18n="modal.loco_fn_show_all">Alle F0–F28 zeigen</span>
+            </label>
+          </div>
+          <div class="loco-fn-table-wrap">
+            <table class="loco-fn-table">
+              <thead>
+                <tr>
+                  <th scope="col" data-i18n="modal.loco_fn_col_key">Taste</th>
+                  <th scope="col" data-i18n="modal.loco_fn_col_label">Bezeichnung</th>
+                  <th scope="col" class="loco-fn-col-auto" data-i18n="modal.loco_fn_col_auto">Automatik</th>
+                </tr>
+              </thead>
+              <tbody id="loco-fn-table-body"></tbody>
+            </table>
           </div>
         </div>
 

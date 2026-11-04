@@ -5,6 +5,28 @@ import { t } from '../i18n.js';
 import { escapeHtml } from '../sanitize.js';
 import { deleteLocoImage, locoImageSrc, locoPlaceholderIcon, resizeImageFile, uploadLocoImage } from '../locoImage.js';
 
+/** Standard-Belegung, solange für eine Lok keine eigenen Funktionsnamen gespeichert sind. */
+export const DEFAULT_FUNCTION_LABELS: Record<number, string> = {
+  0: '💡 F0 Licht',
+  1: '🔊 F1 Sound',
+  2: '🎺 F2 Horn',
+  3: '🐢 F3 Rangier',
+  4: '🔗 F4 Kuppl.',
+  5: '💨 F5 Rauch',
+  6: '🔔 F6 Glocke',
+  7: '🔇 F7 Mute'
+};
+
+const MAX_FUNCTION_INDEX = 28;
+/** Wie im Server (locoFunctions.ts): ohne Einstellung schaltet die Automatik nur F0. */
+const DEFAULT_AUTO_FUNCTIONS = [0];
+
+type LocoEditorTab = 'general' | 'driving' | 'functions';
+
+export function getAutoFunctions(loco: Pick<Locomotive, 'autoFunctions'>): number[] {
+  return Array.isArray(loco.autoFunctions) ? loco.autoFunctions : DEFAULT_AUTO_FUNCTIONS;
+}
+
 /** Füllt einen Bild-Container mit Lokfoto oder Platzhalter (Fallback auch bei Ladefehler). */
 export function renderLocoPhoto(el: HTMLElement, loco: Locomotive, src: string | null = locoImageSrc(loco)): void {
   el.replaceChildren();
@@ -57,6 +79,7 @@ interface LocoCardRef {
   revBtn: HTMLButtonElement;
   fnBox: HTMLElement;
   fnBtns: Map<number, HTMLButtonElement>;
+  fnKey: string;
   presetBtns: HTMLButtonElement[];
   photoEl: HTMLElement;
   photoKey: string;
@@ -88,6 +111,12 @@ export class Throttle {
   private pendingPreviewUrl: string | null = null;
   private pendingRemove = false;
   private modalLoco: Locomotive | null = null;
+
+  // Funktionen-Tab im Dialog (Zustand bleibt beim Umschalten "Alle zeigen" erhalten)
+  private fnTableBody: HTMLElement | null = null;
+  private fnShowAll: HTMLInputElement | null = null;
+  private editFnLabels: Record<number, string> = {};
+  private editFnAuto: Set<number> = new Set(DEFAULT_AUTO_FUNCTIONS);
 
   // Cache für DOM-Referenzen jeder Lokkarte (Performance & kein Flackern bei Slider-Bedienung)
   private cards: Map<string, LocoCardRef> = new Map();
@@ -166,6 +195,38 @@ export class Throttle {
       this.refreshImagePreview();
     });
 
+    // Tabs: Klick und Pfeiltasten (WAI-ARIA Tabs)
+    const tabBtns = Array.from(this.modal?.querySelectorAll<HTMLButtonElement>('[data-loco-tab]') ?? []);
+    tabBtns.forEach((btn, i) => {
+      btn.addEventListener('click', () => this.showTab(btn.dataset.locoTab as LocoEditorTab));
+      btn.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const next = tabBtns[(i + (e.key === 'ArrowRight' ? 1 : tabBtns.length - 1)) % tabBtns.length];
+        this.showTab(next.dataset.locoTab as LocoEditorTab);
+        next.focus();
+      });
+    });
+
+    // Pflichtfeld in einem verdeckten Tab: zuerst diesen Tab zeigen, damit der Browser fokussieren kann
+    this.formLoco?.addEventListener('invalid', (e) => {
+      const panel = (e.target as HTMLElement).closest<HTMLElement>('[data-loco-panel]');
+      if (panel?.hidden) this.showTab(panel.dataset.locoPanel as LocoEditorTab);
+    }, true);
+
+    // Funktionen-Tab
+    this.fnTableBody = document.getElementById('loco-fn-table-body');
+    this.fnShowAll = document.getElementById('loco-fn-show-all') as HTMLInputElement | null;
+    this.fnShowAll?.addEventListener('change', () => this.renderFunctionTable());
+    document.getElementById('btn-loco-fn-auto-f0')?.addEventListener('click', () => {
+      this.editFnAuto = new Set([0]);
+      this.renderFunctionTable();
+    });
+    document.getElementById('btn-loco-fn-auto-none')?.addEventListener('click', () => {
+      this.editFnAuto = new Set();
+      this.renderFunctionTable();
+    });
+
     // Formular absenden (Speichern)
     this.formLoco?.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -201,6 +262,8 @@ export class Throttle {
     if (this.vMaxInput) this.vMaxInput.value = '100';
     if (this.lengthInput) this.lengthInput.value = '25';
     this.resetImageState(null);
+    this.loadFunctionEditor(null);
+    this.showTab('general');
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
@@ -220,9 +283,109 @@ export class Throttle {
     if (this.vMaxInput) this.vMaxInput.value = `${loco.vMax || 100}`;
     if (this.lengthInput) this.lengthInput.value = `${loco.lengthCm || 25}`;
     this.resetImageState(loco);
+    this.loadFunctionEditor(loco);
+    this.showTab('general');
 
     this.modal.style.display = 'flex';
     this.nameInput?.focus();
+  }
+
+  private showTab(tab: LocoEditorTab): void {
+    if (!this.modal) return;
+    this.modal.querySelectorAll<HTMLButtonElement>('[data-loco-tab]').forEach((btn) => {
+      const active = btn.dataset.locoTab === tab;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.tabIndex = active ? 0 : -1;
+    });
+    this.modal.querySelectorAll<HTMLElement>('[data-loco-panel]').forEach((panel) => {
+      panel.hidden = panel.dataset.locoPanel !== tab;
+    });
+  }
+
+  /**
+   * Funktionen-Tab mit dem Stand der Lok füllen. Ohne eigene Namen werden die
+   * Standardnamen übernommen, damit der Fahrregler nach dem Speichern gleich aussieht.
+   */
+  private loadFunctionEditor(loco: Locomotive | null): void {
+    const hasLabels = !!loco?.functionLabels && Object.keys(loco.functionLabels).length > 0;
+    this.editFnLabels = { ...(hasLabels ? loco!.functionLabels! : DEFAULT_FUNCTION_LABELS) };
+    this.editFnAuto = new Set(loco ? getAutoFunctions(loco) : DEFAULT_AUTO_FUNCTIONS);
+    if (this.fnShowAll) this.fnShowAll.checked = false;
+    this.renderFunctionTable();
+  }
+
+  private renderFunctionTable(): void {
+    if (!this.fnTableBody) return;
+    const showAll = !!this.fnShowAll?.checked;
+
+    // Ohne "Alle zeigen": belegte Tasten, Automatik-Tasten und mindestens F0–F7
+    const visible = new Set<number>();
+    for (let f = 0; f <= MAX_FUNCTION_INDEX; f++) {
+      if (showAll || f <= 7 || this.editFnLabels[f]?.trim() || this.editFnAuto.has(f)) visible.add(f);
+    }
+    const highest = Math.max(...visible);
+    // Lücken bis zur höchsten belegten Taste schließen, damit die Liste lückenlos bleibt
+    for (let f = 0; f <= highest; f++) visible.add(f);
+
+    this.fnTableBody.replaceChildren();
+    for (const f of [...visible].sort((a, b) => a - b)) {
+      const row = document.createElement('tr');
+      row.classList.toggle('is-auto', this.editFnAuto.has(f));
+
+      const keyCell = document.createElement('td');
+      const key = document.createElement('span');
+      key.className = 'loco-fn-key';
+      key.textContent = `F${f}`;
+      keyCell.appendChild(key);
+
+      const labelCell = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-control';
+      input.maxLength = 64;
+      input.value = this.editFnLabels[f] ?? '';
+      input.placeholder = t('modal.loco_fn_label_placeholder');
+      input.setAttribute('aria-label', `F${f} ${t('modal.loco_fn_col_label')}`);
+      input.addEventListener('input', () => {
+        this.editFnLabels[f] = input.value;
+      });
+      labelCell.appendChild(input);
+
+      const autoCell = document.createElement('td');
+      autoCell.className = 'loco-fn-auto-cell';
+      const sw = document.createElement('label');
+      sw.className = 'loco-switch';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = this.editFnAuto.has(f);
+      cb.setAttribute('aria-label', `${t('modal.loco_fn_auto_aria')} F${f}`);
+      cb.addEventListener('change', () => {
+        if (cb.checked) this.editFnAuto.add(f);
+        else this.editFnAuto.delete(f);
+        row.classList.toggle('is-auto', cb.checked);
+      });
+      const track = document.createElement('span');
+      track.className = 'loco-switch-track';
+      sw.append(cb, track);
+      autoCell.appendChild(sw);
+
+      row.append(keyCell, labelCell, autoCell);
+      this.fnTableBody.appendChild(row);
+    }
+  }
+
+  /** Stand des Funktionen-Tabs für das Speichern. Leere Namen entfallen. */
+  private collectFunctionEditor(): Pick<Locomotive, 'functionLabels' | 'autoFunctions'> {
+    const labels: Record<number, string> = {};
+    for (const [k, v] of Object.entries(this.editFnLabels)) {
+      const clean = v.trim();
+      if (clean) labels[Number(k)] = clean;
+    }
+    return {
+      functionLabels: Object.keys(labels).length > 0 ? labels : undefined,
+      autoFunctions: [...this.editFnAuto].sort((a, b) => a - b)
+    };
   }
 
   private resetImageState(loco: Locomotive | null): void {
@@ -271,6 +434,7 @@ export class Throttle {
     const vMid = parseInt(this.vMidInput?.value || '50', 10);
     const vMax = parseInt(this.vMaxInput?.value || '100', 10);
     const lengthCm = parseInt(this.lengthInput?.value || '25', 10);
+    const fnConfig = this.collectFunctionEditor();
 
     if (editId) {
       // Vorhandene Lok bearbeiten
@@ -284,7 +448,8 @@ export class Throttle {
           vMin,
           vMid,
           vMax,
-          lengthCm
+          lengthCm,
+          ...fnConfig
         };
         wsClient.send({
           type: 'UPDATE_LOCO',
@@ -308,7 +473,8 @@ export class Throttle {
         vMax,
         lengthCm,
         trainType,
-        currentBlockId: null
+        currentBlockId: null,
+        ...fnConfig
       };
       wsClient.send({
         type: 'CREATE_LOCO',
@@ -480,6 +646,7 @@ export class Throttle {
       revBtn: null as any,
       fnBox: null as any,
       fnBtns: new Map(),
+      fnKey: '',
       presetBtns: [],
       isDragging: false,
       pendingSpeed: null,
@@ -606,27 +773,35 @@ export class Throttle {
     // Functions Grid (Dynamisch für alle definierten Funktionen F0 - F28)
     const fnBox = document.createElement('div');
     fnBox.className = 'functions-grid';
+    ref.fnBox = fnBox;
+    this.renderFunctionButtons(ref, loco);
+    card.appendChild(fnBox);
 
-    const defaultLabels: Record<number, string> = {
-      0: '💡 F0 Licht',
-      1: '🔊 F1 Sound',
-      2: '🎺 F2 Horn',
-      3: '🐢 F3 Rangier',
-      4: '🔗 F4 Kuppl.',
-      5: '💨 F5 Rauch',
-      6: '🔔 F6 Glocke',
-      7: '🔇 F7 Mute'
-    };
+    return ref;
+  }
 
-    const labelsToUse = loco.functionLabels || defaultLabels;
+  /** Schlüssel für Namen + Automatik-Tasten: ändert er sich, wird das Funktionsraster neu gebaut. */
+  private functionKey(loco: Locomotive): string {
+    return JSON.stringify([loco.functionLabels ?? null, getAutoFunctions(loco)]);
+  }
+
+  private renderFunctionButtons(ref: LocoCardRef, loco: Locomotive): void {
+    ref.fnKey = this.functionKey(loco);
+    ref.fnBtns.clear();
+    ref.fnBox.replaceChildren();
+
+    const labelsToUse = loco.functionLabels || DEFAULT_FUNCTION_LABELS;
+    const autoFns = new Set(getAutoFunctions(loco));
     const functionIndices = Object.keys(labelsToUse).map((k) => parseInt(k, 10)).sort((a, b) => a - b);
 
     for (const f of functionIndices) {
       const active = !!loco.functions[f];
+      const isAuto = autoFns.has(f);
+      const label = labelsToUse[f] || `F${f}`;
       const fnBtn = document.createElement('button');
-      fnBtn.className = `fn-btn ${active ? 'active' : ''}`;
-      fnBtn.textContent = labelsToUse[f] || `F${f}`;
-      fnBtn.title = labelsToUse[f] || `F${f}`;
+      fnBtn.className = `fn-btn ${active ? 'active' : ''} ${isAuto ? 'fn-auto' : ''}`;
+      fnBtn.textContent = label;
+      fnBtn.title = isAuto ? `${label} (${t('throttle.fn_auto_tooltip')})` : label;
       fnBtn.addEventListener('click', () => {
         if (navigator.vibrate) navigator.vibrate(15);
         const currentLoco = wsClient.locos.find((l) => l.id === loco.id) || loco;
@@ -636,13 +811,9 @@ export class Throttle {
           payload: { locoId: loco.id, functionIndex: f, active: !curActive }
         });
       });
-      fnBox.appendChild(fnBtn);
+      ref.fnBox.appendChild(fnBtn);
       ref.fnBtns.set(f, fnBtn);
     }
-    card.appendChild(fnBox);
-    ref.fnBox = fnBox;
-
-    return ref;
   }
 
   private updateLocoCard(ref: LocoCardRef, loco: Locomotive): void {
@@ -687,7 +858,10 @@ export class Throttle {
     ref.fwdBtn.classList.toggle('active', loco.direction === 'FWD');
     ref.revBtn.classList.toggle('active', loco.direction === 'REV');
 
-    // Funktions-Buttons
+    // Funktions-Buttons (neu bauen, wenn Namen oder Automatik im Lok-Editor geändert wurden)
+    if (this.functionKey(loco) !== ref.fnKey) {
+      this.renderFunctionButtons(ref, loco);
+    }
     for (const [f, btn] of ref.fnBtns.entries()) {
       btn.classList.toggle('active', !!loco.functions[f]);
     }

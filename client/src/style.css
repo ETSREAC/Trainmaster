@@ -3838,6 +3838,260 @@ select:disabled,
   flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Lok-Editor (Tabs: Allgemein / Fahrverhalten / Funktionen)
+   ========================================================================== */
+.modal-dialog.loco-editor {
+  max-width: 640px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.loco-editor #form-loco {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.loco-editor-tabs {
+  flex-wrap: wrap;
+}
+
+/* Feste Hoehe: der Dialog springt beim Tab-Wechsel nicht */
+.loco-editor-panel {
+  height: min(460px, calc(92vh - 210px));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.loco-editor-panel[hidden] {
+  display: none;
+}
+
+.loco-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.loco-editor-row-3 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.loco-editor-row .form-group {
+  min-width: 0;
+}
+
+.form-group label.loco-editor-sublabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.loco-editor-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0 0 6px;
+}
+
+.loco-editor-narrow {
+  max-width: 160px;
+}
+
+.loco-fn-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.loco-fn-toolbar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.loco-fn-filter {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.loco-fn-table-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.loco-fn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.loco-fn-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.loco-fn-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.loco-fn-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.loco-fn-table tbody tr.is-auto {
+  background: rgba(210, 153, 34, 0.08);
+}
+
+.loco-fn-key {
+  display: inline-block;
+  min-width: 34px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.loco-fn-table .form-control {
+  width: 100%;
+  padding: 6px 10px;
+}
+
+.loco-fn-col-auto {
+  width: 96px;
+  text-align: center !important;
+}
+
+.loco-fn-table td.loco-fn-auto-cell {
+  text-align: center;
+}
+
+/* Kippschalter */
+.loco-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.loco-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.loco-switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  transition: background 0.15s, border-color 0.15s;
+  pointer-events: none;
+}
+
+.loco-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.loco-switch input:checked + .loco-switch-track {
+  background: rgba(210, 153, 34, 0.35);
+  border-color: #d29922;
+}
+
+.loco-switch input:checked + .loco-switch-track::after {
+  transform: translateX(16px);
+  background: #e3b341;
+}
+
+.loco-switch input:focus-visible + .loco-switch-track {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Fahrregler: Funktion wird von der Automatik eingeschaltet */
+.fn-btn.fn-auto::after {
+  content: 'A';
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: #e3b341;
+  border: 1px solid rgba(210, 153, 34, 0.5);
+}
+
+@media (max-width: 560px) {
+  .loco-editor-row,
+  .loco-editor-row-3 {
+    grid-template-columns: 1fr;
+  }
+  .loco-editor-panel {
+    height: auto;
+  }
+  .loco-fn-table-wrap {
+    flex: none;
+    max-height: 52vh;
+  }
+  .loco-fn-table td,
+  .loco-fn-table thead th {
+    padding: 5px 6px;
+  }
+  .loco-fn-col-auto {
+    width: 72px;
+  }
+  .loco-fn-key {
+    min-width: 30px;
+    padding: 2px 4px;
+  }
+  .loco-fn-filter {
+    margin-left: 0;
+  }
+}
+
 .loco-image-editor {
   display: flex;
   gap: 12px;

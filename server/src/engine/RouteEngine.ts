@@ -2,6 +2,7 @@ import { Block, Direction, Locomotive, Route, SignalAspect } from '../types.js';
 import { BlockManager } from './BlockManager.js';
 import { LocoManager } from './LocoManager.js';
 import { TurnoutManager } from './TurnoutManager.js';
+import { getAutoFunctions } from './locoFunctions.js';
 
 export interface RouteEvents {
   onRouteUpdated: (route: Route) => void;
@@ -275,10 +276,11 @@ export class RouteEngine {
         this.events.onLog(`Abfahrt über ${route.name} abgebrochen: Fahrstraße nicht mehr gesichert.`, 'warn');
         return;
       }
-      // Spitzenlicht (F0 / F1) vor/bei Abfahrt automatisch einschalten
-      this.ensureLocoLights(locoId);
+      // Automatik-Funktionen der Lok (Lok-Editor, Standard F0) bei Abfahrt einschalten
+      const fns = this.applyAutoFunctions(locoId);
       this.locoManager.setSpeed(locoId, current.vMid, targetDirection);
-      this.events.onLog(`Zug ${current.name} fährt ab (${targetDirection}) mit Reisegeschwindigkeit (${current.vMid}) [💡 Licht an]`, 'info');
+      const fnText = fns.length ? ` [${fns.map((f) => `F${f}`).join(', ')} ein]` : '';
+      this.events.onLog(`Zug ${current.name} fährt ab (${targetDirection}) mit Reisegeschwindigkeit (${current.vMid})${fnText}`, 'info');
     }, 500);
     this.pendingStarts.set(route.id, { timer, locoId });
 
@@ -357,11 +359,11 @@ export class RouteEngine {
         const oldDccDir = loco.direction;
         const newDccDir: Direction = oldDccDir === 'FWD' ? 'REV' : 'FWD';
         this.locoManager.setSpeed(loco.id, 0, newDccDir);
-        // Spitzenlicht (F0 / F1) sicherstellen/auffrischen für die neue Fahrtrichtung
-        this.ensureLocoLights(loco.id);
+        // Automatik-Funktionen für die neue Fahrtrichtung auffrischen
+        this.applyAutoFunctions(loco.id);
         this.locoArrivalDirection.set(loco.id, oppositeLayoutDir);
         this.events.onLog(
-          `[Automatik] 🔄 Richtungswechsel am Bahnsteig (${block.name}): ${loco.name} wechselt Fahrtrichtung von ${oldDccDir} auf ${newDccDir} (Kopfbahnhof/Stumpfgleis - Spitzenlicht F0 umgeschaltet).`,
+          `[Automatik] 🔄 Richtungswechsel am Bahnsteig (${block.name}): ${loco.name} wechselt Fahrtrichtung von ${oldDccDir} auf ${newDccDir} (Kopfbahnhof/Stumpfgleis).`,
           'info'
         );
       }
@@ -540,10 +542,10 @@ export class RouteEngine {
 
     if (this.automaticModeActive) {
       this.events.onLog('AUTOGARIUM / AUTOMATIK-MODUS AKTIVIERT.', 'info');
-      // Für alle Züge, die aktuell auf der Anlage aufgestellt sind, das Licht (F0 / F1) einschalten
+      // Für alle aufgestellten Züge die Automatik-Funktionen aus dem Lok-Editor einschalten
       for (const block of this.blockManager.getAllBlocks()) {
         if (block.currentLocoId) {
-          this.ensureLocoLights(block.currentLocoId);
+          this.applyAutoFunctions(block.currentLocoId);
         }
       }
       this.startAutoLoop();
@@ -689,24 +691,19 @@ export class RouteEngine {
   /**
    * Schaltet für eine Lokomotive das Spitzenlicht ein (F0 und ggf. F1 / konfigurierte Lichtfunktionen)
    */
-  private ensureLocoLights(locoId: string): void {
+  /**
+   * Schaltet die im Lok-Editor gewählten Automatik-Funktionen ein (Standard: nur F0).
+   * Früher wurden alle Funktionen mit "Licht" im Namen eingeschaltet, also auch
+   * Fernlicht, Rücklicht, Führerstandslicht usw.
+   * Rückgabe: eingeschaltete Funktionen (für die Protokollmeldung).
+   */
+  private applyAutoFunctions(locoId: string): number[] {
     const loco = this.locoManager.getLoco(locoId);
-    if (!loco) return;
-
-    // F0 ist der NMRA-Standard für Spitzenlicht
-    this.locoManager.setFunction(loco.id, 0, true);
-
-    // Prüfen, ob weitere Funktionen als Licht konfiguriert sind (z.B. F1) oder aktiv gespeichert waren
-    if (loco.functionLabels) {
-      for (const [fnStr, label] of Object.entries(loco.functionLabels)) {
-        const fnIdx = parseInt(fnStr, 10);
-        if (!isNaN(fnIdx) && /licht|light|spitze|scheinwerfer/i.test(label)) {
-          this.locoManager.setFunction(loco.id, fnIdx, true);
-        }
-      }
-    } else if (loco.functions[1] === true) {
-      // Falls keine Labels definiert sind, aber F1 aktiv hinterlegt war (z.B. Amori701)
-      this.locoManager.setFunction(loco.id, 1, true);
+    if (!loco) return [];
+    const fns = getAutoFunctions(loco);
+    for (const fn of fns) {
+      this.locoManager.setFunction(loco.id, fn, true);
     }
+    return fns;
   }
 }

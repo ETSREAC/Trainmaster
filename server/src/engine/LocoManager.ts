@@ -1,4 +1,5 @@
 import { Direction, Locomotive } from '../types.js';
+import { sanitizeAutoFunctions, sanitizeFunctionLabels } from './locoFunctions.js';
 
 function sanitizeLocoName(name: string): string {
   if (typeof name !== 'string') return 'Lokomotive';
@@ -21,7 +22,7 @@ export class LocoManager {
   constructor(initialLocos: Locomotive[], events: LocoEvents) {
     this.events = events;
     for (const l of initialLocos) {
-      this.locos.set(l.id, { ...l, name: sanitizeLocoName(l.name) });
+      this.locos.set(l.id, { ...l, name: sanitizeLocoName(l.name), autoFunctions: sanitizeAutoFunctions(l.autoFunctions) });
     }
   }
 
@@ -77,6 +78,8 @@ export class LocoManager {
     const sanitized: Locomotive = {
       ...loco,
       name: sanitizeLocoName(loco.name),
+      functionLabels: sanitizeFunctionLabels(loco.functionLabels),
+      autoFunctions: sanitizeAutoFunctions(loco.autoFunctions),
       image: undefined // nur über den Upload-Endpunkt setzbar
     };
     this.locos.set(sanitized.id, sanitized);
@@ -94,6 +97,8 @@ export class LocoManager {
     const updated: Locomotive = {
       ...loco,
       name: sanitizeLocoName(loco.name),
+      functionLabels: sanitizeFunctionLabels(loco.functionLabels),
+      autoFunctions: sanitizeAutoFunctions(loco.autoFunctions),
       speed,
       targetSpeed: speed,
       direction,

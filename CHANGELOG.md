@@ -10,6 +10,25 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.11.0] - 2026-11-04
+
+Minor-Release: Automatik-Funktionen pro Lok und überarbeiteter Lok-Editor.
+
+### Fixed
+- Automatikbetrieb hat alle Funktionen eingeschaltet, deren Name „Licht“, „Light“, „Spitze“ oder „Scheinwerfer“ enthielt. Bei der BR 193 Vectron waren das F0, F4 (Fernlicht), F8 (Spitzenlicht hinten), F11 und F12. Ohne Funktionsnamen kam zusätzlich F1 dazu, wenn F1 zuletzt an war. Die Namenssuche ist entfernt.
+
+### Added
+- Neues Lok-Feld `autoFunctions`: Funktionen, die die Automatik einschaltet (beim Start, bei jeder Abfahrt, nach einem Richtungswechsel). Ohne Einstellung schaltet die Automatik nur F0. Bestehende Daten bleiben unverändert.
+- Lok-Editor mit Tabs **Allgemein**, **Fahrverhalten** und **Funktionen**. Der neue Funktionen-Tab zeigt eine Tabelle F0–F28 mit Bezeichnung und Automatik-Schalter, dazu „Nur F0“, „Keine“ und „Alle F0–F28 zeigen“. Funktionsnamen lassen sich jetzt im Editor ändern.
+- Fahrregler: Funktionen, die die Automatik einschaltet, tragen ein „A“. Geänderte Namen erscheinen sofort, ohne Neuladen.
+- Tests: `npm run test:autofn` (10 Tests). Prüft die Regeln, die echte RouteEngine mit den Vectron-Namen und das Speichern über `UPDATE_LOCO`.
+
+### Changed
+- Server prüft Funktionsnamen (max. 64 Zeichen, ohne spitze Klammern) und Automatik-Tasten (0–28) beim Anlegen und Ändern einer Lok.
+- Lok-Editor: Pflichtfeld leer in einem anderen Tab springt automatisch zum richtigen Tab. Der Dialog hat eine feste Höhe und springt beim Tab-Wechsel nicht.
+
+---
+
 ## [1.10.1] - 2026-11-04
 
 Patch-Release: Lokadressen im Server-Z21-Treiber.
