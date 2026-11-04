@@ -10,6 +10,19 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.10.1] - 2026-11-04
+
+Patch-Release: Lokadressen im Server-Z21-Treiber.
+
+### Fixed
+- `Z21Driver`: Loks mit kurzen Adressen 100–127 wurden als lange Adresse gesendet (`isLong = address >= 100`). Laut Z21-Spezifikation gilt die lange Kodierung (`Adr_MSB | 0xC0`) erst ab Adresse 128. Die Z21 hat diese Befehle deshalb an eine falsche Lok geschickt. Betroffen waren Fahrbefehle und Funktionen.
+- Gemeinsame Funktion `Z21Driver.encodeLocoAddress()` statt doppelter Kodierung in `setLocoSpeed` und `setLocoFunction`.
+
+### Added
+- Tests: `scripts/test_z21_driver.mjs` (in `npm run test:z21`). Prüft die Adresskodierung 1–9999 und fährt den echten Treiber gegen den Z21-Simulator. Mit dem alten Code meldet der Simulator für Lok 100 und Lok 127 „lange Adresse < 128“.
+
+---
+
 ## [1.10.0] - 2026-11-04
 
 Minor-Release: CrowPanel-Drehregler steuert eine Roco Z21 eigenständig (Ticket `TICKET_CROWPANEL_ROTARY_Z21_STANDALONE`).

@@ -91,6 +91,8 @@ Ausgewertet werden `LAN_X_LOCO_INFO` (Fahrstufe, Richtung, F0–F31), `LAN_X_BC_
 5. Nach einem Ausfall der Z21 erkennt der Knob die Trennung binnen 8 s und meldet sich danach selbstständig neu an.
 6. DCC-EX-Betrieb bleibt unverändert, wenn `CS_PROTOCOL` nicht gesetzt ist.
 
-## 6. Nebenbefund (nicht Teil dieses Tickets)
+## 6. Nebenbefund (behoben in v1.10.1)
 
-`server/src/hal/Z21Driver.ts` kodiert Adressen schon **ab 100** als lange Adresse (`isLong = address >= 100`). Laut Spezifikation gilt das erst ab 128. Loks mit kurzen Adressen 100–127 werden vom Server deshalb falsch angesprochen. Dafür braucht es ein eigenes Patch-Ticket.
+`server/src/hal/Z21Driver.ts` hat Adressen schon **ab 100** als lange Adresse kodiert (`isLong = address >= 100`). Laut Spezifikation gilt das erst ab 128. Loks mit kurzen Adressen 100–127 hat der Server deshalb falsch angesprochen.
+
+**Behoben in v1.10.1** mit `Z21Driver.encodeLocoAddress()`. Test: `scripts/test_z21_driver.mjs`. Gegen den alten Code meldet der Simulator für Lok 100 das Paket `e4 13 c0 64 …` als „lange Adresse 100 < 128“. Mit dem Fix gibt es keine Fehler.

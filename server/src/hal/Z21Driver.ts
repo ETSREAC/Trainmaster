@@ -106,10 +106,18 @@ export class Z21Driver implements ICommandStation {
     this.setPower(true);
   }
 
+  /**
+   * Lokadresse nach Z21-Spez. (§4.1): Adr_MSB = (Adr >> 8) & 0x3F, ab Adresse 128
+   * zusätzlich | 0xC0 (lange Adresse). Adr_LSB = Adr & 0xFF.
+   * Kurze Adressen 1–127 haben Adr_MSB = 0x00.
+   */
+  static encodeLocoAddress(address: number): [number, number] {
+    const msb = ((address >> 8) & 0x3F) | (address >= 128 ? 0xC0 : 0x00);
+    return [msb, address & 0xFF];
+  }
+
   async setLocoSpeed(address: number, speed: number, direction: Direction): Promise<void> {
-    const isLong = address >= 100;
-    const adrMsb = isLong ? (0xC0 | (address >> 8)) : 0x00;
-    const adrLsb = isLong ? (address & 0xFF) : address;
+    const [adrMsb, adrLsb] = Z21Driver.encodeLocoAddress(address);
 
     // 128 Fahrstufen: Bit 7 = Richtung (1=Vor, 0=Zurück), Bit 0-6 = Fahrstufe (0=Halt, 1=Not-Halt, 2-127=Stufen)
     const dirBit = direction === 'FWD' ? 0x80 : 0x00;
@@ -120,9 +128,7 @@ export class Z21Driver implements ICommandStation {
   }
 
   async setLocoFunction(address: number, functionIndex: number, active: boolean): Promise<void> {
-    const isLong = address >= 100;
-    const adrMsb = isLong ? (0xC0 | (address >> 8)) : 0x00;
-    const adrLsb = isLong ? (address & 0xFF) : address;
+    const [adrMsb, adrLsb] = Z21Driver.encodeLocoAddress(address);
 
     // CR-14: LAN_X_SET_LOCO_FUNCTION (Z21-Spez. §4.3.1): E4 F8 MSB LSB TTNNNNNN
     // TT: 00 = aus, 01 = ein; NNNNNN = Funktionsindex 0..31
