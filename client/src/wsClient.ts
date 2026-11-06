@@ -117,10 +117,24 @@ export class WSClient {
     };
   }
 
-  public send(action: WSClientAction): void {
+  /** Rückgabe: false, wenn keine Verbindung besteht und die Nachricht NICHT gesendet wurde. */
+  public send(action: WSClientAction): boolean {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(action));
+      return true;
     }
+    return false;
+  }
+
+  /**
+   * Solange diese Funktion true liefert (Editor offen oder ungespeicherte Änderungen),
+   * überschreibt ein Gleisplan vom Server den lokalen Stand NICHT. Sonst kann das Echo
+   * einer älteren Speicherung ein gerade gesetztes Gleis wieder entfernen.
+   */
+  public layoutGuard: (() => boolean) | null = null;
+
+  private acceptServerLayout(): boolean {
+    return !this.layoutGuard?.();
   }
 
   private handleMessage(msg: WSServerMessage): void {
@@ -132,7 +146,7 @@ export class WSClient {
         this.signals = msg.payload.signals;
         this.sensors = msg.payload.sensors;
         this.blocks = msg.payload.blocks;
-        this.layout = msg.payload.layout;
+        if (this.acceptServerLayout()) this.layout = msg.payload.layout;
         this.routes = msg.payload.routes;
         this.bbt = msg.payload.bbt;
         if (msg.payload.wioNodes) {
@@ -219,7 +233,7 @@ export class WSClient {
       }
 
       case 'LAYOUT_UPDATED': {
-        this.layout = msg.payload;
+        if (this.acceptServerLayout()) this.layout = msg.payload;
         break;
       }
 

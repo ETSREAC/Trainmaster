@@ -4,19 +4,24 @@ import { TrainDepotDrawer } from './TrainDepotDrawer.js';
 import { t } from '../i18n.js';
 import { locoImageSrc } from '../locoImage.js';
 import { escapeAttr, escapeHtml } from '../sanitize.js';
+import { showToast } from '../toast.js';
+import type { EditorTool } from '../editor/editorTypes.ts';
+import { LayoutHistory, RenderScheduler, decideGridClick, isRepeatClick, rotateBy90 } from '../editor/editorCore.ts';
 
-export type EditorTool =
-  | 'STRAIGHT'
-  | 'CURVE'
-  | 'TURNOUT_LEFT'
-  | 'TURNOUT_RIGHT'
-  | 'BLOCK'
-  | 'SIGNAL'
-  | 'BUFFER'
-  | 'SENSOR'
-  | 'INSPECT'
-  | 'ROTATE'
-  | 'DELETE';
+export type { EditorTool };
+
+type SaveState = 'saved' | 'pending' | 'offline';
+
+const TYPE_NAMES: Record<string, string> = {
+  STRAIGHT: 'Gerade',
+  CURVE: 'Kurve',
+  TURNOUT_LEFT: 'Weiche links',
+  TURNOUT_RIGHT: 'Weiche rechts',
+  BLOCK: 'Block',
+  SIGNAL: 'Signal',
+  SENSOR: 'Sensor',
+  BUFFER: 'Prellbock'
+};
 
 export class TrackCanvas {
   private svg: SVGSVGElement;
@@ -30,37 +35,66 @@ export class TrackCanvas {
   private minRows = 10;
   private zoom = 1.0;
   private hoveredCell: { x: number; y: number } | null = null;
+  private hoverRect: SVGRectElement | null = null;
   private dragOverBlockId: string | null = null;
+
+  // Editor-Robustheit: Auswahl, Undo/Redo, Speicherstatus, gebündeltes Neuzeichnen
+  private selectedElemId: string | null = null;
+  private history = new LayoutHistory(100);
+  private layoutDirty = false;
+  private saveState: SaveState = 'saved';
+  private selectionBar: HTMLDivElement | null = null;
+  private scheduler: RenderScheduler;
 
   constructor(svgElement: SVGSVGElement) {
     this.svg = svgElement;
+    this.scheduler = new RenderScheduler(() => this.renderNow(), (cb) => requestAnimationFrame(cb));
     this.init();
     this.initModals();
+    this.initEditorControls();
   }
 
   private init(): void {
-    wsClient.subscribe(() => this.render());
+    // Server-Gleisplan darf lokale Editor-Änderungen nicht überschreiben
+    wsClient.layoutGuard = () => this.isEditMode || this.layoutDirty;
 
-    // Mouse Move für Gitter-Vorschau im Editor
+    wsClient.subscribe(() => {
+      // Nach Wiederverbindung nicht gesendete Gleisplan-Änderungen nachholen
+      if (this.layoutDirty && wsClient.status.connected && !this.autoSaveTimer) {
+        this.flushLayoutSave();
+      }
+      this.render();
+    });
+
+    // Während Maustaste/Finger gedrückt ist, nicht neu zeichnen (sonst gehen Klicks verloren)
+    const canvasContainer = this.svg.parentElement;
+    canvasContainer?.addEventListener('pointerdown', () => this.scheduler.hold(), true);
+    window.addEventListener('pointerup', () => this.scheduler.release());
+    window.addEventListener('pointercancel', () => this.scheduler.release());
+    canvasContainer?.addEventListener('scroll', () => this.positionSelectionBar(), { passive: true });
+    window.addEventListener('resize', () => this.positionSelectionBar());
+
+    // Mouse Move für Gitter-Vorschau im Editor (nur das Hover-Rechteck verschieben, kein Neuzeichnen)
     this.svg.addEventListener('mousemove', (e) => {
       if (!this.isEditMode) return;
       const pos = this.getGridPosFromEvent(e);
       if (!this.hoveredCell || this.hoveredCell.x !== pos.x || this.hoveredCell.y !== pos.y) {
         this.hoveredCell = pos;
-        this.render();
+        this.updateHoverRect();
       }
     });
 
     this.svg.addEventListener('mouseleave', () => {
       if (this.isEditMode && this.hoveredCell) {
         this.hoveredCell = null;
-        this.render();
+        this.updateHoverRect();
       }
     });
 
-    // Klick auf das SVG-Canvas
+    // Klick auf das SVG-Canvas (Editor): eine Stelle für alle Editor-Klicks
     this.svg.addEventListener('click', (e) => {
       if (!this.isEditMode) return;
+      if (isRepeatClick(e)) return; // Doppelklick = nur eine Aktion
       const pos = this.getGridPosFromEvent(e);
       this.handleGridClick(pos.x, pos.y);
     });
@@ -264,6 +298,10 @@ export class TrackCanvas {
         this.hideBlockContextMenu();
       }
     });
+
+    // Editor-Tastenkürzel. Capture-Phase, damit z. B. "R" im Editor nicht zusätzlich
+    // die Fahrtrichtung der aktiven Lok umschaltet (globale Steuerung in main.ts).
+    window.addEventListener('keydown', (e) => this.handleEditorKey(e), true);
 
     // Sekündlicher Ticker für Live-Wartezeit-Countdowns auf dem Gleisplan & im Menü
     setInterval(() => this.tickWaitTimers(), 1000);
@@ -479,19 +517,21 @@ export class TrackCanvas {
 
   public expandGrid(direction: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM'): void {
     if (direction === 'LEFT') {
+      this.recordHistory();
       for (const el of wsClient.layout) {
         el.x += 1;
       }
       this.updateGridDimensions();
       this.render();
-      this.saveLayout();
+      this.triggerAutoSave();
     } else if (direction === 'TOP') {
+      this.recordHistory();
       for (const el of wsClient.layout) {
         el.y += 1;
       }
       this.updateGridDimensions();
       this.render();
-      this.saveLayout();
+      this.triggerAutoSave();
     } else if (direction === 'RIGHT') {
       this.cols += 3;
       this.render();
@@ -557,18 +597,16 @@ export class TrackCanvas {
   }
 
   public setEditMode(edit: boolean): void {
-    if (!edit && this.autoSaveTimer) {
-      window.clearTimeout(this.autoSaveTimer);
-      this.autoSaveTimer = null;
-      wsClient.send({
-        type: 'UPDATE_LAYOUT',
-        payload: { elements: wsClient.layout }
-      });
+    if (!edit && (this.autoSaveTimer || this.layoutDirty)) {
+      this.flushLayoutSave();
     }
 
     this.isEditMode = edit;
     this.selectedStartBlockId = null;
     this.hoveredCell = null;
+    this.selectedElemId = null;
+    // Verlauf gilt pro Editor-Sitzung; im Fahrbetrieb kann sich der Plan von außen ändern
+    if (edit) this.history.clear();
 
     const palette = document.getElementById('editor-palette');
     if (palette) {
@@ -576,6 +614,7 @@ export class TrackCanvas {
     }
 
     this.updateHelperText();
+    this.updateEditorButtons();
     this.render();
   }
 
@@ -586,111 +625,356 @@ export class TrackCanvas {
 
   private autoSaveTimer: number | null = null;
 
+  private backupLayoutLocally(): void {
+    try {
+      localStorage.setItem('trainmaster_layout_backup', JSON.stringify(wsClient.layout));
+    } catch {}
+  }
+
   public triggerAutoSave(): void {
     if (this.autoSaveTimer) {
       window.clearTimeout(this.autoSaveTimer);
     }
-    try {
-      localStorage.setItem('trainmaster_layout_backup', JSON.stringify(wsClient.layout));
-    } catch {}
+    this.layoutDirty = true;
+    this.setSaveState('pending');
+    this.backupLayoutLocally();
 
     this.autoSaveTimer = window.setTimeout(() => {
       this.autoSaveTimer = null;
-      wsClient.send({
-        type: 'UPDATE_LAYOUT',
-        payload: { elements: wsClient.layout }
-      });
+      this.flushLayoutSave();
     }, 600);
   }
 
-  public saveLayout(showAlert = true): void {
+  /** Gleisplan sofort senden. Ohne Verbindung bleibt er als "ungespeichert" markiert und wird nachgeholt. */
+  private flushLayoutSave(): void {
     if (this.autoSaveTimer) {
       window.clearTimeout(this.autoSaveTimer);
       this.autoSaveTimer = null;
     }
-    try {
-      localStorage.setItem('trainmaster_layout_backup', JSON.stringify(wsClient.layout));
-    } catch {}
-
-    wsClient.send({
+    this.backupLayoutLocally();
+    const sent = wsClient.send({
       type: 'UPDATE_LAYOUT',
       payload: { elements: wsClient.layout }
     });
-    if (showAlert) {
-      alert('✅ Gleisplan erfolgreich auf dem Server gespeichert!');
+    this.layoutDirty = !sent;
+    this.setSaveState(sent ? 'saved' : 'offline');
+  }
+
+  public saveLayout(showFeedback = true): void {
+    this.layoutDirty = true;
+    this.flushLayoutSave();
+    if (showFeedback) {
+      if (this.saveState === 'saved') showToast('✓ Gleisplan auf dem Server gespeichert.');
+      else showToast('⚠ Keine Verbindung zum Server – wird automatisch nachgeholt.', { tone: 'warn' });
     }
   }
 
   public clearLayout(): void {
-    if (confirm('Möchtest du wirklich alle Gleise vom Plan entfernen?')) {
+    if (wsClient.layout.length === 0) return;
+    if (confirm('Möchtest du wirklich alle Gleise vom Plan entfernen?\n(Lässt sich mit "Rückgängig" wiederherstellen.)')) {
+      this.recordHistory();
       wsClient.layout = [];
+      this.selectedElemId = null;
       this.render();
-      this.saveLayout(false);
+      this.triggerAutoSave();
+      showToast('Gleisplan geleert.', { actionLabel: 'Rückgängig', onAction: () => this.undo() });
     }
   }
 
-  private handleGridClick(cellX: number, cellY: number): void {
-    const existingIndex = wsClient.layout.findIndex((el) => el.x === cellX && el.y === cellY);
-    const existing = existingIndex >= 0 ? wsClient.layout[existingIndex] : null;
+  private setSaveState(state: SaveState): void {
+    this.saveState = state;
+    const el = document.getElementById('editor-save-status');
+    if (!el) return;
+    el.dataset.state = state;
+    el.textContent = state === 'saved' ? '✓ Gespeichert' : state === 'pending' ? '… Speichert' : '⚠ Offline – wird nachgeholt';
+  }
 
-    if (this.currentTool === 'INSPECT') {
-      if (existing) {
-        if (existing.type === 'BLOCK' && existing.linkedId) {
-          this.openBlockModal(existing.linkedId);
-        } else if (existing.type.startsWith('TURNOUT') && existing.linkedId) {
-          this.openTurnoutModal(existing.linkedId);
-        } else if (existing.type === 'SENSOR' && existing.linkedId) {
-          this.openSensorModal(existing.linkedId);
-        } else if (existing.type === 'SIGNAL') {
-          this.openSignalModal(existing.linkedId, existing);
-        }
-      }
-      return;
+  // --- Undo / Redo -------------------------------------------------------
+
+  private recordHistory(): void {
+    this.history.record(wsClient.layout);
+    this.updateEditorButtons();
+  }
+
+  public undo(): void {
+    const prev = this.history.undo(wsClient.layout);
+    if (!prev) return;
+    this.applyHistoryState(prev);
+  }
+
+  public redo(): void {
+    const next = this.history.redo(wsClient.layout);
+    if (!next) return;
+    this.applyHistoryState(next);
+  }
+
+  private applyHistoryState(layout: TrackElement[]): void {
+    wsClient.layout = layout;
+    if (this.selectedElemId && !layout.some((e) => e.id === this.selectedElemId)) {
+      this.selectedElemId = null;
     }
-
-    if (this.currentTool === 'DELETE') {
-      if (existingIndex >= 0) {
-        wsClient.layout.splice(existingIndex, 1);
-        this.render();
-        this.triggerAutoSave();
-      }
-      return;
-    }
-
-    if (this.currentTool === 'ROTATE') {
-      if (existing) {
-        existing.rotation = ((existing.rotation + 90) % 360) as 0 | 90 | 180 | 270;
-        this.render();
-        this.triggerAutoSave();
-      }
-      return;
-    }
-
-    // Platzierungs-Werkzeuge: STRAIGHT, CURVE, TURNOUT_LEFT, TURNOUT_RIGHT, BLOCK, BUFFER, SENSOR
-    if (existing) {
-      if (existing.type === this.currentTool) {
-        // Gleiches Element erneut angeklickt -> Weiterdrehen um 90°
-        existing.rotation = ((existing.rotation + 90) % 360) as 0 | 90 | 180 | 270;
-      } else {
-        // Anderes Element an dieser Stelle -> Typ ersetzen
-        existing.type = this.currentTool;
-        this.assignDefaultLinkedId(existing);
-      }
-    } else {
-      // Neues Element auf leeres Gitterfeld setzen
-      const newElem: TrackElement = {
-        id: `elem-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        x: cellX,
-        y: cellY,
-        rotation: 0,
-        type: this.currentTool
-      };
-      this.assignDefaultLinkedId(newElem);
-      wsClient.layout.push(newElem);
-    }
-
+    this.updateEditorButtons();
     this.render();
     this.triggerAutoSave();
+  }
+
+  private updateEditorButtons(): void {
+    const undoBtn = document.getElementById('btn-undo') as HTMLButtonElement | null;
+    const redoBtn = document.getElementById('btn-redo') as HTMLButtonElement | null;
+    if (undoBtn) undoBtn.disabled = !this.history.canUndo;
+    if (redoBtn) redoBtn.disabled = !this.history.canRedo;
+  }
+
+  private initEditorControls(): void {
+    const guarded = (fn: () => void) => (e: MouseEvent) => {
+      if (isRepeatClick(e)) return;
+      fn();
+    };
+    document.getElementById('btn-undo')?.addEventListener('click', guarded(() => this.undo()));
+    document.getElementById('btn-redo')?.addEventListener('click', guarded(() => this.redo()));
+    this.updateEditorButtons();
+    this.setSaveState('saved');
+  }
+
+  private isModalOpen(): boolean {
+    return Array.from(document.querySelectorAll<HTMLElement>('.modal-overlay')).some(
+      (m) => m.style.display !== 'none' && m.offsetParent !== null
+    );
+  }
+
+  private handleEditorKey(e: KeyboardEvent): void {
+    if (!this.isEditMode) return;
+    const target = e.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+    if (this.isModalOpen()) return;
+
+    const ctrl = e.ctrlKey || e.metaKey;
+    const consume = () => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
+
+    if (ctrl && e.code === 'KeyZ') {
+      consume();
+      if (e.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+    if (ctrl && e.code === 'KeyY') {
+      consume();
+      this.redo();
+      return;
+    }
+    if (ctrl) return;
+
+    if (e.code === 'KeyR') {
+      // Im Editor nie die Lok-Fahrtrichtung umschalten
+      consume();
+      if (!e.repeat && this.selectedElemId) this.rotateElement(this.selectedElemId);
+      return;
+    }
+    if (e.code === 'Delete' || e.code === 'Backspace') {
+      if (this.selectedElemId) {
+        consume();
+        if (!e.repeat) this.deleteElement(this.selectedElemId);
+      }
+      return;
+    }
+    if (e.code === 'Escape' && this.selectedElemId) {
+      this.selectElement(null);
+    }
+  }
+
+  // --- Editor-Aktionen -----------------------------------------------------
+
+  private handleGridClick(cellX: number, cellY: number): void {
+    const existing = wsClient.layout.find((el) => el.x === cellX && el.y === cellY) || null;
+    const decision = decideGridClick(existing, this.currentTool, this.selectedElemId);
+
+    switch (decision.kind) {
+      case 'place':
+        this.placeElement(cellX, cellY, this.currentTool);
+        break;
+      case 'select':
+        this.selectElement(decision.elemId);
+        break;
+      case 'deselect':
+        this.selectElement(null);
+        break;
+      case 'rotate':
+        this.rotateElement(decision.elemId);
+        break;
+      case 'delete':
+        this.deleteElement(decision.elemId);
+        break;
+      case 'inspect':
+        this.selectElement(decision.elemId);
+        this.configureElement(decision.elemId);
+        break;
+      case 'none':
+        break;
+    }
+  }
+
+  private placeElement(cellX: number, cellY: number, tool: EditorTool): void {
+    this.recordHistory();
+    const newElem: TrackElement = {
+      id: `elem-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      x: cellX,
+      y: cellY,
+      rotation: 0,
+      type: tool as TrackElement['type']
+    };
+    this.assignDefaultLinkedId(newElem);
+    wsClient.layout.push(newElem);
+    // Neues Element ausgewählt lassen, damit es direkt mit R gedreht werden kann
+    this.selectedElemId = newElem.id;
+    this.render();
+    this.triggerAutoSave();
+  }
+
+  private selectElement(elemId: string | null): void {
+    this.selectedElemId = elemId;
+    this.render();
+  }
+
+  private rotateElement(elemId: string): void {
+    const elem = wsClient.layout.find((e) => e.id === elemId);
+    if (!elem) return;
+    this.recordHistory();
+    elem.rotation = rotateBy90(elem.rotation);
+    this.render();
+    this.triggerAutoSave();
+  }
+
+  private deleteElement(elemId: string): void {
+    const idx = wsClient.layout.findIndex((e) => e.id === elemId);
+    if (idx < 0) return;
+    const elem = wsClient.layout[idx];
+    this.recordHistory();
+    wsClient.layout.splice(idx, 1);
+    if (this.selectedElemId === elemId) this.selectedElemId = null;
+    this.render();
+    this.triggerAutoSave();
+    showToast(`${this.describeElement(elem)} gelöscht.`, { actionLabel: 'Rückgängig', onAction: () => this.undo() });
+  }
+
+  private configureElement(elemId: string): void {
+    const elem = wsClient.layout.find((e) => e.id === elemId);
+    if (!elem) return;
+    if (elem.type === 'BLOCK' && elem.linkedId) {
+      this.openBlockModal(elem.linkedId);
+    } else if (elem.type.startsWith('TURNOUT') && elem.linkedId) {
+      this.openTurnoutModal(elem.linkedId);
+    } else if (elem.type === 'SENSOR' && elem.linkedId) {
+      this.openSensorModal(elem.linkedId);
+    } else if (elem.type === 'SIGNAL') {
+      this.openSignalModal(elem.linkedId, elem);
+    }
+  }
+
+  private isConfigurable(elem: TrackElement): boolean {
+    return elem.type === 'SIGNAL' || (!!elem.linkedId && (elem.type === 'BLOCK' || elem.type === 'SENSOR' || elem.type.startsWith('TURNOUT')));
+  }
+
+  private describeElement(elem: TrackElement): string {
+    const base = TYPE_NAMES[elem.type] || elem.type;
+    let name: string | undefined;
+    if (elem.type === 'BLOCK') name = wsClient.blocks.find((b) => b.id === elem.linkedId)?.name;
+    else if (elem.type.startsWith('TURNOUT')) name = wsClient.turnouts.find((t) => t.id === elem.linkedId)?.name;
+    else if (elem.type === 'SIGNAL') name = wsClient.signals.find((s) => s.id === elem.linkedId)?.name;
+    else if (elem.type === 'SENSOR') name = wsClient.sensors.find((s) => s.id === elem.linkedId)?.name;
+    return name ? `${base} „${name}“` : base;
+  }
+
+  // --- Auswahl-Leiste über dem gewählten Element --------------------------
+
+  private getSelectionBar(): HTMLDivElement {
+    if (this.selectionBar) return this.selectionBar;
+    const bar = document.createElement('div');
+    bar.className = 'editor-selection-bar';
+    bar.style.display = 'none';
+    bar.innerHTML = `
+      <span class="sel-label"></span>
+      <button type="button" data-act="rotate" title="Drehen (Taste R)">⟳ Drehen <kbd>R</kbd></button>
+      <button type="button" data-act="config" title="Einstellungen öffnen">⚙ Einstellungen</button>
+      <button type="button" data-act="delete" class="danger" title="Löschen (Taste Entf)">🗑 Löschen <kbd>Entf</kbd></button>
+    `;
+    bar.addEventListener('pointerdown', (e) => e.stopPropagation());
+    bar.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isRepeatClick(e)) return;
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
+      const id = this.selectedElemId;
+      if (!btn || !id) return;
+      if (btn.dataset.act === 'rotate') this.rotateElement(id);
+      else if (btn.dataset.act === 'delete') this.deleteElement(id);
+      else if (btn.dataset.act === 'config') this.configureElement(id);
+    });
+    document.body.appendChild(bar);
+    this.selectionBar = bar;
+    return bar;
+  }
+
+  private positionSelectionBar(): void {
+    const elem = this.isEditMode && this.selectedElemId
+      ? wsClient.layout.find((e) => e.id === this.selectedElemId)
+      : undefined;
+    if (!elem) {
+      if (this.selectionBar) this.selectionBar.style.display = 'none';
+      return;
+    }
+    const bar = this.getSelectionBar();
+    const label = bar.querySelector('.sel-label');
+    if (label) label.textContent = this.describeElement(elem);
+    const cfgBtn = bar.querySelector<HTMLButtonElement>('button[data-act="config"]');
+    if (cfgBtn) cfgBtn.style.display = this.isConfigurable(elem) ? '' : 'none';
+
+    const svgRect = this.svg.getBoundingClientRect();
+    const scale = svgRect.width / (this.cols * this.cellSize);
+    const cellLeft = svgRect.left + elem.x * this.cellSize * scale;
+    const cellTop = svgRect.top + elem.y * this.cellSize * scale;
+    const cellW = this.cellSize * scale;
+
+    // Nur zeigen, wenn das Element im sichtbaren Bereich des Gleisplans liegt
+    const container = this.svg.parentElement?.getBoundingClientRect();
+    const visible = !container || (
+      cellLeft + cellW > container.left && cellLeft < container.right &&
+      cellTop + cellW > container.top && cellTop < container.bottom
+    );
+    if (!visible) {
+      bar.style.display = 'none';
+      return;
+    }
+
+    bar.style.display = 'flex';
+    const barW = bar.offsetWidth;
+    const barH = bar.offsetHeight;
+    let left = cellLeft + cellW / 2 - barW / 2;
+    let top = cellTop - barH - 8;
+    if (top < 8) top = cellTop + cellW + 8; // kein Platz oben -> unter das Feld
+    left = Math.max(8, Math.min(window.innerWidth - barW - 8, left));
+    bar.style.left = `${left}px`;
+    bar.style.top = `${top}px`;
+  }
+
+  private updateHoverRect(): void {
+    const r = this.hoverRect;
+    if (!r) return;
+    if (!this.isEditMode || !this.hoveredCell) {
+      r.setAttribute('visibility', 'hidden');
+      return;
+    }
+    r.setAttribute('visibility', 'visible');
+    r.setAttribute('x', `${this.hoveredCell.x * this.cellSize}`);
+    r.setAttribute('y', `${this.hoveredCell.y * this.cellSize}`);
+    const occupied = wsClient.layout.some((e) => e.x === this.hoveredCell!.x && e.y === this.hoveredCell!.y);
+    // Leeres Feld + Platzier-Werkzeug: blau (hier wird gesetzt). Belegt: grau (hier wird ausgewählt).
+    const placing = !occupied && !['INSPECT', 'ROTATE', 'DELETE'].includes(this.currentTool);
+    const deleting = occupied && this.currentTool === 'DELETE';
+    r.setAttribute('fill', deleting ? 'rgba(248, 81, 73, 0.18)' : placing ? 'rgba(47, 129, 247, 0.15)' : 'rgba(139, 148, 158, 0.10)');
+    r.setAttribute('stroke', deleting ? '#f85149' : placing ? '#58a6ff' : '#8b949e');
   }
 
   private assignDefaultLinkedId(elem: TrackElement): void {
@@ -925,7 +1209,14 @@ export class TrackCanvas {
         case 'ROTATE': toolName = 'Drehen (+90°)'; break;
         case 'DELETE': toolName = 'Löschen'; break;
       }
-      textEl.innerHTML = `✏️ <em>Aktives Werkzeug: <strong>${toolName}</strong>. Klicke auf ein Feld zum Platzieren oder Konfigurieren.</em>`;
+      const hint = this.currentTool === 'DELETE'
+        ? 'Klick auf ein Element löscht es.'
+        : this.currentTool === 'ROTATE'
+          ? 'Klick auf ein Element dreht es um 90°.'
+          : this.currentTool === 'INSPECT'
+            ? 'Klick auf ein Element öffnet seine Einstellungen.'
+            : 'Klick auf ein leeres Feld setzt das Element. Klick auf ein vorhandenes Element wählt es aus.';
+      textEl.innerHTML = `✏️ <em>Werkzeug: <strong>${toolName}</strong>. ${hint} <span class="helper-keys">R drehen · Entf löschen · Strg+Z rückgängig</span></em>`;
     } else if (this.selectedStartBlockId) {
       const b = wsClient.blocks.find((x) => x.id === this.selectedStartBlockId);
       textEl.innerHTML = `🎯 <strong>Startblock: ${b?.name || ''}</strong>. Klicke jetzt auf den <strong>Zielblock</strong>! <button id="btn-cancel-route" style="margin-left:8px;padding:2px 8px;cursor:pointer;">Abbrechen</button>`;
@@ -950,7 +1241,12 @@ export class TrackCanvas {
     }
   }
 
+  /** Neuzeichnen anfordern. Wird gebündelt (max. 1x pro Frame) und während gedrückter Maustaste zurückgehalten. */
   public render(): void {
+    this.scheduler.request();
+  }
+
+  private renderNow(): void {
     this.updateGridDimensions();
     const totalWidth = this.cols * this.cellSize;
     const totalHeight = this.rows * this.cellSize;
@@ -998,19 +1294,18 @@ export class TrackCanvas {
     bgRect.setAttribute('fill', 'url(#grid-pattern)');
     this.svg.appendChild(bgRect);
 
-    // Hover-Vorschau im Editor-Modus
-    if (this.isEditMode && this.hoveredCell) {
+    // Hover-Vorschau im Editor-Modus (wird bei Mausbewegung nur verschoben, nicht neu gebaut)
+    this.hoverRect = null;
+    if (this.isEditMode) {
       const hoverRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      hoverRect.setAttribute('x', `${this.hoveredCell.x * this.cellSize}`);
-      hoverRect.setAttribute('y', `${this.hoveredCell.y * this.cellSize}`);
       hoverRect.setAttribute('width', `${this.cellSize}`);
       hoverRect.setAttribute('height', `${this.cellSize}`);
-      hoverRect.setAttribute('fill', 'rgba(47, 129, 247, 0.15)');
-      hoverRect.setAttribute('stroke', '#58a6ff');
       hoverRect.setAttribute('stroke-dasharray', '4,4');
       hoverRect.setAttribute('stroke-width', '1.5');
       hoverRect.style.pointerEvents = 'none';
       this.svg.appendChild(hoverRect);
+      this.hoverRect = hoverRect;
+      this.updateHoverRect();
     }
 
     // 1. Layer für Gleise & Infrastruktur (Schotter, Schwellen, Schienen, Weichen, Signale, Sensoren)
@@ -1050,6 +1345,26 @@ export class TrackCanvas {
       this.renderBlockBadge(badgeGroup, block, elem);
       blockLayer.appendChild(badgeGroup);
     }
+
+    // Auswahlrahmen im Editor (über allem, klickt nicht mit)
+    const selected = this.isEditMode && this.selectedElemId
+      ? wsClient.layout.find((e) => e.id === this.selectedElemId)
+      : undefined;
+    if (this.selectedElemId && !selected) this.selectedElemId = null;
+    if (selected) {
+      const sel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      sel.setAttribute('x', `${selected.x * this.cellSize + 2}`);
+      sel.setAttribute('y', `${selected.y * this.cellSize + 2}`);
+      sel.setAttribute('width', `${this.cellSize - 4}`);
+      sel.setAttribute('height', `${this.cellSize - 4}`);
+      sel.setAttribute('rx', '6');
+      sel.setAttribute('fill', 'rgba(227, 179, 65, 0.08)');
+      sel.setAttribute('stroke', '#e3b341');
+      sel.setAttribute('stroke-width', '2.5');
+      sel.style.pointerEvents = 'none';
+      this.svg.appendChild(sel);
+    }
+    this.positionSelectionBar();
   }
 
   private renderElement(g: SVGGElement, elem: TrackElement): void {
@@ -1349,11 +1664,12 @@ export class TrackCanvas {
 
         g.appendChild(labelGroup);
 
+        // Im Editor übernimmt der zentrale Raster-Klick (Auswahl/Konfigurieren)
         if (!this.isEditMode) {
           g.style.cursor = 'pointer';
           g.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (!sig) return;
+            if (isRepeatClick(e) || !sig) return;
             const supported = getSignalSupportedAspects(sig);
             const currIdx = supported.indexOf(sig.aspect || 'HP0');
             const nextAspect = supported[(currIdx + 1) % supported.length];
@@ -1361,14 +1677,6 @@ export class TrackCanvas {
               type: 'SET_SIGNAL',
               payload: { signalId: sig.id, aspect: nextAspect }
             });
-          });
-        } else {
-          g.style.cursor = 'pointer';
-          g.addEventListener('click', (e) => {
-            if (this.currentTool === 'INSPECT' || this.currentTool === 'SIGNAL') {
-              e.stopPropagation();
-              this.openSignalModal(elem.linkedId, elem);
-            }
           });
         }
         break;
@@ -1464,15 +1772,7 @@ export class TrackCanvas {
 
         g.appendChild(sLabelGroup);
 
-        if (this.isEditMode) {
-          g.style.cursor = 'pointer';
-          g.addEventListener('click', (e) => {
-            if (this.currentTool === 'INSPECT' || this.currentTool === 'SENSOR') {
-              e.stopPropagation();
-              if (elem.linkedId) this.openSensorModal(elem.linkedId);
-            }
-          });
-        } else if (allowManualTrigger) {
+        if (!this.isEditMode && allowManualTrigger) {
           // Im Fahrbetrieb: Klickbar für Testbetrieb / Simulation
           g.style.cursor = 'pointer';
 
@@ -1544,7 +1844,7 @@ export class TrackCanvas {
               return;
             }
             e.stopPropagation();
-            if (!elem.linkedId) return;
+            if (isRepeatClick(e) || !elem.linkedId) return;
 
             if (sensor?.active) {
               // Wenn bereits aktiv: sofort ausschalten
@@ -1807,24 +2107,18 @@ export class TrackCanvas {
     toLabel.textContent = to ? (to.name.length > 8 ? `W${to.address}` : to.name) : 'W';
     lanternGroup.appendChild(toLabel);
 
-    // Klick-Events für Weiche & Laterne
-    lanternGroup.style.cursor = 'pointer';
-    g.style.cursor = 'pointer';
-
-    const handleSwitch = (e: MouseEvent) => {
-      e.stopPropagation();
-      if (this.isEditMode) {
-        if (this.currentTool === 'INSPECT' || this.currentTool.startsWith('TURNOUT')) {
-          if (to) this.openTurnoutModal(to.id);
-        }
-      } else {
-        if (!to) return;
+    // Klick auf die Laterne stellt die Weiche (nur Fahrbetrieb; im Editor übernimmt der Raster-Klick)
+    if (!this.isEditMode) {
+      lanternGroup.style.cursor = 'pointer';
+      g.style.cursor = 'pointer';
+      lanternGroup.addEventListener('click', (e: MouseEvent) => {
+        e.stopPropagation();
+        // Doppelklick würde die Weiche hin- und sofort zurückstellen
+        if (isRepeatClick(e) || !to) return;
         const nextState = to.state === 'STRAIGHT' ? 'DIVERGENT' : 'STRAIGHT';
         wsClient.send({ type: 'SET_TURNOUT', payload: { turnoutId: to.id, state: nextState } });
-      }
-    };
-
-    lanternGroup.addEventListener('click', handleSwitch);
+      });
+    }
     g.appendChild(lanternGroup);
   }
 
@@ -2022,23 +2316,17 @@ export class TrackCanvas {
     bg.addEventListener('touchend', cancelBlockTouch);
     bg.addEventListener('touchcancel', cancelBlockTouch);
 
+    bg.style.cursor = 'pointer';
     if (!this.isEditMode) {
-      bg.style.cursor = 'pointer';
       bg.addEventListener('click', (e) => {
         if (blockLongPressTriggered) {
           blockLongPressTriggered = false;
           return;
         }
         e.stopPropagation();
+        // Doppelklick würde Startblock wählen und gleich wieder abwählen
+        if (isRepeatClick(e)) return;
         this.handleBlockClick(block);
-      });
-    } else {
-      bg.style.cursor = 'pointer';
-      bg.addEventListener('click', (e) => {
-        if (this.currentTool === 'INSPECT' || this.currentTool === 'BLOCK') {
-          e.stopPropagation();
-          this.openBlockModal(block.id);
-        }
       });
     }
 

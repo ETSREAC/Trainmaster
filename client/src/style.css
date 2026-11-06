@@ -552,6 +552,127 @@ select:disabled,
   border-color: #f85149;
 }
 
+.palette-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+  transform: none;
+}
+
+/* Speicherstatus im Editor */
+.editor-save-status {
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 6px;
+  color: var(--text-muted);
+}
+.editor-save-status[data-state='saved'] { color: #3fb950; }
+.editor-save-status[data-state='pending'] { color: var(--text-muted); }
+.editor-save-status[data-state='offline'] { color: #d29922; font-weight: 600; }
+
+.helper-keys {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-style: normal;
+  font-size: 11px;
+}
+
+/* Leiste über dem ausgewählten Gleiselement */
+.editor-selection-bar {
+  position: fixed;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid #e3b341;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+.editor-selection-bar .sel-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e3b341;
+  padding: 0 6px;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor-selection-bar button {
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  min-height: 34px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+.editor-selection-bar button:hover { border-color: #58a6ff; }
+.editor-selection-bar button.danger:hover { border-color: #f85149; color: #f85149; }
+.editor-selection-bar kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-left: 2px;
+}
+@media (hover: none) {
+  .editor-selection-bar kbd, .helper-keys { display: none; }
+}
+
+/* Hinweis-Einblendung (ersetzt alert()) */
+.tm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 20px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.tm-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.tm-toast.warn { border-color: #d29922; }
+.tm-toast-action {
+  background: rgba(47, 129, 247, 0.2);
+  color: #58a6ff;
+  border: 1px solid #58a6ff;
+  border-radius: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  .tm-toast { bottom: 84px; } /* über der mobilen Tab-Leiste */
+}
+
 .btn-save {
   background: rgba(35, 134, 54, 0.2);
   color: #3fb950;

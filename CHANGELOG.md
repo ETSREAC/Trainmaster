@@ -10,6 +10,30 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.12.0] - 2026-11-06
+
+Minor-Release: Gleisplan-Editor und Stellpult robust gegen Fehl- und Doppelklicks.
+
+### Fixed
+- Klicks gingen verloren oder landeten auf dem falschen Element: Jede Server-Nachricht (Log, Sensor, Lichtsteuerung jede Sekunde) hat den Gleisplan komplett neu gebaut, auch zwischen Drücken und Loslassen der Maustaste. Neuzeichnen ist jetzt auf ein Mal pro Bild gebündelt und wartet, solange Maustaste oder Finger gedrückt sind.
+- Schnell hintereinander gesetzte Gleise konnten wieder verschwinden: Das Echo einer älteren Speicherung vom Server hat den lokalen Plan überschrieben, und die nächste Speicherung hat den Verlust dauerhaft gemacht. Im Editor und bei ungespeicherten Änderungen wird der Server-Plan jetzt nicht mehr übernommen.
+- Änderungen ohne Serververbindung gingen still verloren (`send` hat ohne Verbindung nichts getan). Sie werden jetzt als „Offline – wird nachgeholt“ markiert und beim Wiederverbinden gesendet.
+- Taste R im Editor hat zusätzlich die Fahrtrichtung der aktiven Lok umgeschaltet.
+- Doppelklick auf Weiche, Signal, Rückmelder oder Block im Fahrbetrieb hat zwei Aktionen ausgelöst (z. B. Weiche hin und sofort zurück). Jetzt zählt nur der erste Klick.
+
+### Changed
+- Editor: Platzieren nur noch auf **leere** Felder. Ein Klick auf ein vorhandenes Element wählt es aus (gelber Rahmen und Leiste mit Drehen / Einstellungen / Löschen), ein zweiter Klick hebt die Auswahl auf. Vorher hat der Klick das Element gedreht oder ohne Nachfrage durch einen anderen Typ ersetzt.
+- „Speichern“ zeigt eine kurze Einblendung statt eines `alert()`-Fensters. Neben dem Button steht der Speicherstatus (Gespeichert / Speichert / Offline).
+- Hover-Feld im Editor zeigt an, was ein Klick tut: blau = setzen, grau = auswählen, rot = löschen. Es wird verschoben statt den ganzen Plan neu zu zeichnen.
+
+### Added
+- Rückgängig / Wiederholen (bis 100 Schritte) mit Strg+Z / Strg+Y (oder Strg+Umschalt+Z) und Buttons in der Werkzeugleiste. Gilt für Setzen, Drehen, Löschen, Rand links/oben und „Leeren“.
+- Tastenkürzel im Editor: R dreht, Entf/Rücktaste löscht, Esc hebt die Auswahl auf.
+- Löschen zeigt „… gelöscht“ mit Button „Rückgängig“.
+- Tests: `scripts/test_editor_core.mjs` (`npm run test:editor`).
+
+---
+
 ## [1.11.0] - 2026-11-04
 
 Minor-Release: Automatik-Funktionen pro Lok und überarbeiteter Lok-Editor.

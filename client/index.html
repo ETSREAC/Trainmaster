@@ -18,7 +18,7 @@
         <img src="/logo.png" alt="TrainMaster" class="brand-logo">
         <div class="brand-text">
           <h1>TrainMaster</h1>
-          <span class="version-tag">v1.11.0 • Clean Dispatcher Edition</span>
+          <span class="version-tag">v1.12.0 • Clean Dispatcher Edition</span>
         </div>
       </div>
 
@@ -115,6 +115,13 @@
         </div>
         <!-- Editor Werkzeugleiste (im Editor-Modus aktiv) -->
         <div class="editor-palette" id="editor-palette" style="display: none;">
+          <button id="btn-undo" class="palette-btn" title="Rückgängig (Strg+Z)" disabled>
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span> Rückgängig
+          </button>
+          <button id="btn-redo" class="palette-btn" title="Wiederholen (Strg+Y)" disabled>
+            <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg></span> Wiederholen
+          </button>
+          <span class="palette-separator"></span>
           <span class="palette-label">Werkzeuge:</span>
           <button class="palette-btn active" data-tool="STRAIGHT" title="Gerades Gleis">
             <span class="icon">━</span> Gerade
@@ -172,6 +179,7 @@
             <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/><path d="M5 17V9a4 4 0 0 1 4-4h8M15 2l3 3-3 3"/></svg></span> Auto-Routen
           </button>
           <span class="palette-separator"></span>
+          <span id="editor-save-status" class="editor-save-status" data-state="saved" title="Änderungen werden automatisch gespeichert">✓ Gespeichert</span>
           <button id="btn-save-layout" class="btn btn-save" title="Gleisplan dauerhaft im Server speichern">
             <span class="icon"><svg class="svg-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span> Speichern
           </button>
