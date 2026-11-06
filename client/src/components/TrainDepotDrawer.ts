@@ -1,6 +1,7 @@
 import { Locomotive } from '../types.js';
 import { wsClient } from '../wsClient.js';
-import { onLanguageChange, t } from '../i18n.js';
+import { getLanguage, onLanguageChange, t } from '../i18n.js';
+import { registerView, renderViewNow } from '../uiScheduler.js';
 import { escapeHtml, escapeAttr } from '../sanitize.js';
 import { locoImageSrc, locoPlaceholderIcon } from '../locoImage.js';
 import {
@@ -52,25 +53,35 @@ export class TrainDepotDrawer {
       this.isOpen = savedState === 'true';
     }
 
-    wsClient.subscribe(() => {
-      this.render();
-    });
+    // Auf dem Handy liegt das offene Depot über dem Gleisplan -> dort standardmäßig eingeklappt
+    if (savedState === null && window.matchMedia('(max-width: 768px)').matches) {
+      this.isOpen = false;
+    }
 
-    TrainDepotDrawer.onSelectionChange = () => {
-      this.render();
-    };
+    // Nur neu zeichnen, wenn sich Loks/Blöcke/Auswahl wirklich geändert haben (sonst gehen Klicks verloren)
+    this.requestRender = registerView('depot', () => JSON.stringify([
+      this.isOpen,
+      TrainDepotDrawer.selectedLocoId,
+      getLanguage(),
+      (wsClient.locos || []).map((l) => [l.id, l.name, l.dccAddress, l.trainType, l.lengthCm, l.currentBlockId, l.image ?? '']),
+      (wsClient.blocks || []).map((b) => [b.id, b.name])
+    ]), () => this.render());
 
-    onLanguageChange(() => {
-      this.render();
-    });
+    wsClient.subscribe(() => this.requestRender());
 
-    this.render();
+    TrainDepotDrawer.onSelectionChange = () => renderViewNow('depot');
+
+    onLanguageChange(() => this.requestRender());
+
+    renderViewNow('depot');
   }
+
+  private requestRender: () => void = () => {};
 
   public toggle(): void {
     this.isOpen = !this.isOpen;
     localStorage.setItem('trainmaster_depot_open', String(this.isOpen));
-    this.render();
+    renderViewNow('depot');
   }
 
   public getIsOpen(): boolean {

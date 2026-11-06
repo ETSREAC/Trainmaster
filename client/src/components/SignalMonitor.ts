@@ -8,6 +8,8 @@ import {
   iconSearch,
   iconSignal
 } from '../icons.js';
+import { registerView } from '../uiScheduler.js';
+import { escapeAttr } from '../sanitize.js';
 
 export class SignalMonitor {
   private container: HTMLElement | null;
@@ -24,10 +26,25 @@ export class SignalMonitor {
   }
 
   private init(): void {
-    wsClient.subscribe(() => {
-      this.render();
-    });
+    // Nur neu bauen, wenn sich Signale oder Filter geändert haben (sonst gehen Klicks verloren)
+    const request = registerView('signals', () => JSON.stringify([
+      this.filterKind, this.searchQuery, wsClient.signals
+    ]), () => this.renderKeepingFocus());
+    wsClient.subscribe(() => request());
     this.render();
+  }
+
+  /** Neu zeichnen, ohne dem Suchfeld beim Tippen den Fokus zu nehmen. */
+  private renderKeepingFocus(): void {
+    const active = document.activeElement as HTMLInputElement | null;
+    const hadSearchFocus = active?.id === 'real-signal-search';
+    const caret = hadSearchFocus ? active!.selectionStart : null;
+    this.render();
+    if (hadSearchFocus) {
+      const input = document.getElementById('real-signal-search') as HTMLInputElement | null;
+      input?.focus();
+      if (input && caret !== null) input.setSelectionRange(caret, caret);
+    }
   }
 
   private updateKindUi(kind: SignalKind): void {
@@ -379,7 +396,7 @@ export class SignalMonitor {
           </div>
           <div class="filter-search-box">
             <span class="search-icon">${iconSearch(14)}</span>
-            <input type="text" class="filter-search-input" id="real-signal-search" placeholder="Signal suchen..." value="${this.searchQuery}">
+            <input type="text" class="filter-search-input" id="real-signal-search" placeholder="Signal suchen..." value="${escapeAttr(this.searchQuery)}">
           </div>
         </div>
 

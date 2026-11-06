@@ -9,7 +9,8 @@ import { LayoutInspectorModal } from './components/LayoutInspectorModal.js';
 import { TrainDepotDrawer } from './components/TrainDepotDrawer.js';
 import { AmbientLightingMonitor } from './components/AmbientLightingMonitor.js';
 import { SupporterManager } from './components/SupporterManager.js';
-import { applyTranslationsToDOM, onLanguageChange, t, toggleLanguage } from './i18n.js';
+import { applyTranslationsToDOM, getLanguage, onLanguageChange, t, toggleLanguage } from './i18n.js';
+import { initModalGuard } from './modalGuard.js';
 import { iconCommandStation, iconPower, iconAuto, iconEstop } from './icons.js';
 import { escapeHtml } from './sanitize.js';
 
@@ -56,6 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
   new AmbientLightingMonitor();
   const supporterManager = new SupporterManager();
   (window as any).supporterManager = supporterManager;
+
+  // Fenster: kein Schließen per Klick daneben, Esc mit Rückfrage, kein Doppel-Speichern
+  initModalGuard();
 
   // Language Switcher & i18n
   applyTranslationsToDOM();
@@ -180,14 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-auto-routes')?.addEventListener('click', () => {
-    inspectorModal.open('routes');
-  });
-
-  document.getElementById('btn-inspect-layout-palette')?.addEventListener('click', () => {
-    inspectorModal.open('diagnose');
-  });
-
-  document.getElementById('btn-auto-routes-palette')?.addEventListener('click', () => {
     inspectorModal.open('routes');
   });
 
@@ -340,15 +336,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logConsole) logConsole.innerHTML = '';
   });
 
+  // Inhalt nur ersetzen, wenn er sich ändert. Sonst wird z. B. der NOT-HALT-Knopf bei jeder
+  // Server-Nachricht innen neu gebaut, und ein Klick genau in diesem Moment kann verloren gehen.
+  const setHtml = (el: HTMLElement, html: string) => {
+    if (el.dataset.html !== html) {
+      el.dataset.html = html;
+      el.innerHTML = html;
+    }
+  };
+  const setClass = (el: HTMLElement, cls: string) => {
+    if (el.className !== cls) el.className = cls;
+  };
+
   // Update Header & UI on State Change
   wsClient.subscribe(() => {
     // Connection Badge
     if (badgeConnection) {
-      if (wsClient.status.connected) {
-        badgeConnection.innerHTML = `<span class="indicator green"></span> <span class="text">${t('status.connected')}</span>`;
-      } else {
-        badgeConnection.innerHTML = `<span class="indicator red"></span> <span class="text">${t('status.disconnected')}</span>`;
-      }
+      const connected = wsClient.status.connected;
+      setHtml(badgeConnection, connected
+        ? `<span class="indicator green"></span> <span class="text">${t('status.connected')}</span>`
+        : `<span class="indicator red"></span> <span class="text">${t('status.disconnected')}</span>`);
+      badgeConnection.title = connected ? t('status.connected') : t('status.disconnected');
     }
 
     // CS Badge
@@ -358,40 +366,39 @@ document.addEventListener('DOMContentLoaded', () => {
       let label = 'Simulator';
       if (csType === 'DCC_EX') label = 'DCC-EX';
       if (csType === 'Z21') label = 'Roco Z21';
-      badgeCs.innerHTML = `<span class="icon">${iconCommandStation(16)}</span> <span class="text">${label}</span>`;
+      setHtml(badgeCs, `<span class="icon">${iconCommandStation(16)}</span> <span class="text">${label}</span>`);
     }
 
-    // Power Button
+    // Gleisstrom & Automatik sind Schalter: kleiner Kippschalter zeigt den Zustand,
+    // der Tooltip sagt, was ein Klick bewirkt.
+    const switchHtml = (on: boolean) => `<span class="mini-switch${on ? ' on' : ''}" aria-hidden="true"><span></span></span>`;
+    const en = getLanguage() === 'en';
+
     if (btnPower) {
-      if (wsClient.status.trackPower) {
-        btnPower.className = 'btn btn-power on';
-        btnPower.innerHTML = `<span class="icon">${iconPower(true, 18)}</span> <span class="text">${t('status.power_on')}</span>`;
-      } else {
-        btnPower.className = 'btn btn-power';
-        btnPower.innerHTML = `<span class="icon">${iconPower(false, 18)}</span> <span class="text">${t('status.power_off')}</span>`;
-      }
+      const on = !!wsClient.status.trackPower;
+      setClass(btnPower, on ? 'btn btn-power on' : 'btn btn-power');
+      setHtml(btnPower, `${switchHtml(on)}<span class="icon">${iconPower(on, 18)}</span> <span class="text">${t(on ? 'status.power_on' : 'status.power_off')}</span>`);
+      btnPower.setAttribute('aria-pressed', String(on));
+      btnPower.title = en
+        ? (on ? 'Track power is ON – click to switch off (P)' : 'Track power is OFF – click to switch on (P)')
+        : (on ? 'Gleisstrom ist EIN – klicken zum Ausschalten (Taste P)' : 'Gleisstrom ist AUS – klicken zum Einschalten (Taste P)');
     }
 
-    // Auto Button
     if (btnAuto) {
-      if (wsClient.status.automaticMode) {
-        btnAuto.className = 'btn btn-auto active';
-        btnAuto.innerHTML = `<span class="icon">${iconAuto(true, 18)}</span> <span class="text">${t('status.auto_on')}</span>`;
-      } else {
-        btnAuto.className = 'btn btn-auto';
-        btnAuto.innerHTML = `<span class="icon">${iconAuto(false, 18)}</span> <span class="text">${t('status.auto_off')}</span>`;
-      }
+      const on = !!wsClient.status.automaticMode;
+      setClass(btnAuto, on ? 'btn btn-auto active' : 'btn btn-auto');
+      setHtml(btnAuto, `${switchHtml(on)}<span class="icon">${iconAuto(on, 18)}</span> <span class="text">${t(on ? 'status.auto_on' : 'status.auto_off')}</span>`);
+      btnAuto.setAttribute('aria-pressed', String(on));
+      btnAuto.title = en
+        ? (on ? 'Automatic mode is running – click to stop' : 'Automatic mode is off – click to start')
+        : (on ? 'Automatikbetrieb läuft – klicken zum Beenden' : 'Automatikbetrieb ist aus – klicken zum Starten');
     }
 
     // E-Stop Button
     if (btnEstop) {
-      if (wsClient.status.emergencyStop) {
-        btnEstop.className = 'btn btn-estop active';
-        btnEstop.innerHTML = `<span class="icon">${iconEstop(true, 18)}</span> <span class="text">${t('status.estop')}</span>`;
-      } else {
-        btnEstop.className = 'btn btn-estop';
-        btnEstop.innerHTML = `<span class="icon">${iconEstop(false, 18)}</span> <span class="text">${t('status.estop')}</span>`;
-      }
+      const stopped = !!wsClient.status.emergencyStop;
+      setClass(btnEstop, stopped ? 'btn btn-estop active' : 'btn btn-estop');
+      setHtml(btnEstop, `<span class="icon">${iconEstop(stopped, 18)}</span> <span class="text">${t('status.estop')}</span>`);
     }
 
     // Live Logs

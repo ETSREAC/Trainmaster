@@ -14,7 +14,9 @@ import {
   iconSearch,
   iconSensor
 } from '../icons.js';
-import { t } from '../i18n.js';
+import { getLanguage, t } from '../i18n.js';
+import { registerView } from '../uiScheduler.js';
+import { agoBucket, formatAgo } from '../format.js';
 
 export class SensorMonitor {
   private container: HTMLElement;
@@ -32,12 +34,32 @@ export class SensorMonitor {
   }
 
   private init(): void {
+    // Bereiche nur neu bauen, wenn sich ihre Daten geändert haben (sonst gehen Klicks auf
+    // "Test-Impuls"/"Bearbeiten" verloren und das Suchfeld verliert beim Tippen den Fokus)
+    const requestWio = registerView('sensors-wio', () => JSON.stringify([
+      getLanguage(), wsClient.settings.wio ?? null, wsClient.wioNodes, wsClient.wioPackets,
+      wsClient.discoveredEsps, wsClient.isScanningEsp, wsClient.sensors.map((s) => [s.id, s.wioUnit, s.wioPin, s.active])
+    ]), () => this.renderWioManager());
+    const requestList = registerView('sensors-list', () => this.listSignature(), () => this.renderSensors());
+
     wsClient.subscribe(() => {
-      this.render();
+      this.updateSubnavCounts();
       this.updateWioStatusChip();
+      requestWio();
+      requestList();
     });
+    // Relative Zeiten ("vor 5 min") weiterzählen
+    window.setInterval(() => requestList(), 15000);
     this.render();
     this.updateWioStatusChip();
+  }
+
+  private listSignature(): string {
+    const now = Date.now();
+    return JSON.stringify([
+      getLanguage(), this.filter, this.searchQuery,
+      wsClient.sensors.map((s) => [s.id, s.name, s.type, s.address, s.wioUnit, s.wioPin, s.active, s.inverted, agoBucket(s.lastTriggered, now)])
+    ]);
   }
 
   private updateWioStatusChip(): void {
@@ -561,36 +583,47 @@ export class SensorMonitor {
     const allSensors = wsClient.sensors;
     const activeCount = allSensors.filter((s) => s.active).length;
     const freeCount = allSensors.length - activeCount;
+    const lang = getLanguage();
 
-    filterToolbar.innerHTML = `
-      <div class="filter-pills">
-        <button class="filter-pill ${this.filter === 'all' ? 'active' : ''}" data-sfilter="all">
-          ${t('sensors.filter_all')} (${allSensors.length})
-        </button>
-        <button class="filter-pill active-accent ${this.filter === 'active' ? 'active' : ''}" data-sfilter="active">
-          <span class="indicator-dot red"></span> ${t('sensors.filter_active')} (${activeCount})
-        </button>
-        <button class="filter-pill free-accent ${this.filter === 'free' ? 'active' : ''}" data-sfilter="free">
-          <span class="indicator-dot green"></span> ${t('sensors.filter_free')} (${freeCount})
-        </button>
-      </div>
-      <div class="filter-search-box">
-        <span class="search-icon">${iconSearch(14)}</span>
-        <input type="text" class="filter-search-input" id="real-sensor-search" placeholder="${t('sensors.search_placeholder')}" value="${this.escapeHtml(this.searchQuery)}">
-      </div>
-    `;
+    // Leiste nur einmal (bzw. bei Sprachwechsel) bauen. Danach nur Zähler und Markierung
+    // aktualisieren – sonst verliert das Suchfeld beim Tippen jede Sekunde den Fokus.
+    if (filterToolbar.dataset.lang !== lang || !document.getElementById('real-sensor-search')) {
+      filterToolbar.dataset.lang = lang;
+      filterToolbar.innerHTML = `
+        <div class="filter-pills">
+          <button type="button" class="filter-pill" data-sfilter="all"></button>
+          <button type="button" class="filter-pill active-accent" data-sfilter="active"></button>
+          <button type="button" class="filter-pill free-accent" data-sfilter="free"></button>
+        </div>
+        <div class="filter-search-box">
+          <span class="search-icon">${iconSearch(14)}</span>
+          <input type="text" class="filter-search-input" id="real-sensor-search" placeholder="${t('sensors.search_placeholder')}" value="${this.escapeHtml(this.searchQuery)}">
+        </div>
+      `;
 
-    filterToolbar.querySelectorAll<HTMLButtonElement>('.filter-pill').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.filter = (btn.dataset.sfilter as any) || 'all';
-        this.renderSensors();
+      filterToolbar.querySelectorAll<HTMLButtonElement>('.filter-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.filter = (btn.dataset.sfilter as any) || 'all';
+          this.renderSensors();
+        });
       });
-    });
 
-    const searchInput = document.getElementById('real-sensor-search') as HTMLInputElement | null;
-    searchInput?.addEventListener('input', (e) => {
-      this.searchQuery = (e.target as HTMLInputElement).value;
-      this.renderSensorCardsOnly();
+      const searchInput = document.getElementById('real-sensor-search') as HTMLInputElement | null;
+      searchInput?.addEventListener('input', (e) => {
+        this.searchQuery = (e.target as HTMLInputElement).value;
+        this.renderSensorCardsOnly();
+      });
+    }
+
+    const pills: Record<string, string> = {
+      all: `${t('sensors.filter_all')} (${allSensors.length})`,
+      active: `<span class="indicator-dot red"></span> ${t('sensors.filter_active')} (${activeCount})`,
+      free: `<span class="indicator-dot green"></span> ${t('sensors.filter_free')} (${freeCount})`
+    };
+    filterToolbar.querySelectorAll<HTMLButtonElement>('.filter-pill').forEach((btn) => {
+      const key = btn.dataset.sfilter || 'all';
+      if (btn.innerHTML !== pills[key]) btn.innerHTML = pills[key];
+      btn.classList.toggle('active', this.filter === key);
     });
   }
 
@@ -682,11 +715,10 @@ export class SensorMonitor {
         badgesHtml += ` <span style="background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.4);padding:2px 6px;border-radius:4px;font-size:11px;color:#e3b341;display:inline-flex;align-items:center;gap:3px;">${iconAlert(12, '#e3b341')} Invertiert</span>`;
       }
 
-      let timeText = 'Noch nie ausgelöst';
-      if (sensor.lastTriggered) {
-        const secAgo = Math.floor((Date.now() - sensor.lastTriggered) / 1000);
-        timeText = secAgo < 60 ? `Vor ${secAgo}s aktiv` : `Vor ${Math.floor(secAgo / 60)}m aktiv`;
-      }
+      const ago = formatAgo(sensor.lastTriggered);
+      const timeText = sensor.lastTriggered
+        ? (getLanguage() === 'en' ? `Last triggered ${ago}` : `Zuletzt ausgelöst ${ago}`)
+        : ago.charAt(0).toUpperCase() + ago.slice(1);
 
       info.innerHTML = `
         <div>${addressText}</div>
@@ -697,6 +729,7 @@ export class SensorMonitor {
 
       // Button Bar
       const btnBar = document.createElement('div');
+      btnBar.className = 'sensor-card-actions';
       btnBar.style.display = 'flex';
       btnBar.style.gap = '8px';
       btnBar.style.marginTop = '12px';
@@ -733,7 +766,7 @@ export class SensorMonitor {
       btnEdit.style.alignItems = 'center';
       btnEdit.style.justifyContent = 'center';
       btnEdit.style.gap = '4px';
-      btnEdit.innerHTML = `${iconEdit(13)} Edit`;
+      btnEdit.innerHTML = `${iconEdit(13)} ${getLanguage() === 'en' ? 'Edit' : 'Bearbeiten'}`;
       btnEdit.title = 'Rückmelder konfigurieren (Adresse, WIO-Pin, Typ)';
       btnEdit.addEventListener('click', (e) => {
         e.stopPropagation();

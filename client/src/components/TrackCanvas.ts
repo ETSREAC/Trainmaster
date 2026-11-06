@@ -5,6 +5,7 @@ import { t } from '../i18n.js';
 import { locoImageSrc } from '../locoImage.js';
 import { escapeAttr, escapeHtml } from '../sanitize.js';
 import { showToast } from '../toast.js';
+import { iconAlert, iconDot, iconLocos, iconRoutes, iconSettings, iconTrash } from '../icons.js';
 import type { EditorTool } from '../editor/editorTypes.ts';
 import { LayoutHistory, RenderScheduler, decideGridClick, isRepeatClick, rotateBy90 } from '../editor/editorCore.ts';
 
@@ -44,6 +45,7 @@ export class TrackCanvas {
   private layoutDirty = false;
   private saveState: SaveState = 'saved';
   private selectionBar: HTMLDivElement | null = null;
+  private layoutAtEditExit: string | null = null;
   private scheduler: RenderScheduler;
 
   constructor(svgElement: SVGSVGElement) {
@@ -287,7 +289,7 @@ export class TrackCanvas {
     document.addEventListener('click', (e) => {
       const menu = document.getElementById('block-context-menu');
       if (menu && menu.style.display !== 'none') {
-        if (!menu.contains(e.target as Node)) {
+        if (!menu.contains(e.target as Node) && !this.isContextMenuJustOpened()) {
           this.hideBlockContextMenu();
         }
       }
@@ -317,9 +319,9 @@ export class TrackCanvas {
         if (textElem) {
           const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - now) / 1000));
           if (rem > 0) {
-            textElem.textContent = `⏳ Abfahrt in ${rem}s`;
+            textElem.textContent = `Abfahrt in ${rem} s`;
           } else {
-            textElem.textContent = `🟢 Abfahrt...`;
+            textElem.textContent = `Abfahrt …`;
           }
         }
       }
@@ -605,8 +607,15 @@ export class TrackCanvas {
     this.selectedStartBlockId = null;
     this.hoveredCell = null;
     this.selectedElemId = null;
-    // Verlauf gilt pro Editor-Sitzung; im Fahrbetrieb kann sich der Plan von außen ändern
-    if (edit) this.history.clear();
+    // Rückgängig-Verlauf bleibt über einen Abstecher in den Fahrbetrieb erhalten.
+    // Nur wenn sich der Plan inzwischen von außen geändert hat, passt er nicht mehr -> verwerfen.
+    if (edit) {
+      if (this.layoutAtEditExit !== null && this.layoutAtEditExit !== JSON.stringify(wsClient.layout)) {
+        this.history.clear();
+      }
+    } else {
+      this.layoutAtEditExit = JSON.stringify(wsClient.layout);
+    }
 
     const palette = document.getElementById('editor-palette');
     if (palette) {
@@ -953,8 +962,12 @@ export class TrackCanvas {
     const barH = bar.offsetHeight;
     let left = cellLeft + cellW / 2 - barW / 2;
     let top = cellTop - barH - 8;
-    if (top < 8) top = cellTop + cellW + 8; // kein Platz oben -> unter das Feld
-    left = Math.max(8, Math.min(window.innerWidth - barW - 8, left));
+    const minTop = (container?.top ?? 0) + 4;
+    if (top < minTop) top = cellTop + cellW + 8; // kein Platz oben -> unter das Feld
+    // Innerhalb des Gleisplans bleiben (nicht über das Zugdepot legen)
+    const minLeft = (container?.left ?? 0) + 8;
+    const maxLeft = Math.min(window.innerWidth, container?.right ?? window.innerWidth) - barW - 8;
+    left = Math.max(minLeft, Math.min(maxLeft, left));
     bar.style.left = `${left}px`;
     bar.style.top = `${top}px`;
   }
@@ -1095,7 +1108,7 @@ export class TrackCanvas {
     const soundFKeyInput = document.getElementById('block-form-sound-fkey') as HTMLInputElement | null;
     const soundLeadInput = document.getElementById('block-form-sound-lead') as HTMLInputElement | null;
 
-    if (titleEl) titleEl.textContent = `⬛ Block bearbeiten: ${block.name}`;
+    if (titleEl) titleEl.textContent = `Block bearbeiten: ${block.name}`;
     if (idInput) idInput.value = block.id;
     if (nameInput) nameInput.value = block.name;
     if (typeSelect) typeSelect.value = block.type || (block.name.toLowerCase().includes('strecke') ? 'MAINLINE' : 'STATION');
@@ -1167,7 +1180,7 @@ export class TrackCanvas {
     const addrInput = document.getElementById('turnout-form-address') as HTMLInputElement | null;
     const invCheckbox = document.getElementById('turnout-form-inverted') as HTMLInputElement | null;
 
-    if (titleEl) titleEl.textContent = `⎇ Weiche bearbeiten: ${turnout.name}`;
+    if (titleEl) titleEl.textContent = `Weiche bearbeiten: ${turnout.name}`;
     if (idInput) idInput.value = turnout.id;
     if (nameInput) nameInput.value = turnout.name;
     if (addrInput) addrInput.value = String(turnout.address);
@@ -1205,7 +1218,7 @@ export class TrackCanvas {
         case 'SIGNAL': toolName = 'Signal (Block Hp0/Hp1 oder Mehrbegriffig)'; break;
         case 'SENSOR': toolName = 'Rückmelder / Gleissensor'; break;
         case 'BUFFER': toolName = 'Prellbock'; break;
-        case 'INSPECT': toolName = '⚙️ Konfigurieren (Block / Weiche / Signal / Sensor anklicken)'; break;
+        case 'INSPECT': toolName = 'Einstellen'; break;
         case 'ROTATE': toolName = 'Drehen (+90°)'; break;
         case 'DELETE': toolName = 'Löschen'; break;
       }
@@ -1216,10 +1229,10 @@ export class TrackCanvas {
           : this.currentTool === 'INSPECT'
             ? 'Klick auf ein Element öffnet seine Einstellungen.'
             : 'Klick auf ein leeres Feld setzt das Element. Klick auf ein vorhandenes Element wählt es aus.';
-      textEl.innerHTML = `✏️ <em>Werkzeug: <strong>${toolName}</strong>. ${hint} <span class="helper-keys">R drehen · Entf löschen · Strg+Z rückgängig</span></em>`;
+      textEl.innerHTML = `<em>Werkzeug: <strong>${toolName}</strong>. ${hint} <span class="helper-keys">R drehen · Entf löschen · Strg+Z rückgängig</span></em>`;
     } else if (this.selectedStartBlockId) {
       const b = wsClient.blocks.find((x) => x.id === this.selectedStartBlockId);
-      textEl.innerHTML = `🎯 <strong>Startblock: ${b?.name || ''}</strong>. Klicke jetzt auf den <strong>Zielblock</strong>! <button id="btn-cancel-route" style="margin-left:8px;padding:2px 8px;cursor:pointer;">Abbrechen</button>`;
+      textEl.innerHTML = `<span class="helper-step">Start: <strong>${escapeHtml(b?.name || '')}</strong>. Jetzt den <strong>Zielblock</strong> antippen.</span> <button type="button" id="btn-cancel-route" class="helper-cancel">Abbrechen</button>`;
       document.getElementById('btn-cancel-route')?.addEventListener('click', (e) => {
         e.stopPropagation();
         this.selectedStartBlockId = null;
@@ -1228,7 +1241,7 @@ export class TrackCanvas {
       });
     } else if (TrainDepotDrawer.selectedLocoId) {
       const loco = wsClient.locos.find((l) => l.id === TrainDepotDrawer.selectedLocoId);
-      textEl.innerHTML = `🚂 <strong>${t('depot.instruction_selected')} (${loco?.name || ''})</strong> <button id="btn-cancel-assign" style="margin-left:8px;padding:2px 8px;cursor:pointer;">${t('depot.btn_cancel')}</button>`;
+      textEl.innerHTML = `<span class="helper-step"><strong>${t('depot.instruction_selected')} (${escapeHtml(loco?.name || '')})</strong></span> <button type="button" id="btn-cancel-assign" class="helper-cancel">${t('depot.btn_cancel')}</button>`;
       document.getElementById('btn-cancel-assign')?.addEventListener('click', (e) => {
         e.stopPropagation();
         TrainDepotDrawer.clearSelection();
@@ -1630,9 +1643,9 @@ export class TrackCanvas {
         // Signal Badge unten (immer lesbar / nie auf dem Kopf)
         const labelText = sig ? sig.name : 'Signal';
         const textLen = labelText.length;
-        const badgeW = Math.max(36, textLen * 5.5 + 10);
-        const badgeH = 13;
-        const badgeCenterY = 19;
+        const badgeW = Math.max(40, textLen * 6 + 12);
+        const badgeH = 15;
+        const badgeCenterY = 27;
 
         const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         if (elem.rotation !== 0) {
@@ -1656,7 +1669,7 @@ export class TrackCanvas {
         label.setAttribute('text-anchor', 'middle');
         label.setAttribute('dominant-baseline', 'central');
         label.setAttribute('fill', isRed ? '#f85149' : '#3fb950');
-        label.setAttribute('font-size', '8px');
+        label.setAttribute('font-size', '9.5px');
         label.setAttribute('font-weight', 'bold');
         label.textContent = labelText;
         label.style.pointerEvents = 'none';
@@ -1738,9 +1751,10 @@ export class TrackCanvas {
         // Sensor Beschriftung Badge (immer lesbar / nie auf dem Kopf)
         const sensorText = sensor ? sensor.name : 'Sensor';
         const sTextLen = sensorText.length;
-        const sBadgeW = Math.max(36, sTextLen * 5.5 + 10);
-        const sBadgeH = 13;
-        const sBadgeCenterY = -18;
+        // Etwas größer und höher als früher, damit das Block-Schild (Höhe 34) den Namen nicht verdeckt
+        const sBadgeW = Math.max(40, sTextLen * 6 + 12);
+        const sBadgeH = 15;
+        const sBadgeCenterY = -27;
 
         const sLabelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         if (elem.rotation !== 0) {
@@ -1764,7 +1778,7 @@ export class TrackCanvas {
         label.setAttribute('text-anchor', 'middle');
         label.setAttribute('dominant-baseline', 'central');
         label.setAttribute('fill', isActive ? '#f85149' : '#8b949e');
-        label.setAttribute('font-size', '8px');
+        label.setAttribute('font-size', '9.5px');
         label.setAttribute('font-weight', 'bold');
         label.textContent = sensorText;
         label.style.pointerEvents = 'none';
@@ -1778,7 +1792,7 @@ export class TrackCanvas {
 
           // SVG Tooltip
           const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-          title.textContent = `⚡ Rückmelder "${sensorText}" (#${sensor?.address ?? '?'})\n• Klick: Test-Impuls auslösen (Überfahrt simulieren)\n• Shift+Klick: Dauerbelegung umschalten (Toggle)`;
+          title.textContent = `Rückmelder "${sensorText}" (#${sensor?.address ?? '?'})\n• Klick: Test-Impuls auslösen (Überfahrt simulieren)\n• Shift+Klick: Dauerbelegung umschalten (Toggle)`;
           g.appendChild(title);
 
           // Hover-Effekt: dezenter Glow um den Sensor
@@ -2102,7 +2116,7 @@ export class TrackCanvas {
     toLabel.setAttribute('y', isRight ? '-13' : '19');
     toLabel.setAttribute('text-anchor', 'middle');
     toLabel.setAttribute('fill', '#8b949e');
-    toLabel.setAttribute('font-size', '8px');
+    toLabel.setAttribute('font-size', '9.5px');
     toLabel.setAttribute('font-weight', 'bold');
     toLabel.textContent = to ? (to.name.length > 8 ? `W${to.address}` : to.name) : 'W';
     lanternGroup.appendChild(toLabel);
@@ -2188,13 +2202,8 @@ export class TrackCanvas {
     const imageW = 40;
     const imageExtra = imageSrc ? imageW + 6 : 0;
     const dirArrow = block.direction === '+' ? '➔' : '⬅';
-    let typeIcon = '🏢';
-    if (block.type === 'LOCAL_STATION') typeIcon = '🚏';
-    else if (block.type === 'SHADOW_STATION') typeIcon = '🚇';
-    else if (block.type === 'MAINLINE') typeIcon = '🛤️';
-    else if (block.type === 'SIDING') typeIcon = '🏗️';
-    const blockTitle = `${typeIcon} ${dirArrow} ${block.name}`;
-    const locoTitle = loco ? `🚂 ${loco.name || block.currentLocoId} (${loco.speed || 0})` : '';
+    const blockTitle = `${dirArrow} ${block.name}`;
+    const locoTitle = loco ? `${loco.name || block.currentLocoId} (${loco.speed || 0})` : '';
 
     const hasTimer = !!block.waitTimer;
     // Dynamische Breite & Typografie berechnen, damit lange Namen perfekt reinpassen und nichts abgeschnitten wird
@@ -2431,10 +2440,10 @@ export class TrackCanvas {
       if (block.waitTimer.status === 'WAITING') {
         const rem = Math.max(0, Math.ceil((block.waitTimer.departureTimestamp - Date.now()) / 1000));
         timerText.setAttribute('fill', '#e3b341');
-        timerText.textContent = `⏳ Abfahrt in ${rem}s`;
+        timerText.textContent = `Abfahrt in ${rem} s`;
       } else {
         timerText.setAttribute('fill', '#f85149');
-        timerText.textContent = `🚦 Warten auf Ausfahrt`;
+        timerText.textContent = `Warten auf Ausfahrt`;
       }
       blockLabelGroup.appendChild(timerText);
     }
@@ -2567,7 +2576,7 @@ export class TrackCanvas {
         this.updateHelperText();
         this.render();
       } else {
-        alert(`Der Block "${block.name}" enthält keinen Zug. Klicke auf einen belegten Block als Start!`);
+        showToast(`„${block.name}“ ist leer. Tippe zuerst einen Block mit Zug an.`, { tone: 'warn' });
       }
     } else {
       if (this.selectedStartBlockId === block.id) {
@@ -2578,7 +2587,7 @@ export class TrackCanvas {
       }
 
       if (block.state !== 'FREE') {
-        alert(`Zielblock "${block.name}" ist belegt oder reserviert! Bitte wähle ein freies Gleis.`);
+        showToast(`Zielblock „${block.name}“ ist belegt oder reserviert. Bitte ein freies Gleis wählen.`, { tone: 'warn' });
         return;
       }
 
@@ -2610,96 +2619,67 @@ export class TrackCanvas {
     let statusHtml = '';
     let actionButtons = '';
 
+    const dangerBtn = (title: string, sub: string) => `
+        <button type="button" id="ctx-btn-free-block" class="ctx-menu-item danger" data-confirm-title="Wirklich freigeben? Nochmal klicken">
+          <span class="ctx-item-icon">${iconTrash(16)}</span>
+          <span class="ctx-item-text">
+            <strong>${escapeHtml(title)}</strong>
+            <small>${escapeHtml(sub)}</small>
+          </span>
+        </button>`;
+
     if (currentLoco) {
+      const photo = locoImageSrc(currentLoco);
       statusHtml = `
         <div class="ctx-block-status occupied">
-          <span class="status-indicator">🔴</span>
-          ${locoImageSrc(currentLoco) ? `<img class="ctx-loco-photo" src="${escapeAttr(locoImageSrc(currentLoco)!)}" alt="${escapeAttr(currentLoco.name)}" width="64" height="36">` : ''}
+          ${photo ? `<img class="ctx-loco-photo" src="${escapeAttr(photo)}" alt="${escapeAttr(currentLoco.name)}" width="64" height="36">` : `<span class="status-indicator">${iconLocos(18)}</span>`}
           <div class="status-details">
-            <div class="status-label">Belegt von:</div>
-            <div class="status-loco-name">🚂 ${escapeHtml(currentLoco.name)} <span class="loco-dcc">#${currentLoco.dccAddress}</span></div>
+            <div class="status-label">Belegt von</div>
+            <div class="status-loco-name">${escapeHtml(currentLoco.name)} <span class="loco-dcc">#${currentLoco.dccAddress}</span></div>
           </div>
         </div>
       `;
-
-      actionButtons += `
-        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
-          <span class="ctx-item-icon">🚫</span>
-          <span class="ctx-item-text">
-            <strong>Block freigeben</strong>
-            <small>Zug "${currentLoco.name}" entfernen & Gleis räumen</small>
-          </span>
-        </button>
-      `;
+      actionButtons += dangerBtn('Block freigeben', `Zug „${currentLoco.name}“ vom Gleis nehmen`);
     } else if (reservedLoco || block.state === 'RESERVED') {
       statusHtml = `
-        <div class="ctx-block-status reserved" style="border-left: 3px solid #d29922; background: rgba(210, 153, 34, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
-          <span class="status-indicator">🟡</span>
+        <div class="ctx-block-status reserved">
+          <span class="status-indicator">${iconDot('#d29922', 9)}</span>
           <div class="status-details">
-            <div class="status-label" style="font-size: 11px; color: #8b949e;">Fahrstraße reserviert:</div>
-            <div class="status-loco-name" style="font-weight: bold; color: #d29922;">
-              ${reservedLoco ? `🚂 ${reservedLoco.name} (#${reservedLoco.dccAddress})` : 'Reserviert für Fahrstraße'}
-            </div>
+            <div class="status-label">Fahrstraße reserviert</div>
+            <div class="status-loco-name">${reservedLoco ? `${escapeHtml(reservedLoco.name)} <span class="loco-dcc">#${reservedLoco.dccAddress}</span>` : 'Reserviert für Fahrstraße'}</div>
           </div>
         </div>
       `;
-
-      actionButtons += `
-        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
-          <span class="ctx-item-icon">🚫</span>
-          <span class="ctx-item-text">
-            <strong>Reservierung aufheben & Block freigeben</strong>
-            <small>Fahrstraße stornieren und Gleis auf FREI setzen</small>
-          </span>
-        </button>
-      `;
+      actionButtons += dangerBtn('Reservierung aufheben', 'Fahrstraße stornieren, Gleis wird frei');
     } else if (block.state === 'GHOST') {
       statusHtml = `
-        <div class="ctx-block-status ghost" style="border-left: 3px solid #ff0000; background: rgba(255, 0, 0, 0.15); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
-          <span class="status-indicator">⚠️</span>
+        <div class="ctx-block-status ghost">
+          <span class="status-indicator">${iconAlert(18, '#f85149')}</span>
           <div class="status-details">
-            <div class="status-label" style="font-size: 11px; color: #f85149;">Geisterzug-Alarm!</div>
-            <div class="status-loco-name" style="font-weight: bold; color: #ff7b72;">Unangemeldeter Sensor ausgelöst</div>
+            <div class="status-label">Geisterzug-Alarm</div>
+            <div class="status-loco-name">Melder ohne angemeldeten Zug ausgelöst</div>
           </div>
         </div>
       `;
-
-      actionButtons += `
-        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
-          <span class="ctx-item-icon">🚫</span>
-          <span class="ctx-item-text">
-            <strong>Geisterzug-Alarm quittieren & Gleis freigeben</strong>
-            <small>Block zurücksetzen</small>
-          </span>
-        </button>
-      `;
+      actionButtons += dangerBtn('Alarm quittieren und freigeben', 'Block zurücksetzen');
     } else if (block.state === 'OCCUPIED') {
       statusHtml = `
         <div class="ctx-block-status occupied">
-          <span class="status-indicator">🔴</span>
+          <span class="status-indicator">${iconDot('#f85149', 9)}</span>
           <div class="status-details">
             <div class="status-label">Belegt (kein Zug zugewiesen)</div>
-            <div class="status-loco-name">Sensor meldet Besetztzustand</div>
+            <div class="status-loco-name">Rückmelder meldet belegt</div>
           </div>
         </div>
       `;
-
-      actionButtons += `
-        <button id="ctx-btn-free-block" class="ctx-menu-item danger">
-          <span class="ctx-item-icon">🚫</span>
-          <span class="ctx-item-text">
-            <strong>Block freigeben & zurücksetzen</strong>
-            <small>Gleis auf FREI setzen</small>
-          </span>
-        </button>
-      `;
+      actionButtons += dangerBtn('Block freigeben', 'Gleis auf „frei“ setzen');
     } else {
       statusHtml = `
         <div class="ctx-block-status free">
-          <span class="status-indicator">🟢</span>
+          <span class="status-indicator">${iconDot('#3fb950', 9)}</span>
           <div class="status-details">
             <div class="status-label">Gleis frei</div>
-            <div class="status-loco-name">Bereit für Zugzuweisung</div>
+            <div class="status-loco-name">Bereit für einen Zug</div>
           </div>
         </div>
       `;
@@ -2711,112 +2691,124 @@ export class TrackCanvas {
       statusHtml += `
         <div class="ctx-timer-box ${block.waitTimer.status === 'DISPATCH_BLOCKED' ? 'blocked' : ''}">
           <div class="ctx-timer-header">
-            <span>${block.waitTimer.status === 'WAITING' ? '⏳' : '🚦'}</span>
-            <span>${block.waitTimer.status === 'WAITING' ? 'Planmäßiger Halt (Wartezeit)' : 'Ausfahrt aktuell blockiert'}</span>
+            <span>${block.waitTimer.status === 'WAITING' ? 'Planmäßiger Halt (Wartezeit)' : 'Ausfahrt blockiert'}</span>
           </div>
           <div class="ctx-timer-value" id="ctx-timer-countdown" data-block-id="${block.id}">
             ${block.waitTimer.status === 'WAITING'
-              ? `Noch <strong>${rem}s</strong> bis zur planmäßigen Abfahrt (von ${block.waitTimer.totalWaitSec}s)`
-              : 'Wartezeit abgelaufen. Signal oder Zielblock ist noch belegt!'}
+              ? `Noch <strong>${rem} s</strong> bis zur Abfahrt (von ${block.waitTimer.totalWaitSec} s)`
+              : 'Wartezeit abgelaufen. Signal oder Zielblock ist noch belegt.'}
           </div>
         </div>
       `;
 
       actionButtons = `
-        <button id="ctx-btn-dispatch-now" class="ctx-menu-item primary">
-          <span class="ctx-item-icon">⚡</span>
+        <button type="button" id="ctx-btn-dispatch-now" class="ctx-menu-item primary">
+          <span class="ctx-item-icon">${iconRoutes(16)}</span>
           <span class="ctx-item-text">
-            <strong>Sofort abfahren lassen</strong>
-            <small>${block.waitTimer.status === 'WAITING' ? 'Wartezeit überspringen & Route stellen' : 'Erneut Ausfahrt anfordern'}</small>
+            <strong>Sofort abfahren</strong>
+            <small>${block.waitTimer.status === 'WAITING' ? 'Wartezeit überspringen und Fahrstraße stellen' : 'Ausfahrt erneut anfordern'}</small>
           </span>
         </button>
       ` + actionButtons;
     }
 
-    // Quick-Zuweisung wenn kein Zug auf dem Block steht
-    if (!currentLoco) {
-      const unassignedLocos = wsClient.locos.filter((l) => !l.currentBlockId);
-      if (unassignedLocos.length > 0) {
-        actionButtons += `
-          <div class="ctx-menu-group">
-            <div class="ctx-group-title">Zug aus Depot aufsetzen:</div>
-            <div class="ctx-quick-locos">
-              ${unassignedLocos.map((l) => `
-                <button class="ctx-btn-quick-assign" data-loco-id="${l.id}" title="${l.name}">
-                  🚂 ${l.name} (#${l.dccAddress})
-                </button>
-              `).join('')}
-            </div>
+    // Quick-Zuweisung: Loks aus dem Depot (aufsetzen bzw. tauschen)
+    const depotLocos = wsClient.locos.filter((l) => !l.currentBlockId && l.id !== currentLoco?.id);
+    if (depotLocos.length > 0) {
+      actionButtons += `
+        <div class="ctx-menu-group">
+          <div class="ctx-group-title">${currentLoco ? 'Zug tauschen gegen' : 'Zug aus dem Depot aufsetzen'}</div>
+          <div class="ctx-quick-locos">
+            ${depotLocos.map((l) => `
+              <button type="button" class="ctx-btn-quick-assign" data-loco-id="${escapeAttr(l.id)}" title="${escapeAttr(l.name)}">
+                <span class="ctx-quick-icon">${iconLocos(14)}</span>
+                <span class="ctx-quick-name">${escapeHtml(l.name)}</span>
+                <span class="loco-dcc">#${l.dccAddress}</span>
+              </button>
+            `).join('')}
           </div>
-        `;
-      }
-    } else {
-      // Wenn bereits eine Lok da ist: Zug tauschen anbieten
-      const otherLocos = wsClient.locos.filter((l) => !l.currentBlockId && l.id !== currentLoco.id);
-      if (otherLocos.length > 0) {
-        actionButtons += `
-          <div class="ctx-menu-group">
-            <div class="ctx-group-title">Zug tauschen:</div>
-            <div class="ctx-quick-locos">
-              ${otherLocos.map((l) => `
-                <button class="ctx-btn-quick-assign" data-loco-id="${l.id}" title="${l.name}">
-                  🔄 ${l.name} (#${l.dccAddress})
-                </button>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
+        </div>
+      `;
     }
+
+    const STATE_LABEL: Record<string, string> = {
+      FREE: 'Frei', OCCUPIED: 'Belegt', RESERVED: 'Reserviert', GHOST: 'Alarm'
+    };
 
     menu.innerHTML = `
       <div class="ctx-menu-header">
         <div class="ctx-header-title">
-          <span class="ctx-header-icon">⬛</span>
-          <span class="ctx-header-name">${block.name}</span>
+          <span class="ctx-header-name">${escapeHtml(block.name)}</span>
         </div>
-        <span class="ctx-header-badge ${block.state.toLowerCase()}">${block.state}</span>
+        <span class="ctx-header-badge ${block.state.toLowerCase()}">${STATE_LABEL[block.state] || block.state}</span>
+        <button type="button" class="ctx-close" id="ctx-btn-close" aria-label="Schließen" title="Schließen (Esc)">✕</button>
       </div>
 
       <div class="ctx-menu-body">
         ${statusHtml}
         <div class="ctx-menu-actions">
           ${actionButtons}
-          <button id="ctx-btn-configure-block" class="ctx-menu-item">
-            <span class="ctx-item-icon">⚙️</span>
+          <button type="button" id="ctx-btn-configure-block" class="ctx-menu-item">
+            <span class="ctx-item-icon">${iconSettings(16)}</span>
             <span class="ctx-item-text">
-              <strong>Block konfigurieren...</strong>
-              <small>Länge, Richtung, RM-Melder einstellen</small>
+              <strong>Block einstellen …</strong>
+              <small>Länge, Richtung, Rückmelder</small>
             </span>
           </button>
         </div>
       </div>
     `;
 
-    // Event Handlers
-    document.getElementById('ctx-btn-dispatch-now')?.addEventListener('click', () => {
-      wsClient.send({
-        type: 'DISPATCH_BLOCK_NOW',
-        payload: { blockId: block.id }
-      });
-      this.hideBlockContextMenu();
-    });
+    // Event Handlers (Mehrfachklick löst jede Aktion nur einmal aus)
+    const once = (fn: () => void) => (e: MouseEvent) => {
+      if (isRepeatClick(e)) return;
+      fn();
+    };
 
-    document.getElementById('ctx-btn-free-block')?.addEventListener('click', () => {
-      wsClient.send({
-        type: 'FREE_BLOCK',
-        payload: { blockId: block.id }
-      });
-      this.hideBlockContextMenu();
-    });
+    document.getElementById('ctx-btn-close')?.addEventListener('click', () => this.hideBlockContextMenu());
 
-    document.getElementById('ctx-btn-configure-block')?.addEventListener('click', () => {
+    document.getElementById('ctx-btn-dispatch-now')?.addEventListener('click', once(() => {
+      wsClient.send({ type: 'DISPATCH_BLOCK_NOW', payload: { blockId: block.id } });
+      this.hideBlockContextMenu();
+    }));
+
+    // Freigeben braucht zwei Klicks: der erste macht den Knopf rot, der zweite führt aus
+    const freeBtn = document.getElementById('ctx-btn-free-block') as HTMLButtonElement | null;
+    if (freeBtn) {
+      let armedAt = 0;
+      let disarmTimer: number | null = null;
+      const label = freeBtn.querySelector('strong');
+      const original = label?.textContent || '';
+      freeBtn.addEventListener('click', (e) => {
+        if (isRepeatClick(e)) return;
+        const now = Date.now();
+        // Zweiter Klick zählt erst nach kurzer Pause – ein Doppelklick bestätigt also nicht versehentlich
+        if (armedAt && now - armedAt > 350) {
+          if (disarmTimer) window.clearTimeout(disarmTimer);
+          wsClient.send({ type: 'FREE_BLOCK', payload: { blockId: block.id } });
+          this.hideBlockContextMenu();
+          showToast(`Block „${block.name}“ freigegeben.`);
+          return;
+        }
+        if (armedAt) return;
+        armedAt = now;
+        freeBtn.classList.add('armed');
+        if (label) label.textContent = 'Wirklich? Zum Bestätigen nochmal klicken';
+        disarmTimer = window.setTimeout(() => {
+          armedAt = 0;
+          freeBtn.classList.remove('armed');
+          if (label) label.textContent = original;
+        }, 4000);
+      });
+    }
+
+    document.getElementById('ctx-btn-configure-block')?.addEventListener('click', once(() => {
       this.hideBlockContextMenu();
       this.openBlockModal(block.id);
-    });
+    }));
 
     menu.querySelectorAll<HTMLButtonElement>('.ctx-btn-quick-assign').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', once(() => {
         const locoId = btn.dataset.locoId;
         if (locoId) {
           wsClient.send({
@@ -2825,26 +2817,45 @@ export class TrackCanvas {
           });
         }
         this.hideBlockContextMenu();
-      });
+      }));
     });
 
-    // Menü anzeigen & positionieren (innerhalb des Viewports halten)
+    // Menü NEBEN den Block legen (nicht darüber), innerhalb des Fensters halten
     menu.style.display = 'block';
-    const menuWidth = 280;
-    const menuHeight = menu.offsetHeight || 200;
+    menu.style.visibility = 'hidden';
+    const menuWidth = menu.offsetWidth || 300;
+    const menuHeight = menu.offsetHeight || 220;
+    const margin = 12;
 
-    let posX = clientX;
-    let posY = clientY;
+    const badge = this.svg.querySelector<SVGGElement>(`g[data-block-id="${CSS.escape(block.id)}"]`);
+    const anchor = badge?.getBoundingClientRect() ?? new DOMRect(clientX, clientY, 0, 0);
 
-    if (posX + menuWidth > window.innerWidth - 12) {
-      posX = window.innerWidth - menuWidth - 12;
+    let posX = anchor.right + 10;
+    if (posX + menuWidth > window.innerWidth - margin) {
+      posX = anchor.left - menuWidth - 10; // links vom Block
     }
-    if (posY + menuHeight > window.innerHeight - 12) {
-      posY = window.innerHeight - menuHeight - 12;
+    if (posX < margin) {
+      // Weder rechts noch links Platz (Handy): unter bzw. über den Block
+      posX = Math.max(margin, Math.min(window.innerWidth - menuWidth - margin, clientX - menuWidth / 2));
+    }
+    let posY = posX === anchor.right + 10 || posX === anchor.left - menuWidth - 10
+      ? anchor.top - 8
+      : anchor.bottom + 10;
+    if (posY + menuHeight > window.innerHeight - margin) {
+      posY = Math.max(margin, window.innerHeight - menuHeight - margin);
     }
 
-    menu.style.left = `${Math.max(10, posX)}px`;
-    menu.style.top = `${Math.max(10, posY)}px`;
+    menu.style.left = `${Math.max(margin, posX)}px`;
+    menu.style.top = `${Math.max(margin, posY)}px`;
+    menu.style.visibility = '';
+    this.contextMenuOpenedAt = Date.now();
+  }
+
+  private contextMenuOpenedAt = 0;
+
+  /** Kurz nach dem Öffnen (lang drücken auf Touch) feuert der Browser noch einen Klick – der darf das Menü nicht schließen. */
+  public isContextMenuJustOpened(): boolean {
+    return Date.now() - this.contextMenuOpenedAt < 450;
   }
 
   public hideBlockContextMenu(): void {

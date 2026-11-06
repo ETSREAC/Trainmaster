@@ -168,16 +168,23 @@ export class AmbientLightingMonitor {
       text = 'Aus';
     }
 
-    this.headerBadge.innerHTML = `
-      <span class="ambient-widget-icon">${icon}</span>
-      <span class="ambient-widget-text">${text}</span>
-      <button id="btn-quick-lightning" class="btn-quick-flash" title="⚡ Blitz zünden (Test 1)">⚡</button>
-    `;
-
-    document.getElementById('btn-quick-lightning')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.triggerLightning();
-    });
+    // Knopf nur einmal anlegen, danach nur Symbol und Uhrzeit tauschen.
+    // Sonst wird er jede Sekunde ersetzt und Klicks darauf gehen verloren.
+    if (!document.getElementById('btn-quick-lightning')) {
+      this.headerBadge.innerHTML = `
+        <span class="ambient-widget-icon"></span>
+        <span class="ambient-widget-text"></span>
+        <button id="btn-quick-lightning" class="btn-quick-flash" title="Blitz zünden (Test)">⚡</button>
+      `;
+      document.getElementById('btn-quick-lightning')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.triggerLightning();
+      });
+    }
+    const iconEl = this.headerBadge.querySelector('.ambient-widget-icon');
+    const textEl = this.headerBadge.querySelector('.ambient-widget-text');
+    if (iconEl && iconEl.textContent !== icon) iconEl.textContent = icon;
+    if (textEl && textEl.textContent !== text) textEl.textContent = text;
   }
 
   private renderSettingsCard(): void {

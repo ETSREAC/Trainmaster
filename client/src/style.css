@@ -4259,3 +4259,323 @@ select:disabled,
   border-radius: 3px;
   vertical-align: middle;
 }
+
+/* ==========================================================================
+   v1.13 Design-Überarbeitung
+   Farbregeln: Rot = Gefahr/Halt · Grün = an/ok/frei · Gelb = Warnung/reserviert
+               Blau = ausgewählt/aktiv · neutral = normale Aktion
+   ========================================================================== */
+
+/* --- Kopfleiste: NOT-HALT ist das einzige laute Element ----------------- */
+.btn-support {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  min-height: 36px;
+}
+.btn-support img { height: 14px; width: auto; display: block; opacity: 0.85; }
+.btn-support:hover { color: #e3b341; border-color: rgba(227, 179, 65, 0.5); background: rgba(227, 179, 65, 0.08); }
+
+.btn-lang {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 10px;
+  min-height: 36px;
+  font-weight: 600;
+}
+.btn-lang .lang-flag { display: none; }
+
+.btn-estop {
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  padding: 8px 18px;
+  min-height: 44px;
+}
+
+/* Gleisstrom / Automatik als Schalter erkennbar */
+.mini-switch {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: #30363d;
+  border: 1px solid #484f58;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.mini-switch > span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8b949e;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.mini-switch.on { background: rgba(63, 185, 80, 0.35); border-color: #3fb950; }
+.mini-switch.on > span { transform: translateX(12px); background: #3fb950; }
+.btn-auto .mini-switch.on { background: rgba(88, 166, 255, 0.3); border-color: #58a6ff; }
+.btn-auto .mini-switch.on > span { background: #58a6ff; }
+
+/* --- Werkzeugleisten ------------------------------------------------------ */
+.btn-tool {
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.btn-tool:hover { border-color: #58a6ff; background: #1c2128; }
+
+/* Editor-Leiste bricht um statt rechts aus dem Bild zu laufen */
+.editor-palette {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  row-gap: 6px;
+}
+.palette-btn { min-height: 36px; }
+
+#route-helper-text { line-height: 1.5; }
+.helper-cancel {
+  margin-left: 8px;
+  padding: 3px 10px;
+  min-height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 12px;
+}
+.helper-cancel:hover { border-color: #58a6ff; }
+
+/* Zugdepot etwas schmaler, damit mehr Gleisplan sichtbar ist */
+.train-depot-drawer.open { width: 250px; min-width: 250px; max-width: 250px; }
+
+/* --- Dialoge -------------------------------------------------------------- */
+/* Lange Auswahltexte (Rückmelder) dürfen das Fenster nicht sprengen */
+.modal-dialog div,
+.modal-dialog .form-group { min-width: 0; }
+.modal-dialog select,
+.modal-dialog input[type="text"],
+.modal-dialog input[type="number"],
+.modal-dialog .form-control {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+@keyframes modalNudge {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+/* Klick neben das Fenster: kurzes Wackeln statt Schließen */
+.modal-nudge { animation: modalNudge 0.22s ease; }
+
+@media (max-width: 560px) {
+  /* Zweispaltige Formularzeilen untereinander */
+  .modal-dialog .form-row,
+  .modal-dialog form > div > div[style*="display:flex"] {
+    flex-direction: column;
+    gap: 8px !important;
+  }
+}
+
+/* --- Kontextmenü am Block -------------------------------------------------- */
+.block-context-menu {
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+.ctx-menu-header { gap: 8px; }
+.ctx-header-title { min-width: 0; flex: 1; }
+.ctx-header-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-header-badge.ghost { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.4); }
+.ctx-close {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ctx-close:hover { color: var(--text-main); border-color: var(--border-color); }
+.ctx-block-status { display: flex; align-items: center; gap: 10px; }
+.ctx-block-status.reserved {
+  border-left: 3px solid #d29922;
+  background: rgba(210, 153, 34, 0.12);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.ctx-block-status.ghost {
+  border-left: 3px solid #f85149;
+  background: rgba(248, 81, 73, 0.12);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+.status-indicator { display: inline-flex; align-items: center; color: #58a6ff; }
+.ctx-item-icon { display: inline-flex; align-items: center; justify-content: center; }
+.ctx-menu-item { min-height: 46px; }
+/* Gefährliche Aktion: erster Klick "scharf schalten", zweiter führt aus */
+.ctx-menu-item.danger.armed {
+  background: rgba(248, 81, 73, 0.25);
+  border-color: #f85149;
+  color: #ff7b72;
+  animation: armedPulse 1s ease-in-out infinite;
+}
+@keyframes armedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(248, 81, 73, 0); }
+}
+.ctx-quick-locos {
+  max-height: 168px;
+  scrollbar-width: thin;
+  scrollbar-color: #484f58 transparent;
+}
+.ctx-quick-locos::-webkit-scrollbar { width: 6px; }
+.ctx-quick-locos::-webkit-scrollbar-thumb { background: #484f58; border-radius: 3px; }
+.ctx-btn-quick-assign {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.ctx-quick-icon { color: #58a6ff; display: inline-flex; }
+.ctx-quick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ctx-btn-quick-assign .loco-dcc { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; }
+
+/* --- Handregler ------------------------------------------------------------ */
+/* Lange Funktionsnamen zweizeilig statt abgeschnitten */
+.fn-btn {
+  white-space: normal;
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* --- Handy ----------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* Kopfleiste: zweizeilig statt übereinander gestapelter Knöpfe */
+  .top-header {
+    height: auto;
+    min-height: 0;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .brand { flex: 1; min-width: 0; }
+  .brand-logo { width: 28px; height: 28px; }
+  .quick-status {
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: auto;
+  }
+  #header-ambient-badge,
+  #btn-lang-toggle,
+  #badge-cs,
+  .btn-support .text { display: none !important; }
+  .btn-support { padding: 6px 8px; min-height: 36px; }
+  #badge-connection { padding: 6px 8px; }
+  #btn-power, #btn-auto { padding: 6px 8px; min-height: 40px; gap: 6px; }
+  #btn-power .icon, #btn-auto .icon { display: none; }
+  #btn-estop {
+    padding: 6px 12px;
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  /* Obere Tab-Leiste ist auf dem Handy doppelt (es gibt die untere Leiste) */
+  .main-nav { display: none; }
+
+  /* Gleisplan-Werkzeugleiste kompakt: nur Symbole, Hinweistext einzeilig */
+  #tab-layout .panel-toolbar { padding: 6px 10px; gap: 6px; }
+  #tab-layout .panel-toolbar .mode-label { display: none; }
+  #btn-inspect-layout, #btn-auto-routes {
+    font-size: 0;
+    padding: 6px 10px;
+    gap: 0;
+  }
+  #btn-inspect-layout .icon, #btn-auto-routes .icon { font-size: 14px; }
+  #route-helper-text {
+    width: 100%;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  #route-helper-text .helper-cancel { font-size: 12px; }
+
+  .train-depot-drawer.collapsed { width: 36px; min-width: 36px; max-width: 36px; }
+}
+
+@media (max-width: 480px) {
+  #btn-estop .text { font-size: 12px; }
+}
+
+/* Editor-Leiste in Gruppen: eine Gruppe bricht als Ganzes um */
+.palette-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border-color);
+}
+.palette-group:last-child { border-right: none; padding-right: 0; margin-left: auto; }
+
+/* Rückmelder-Karten: Knöpfe einzeilig */
+.sensor-card-actions .btn { white-space: nowrap; padding: 6px 10px; font-size: 12px; min-height: 36px; }
+
+/* Kopfleiste auf Tablets: nichts darf umbrechen */
+@media (max-width: 1180px) {
+  .top-header .btn,
+  .top-header .status-badge { white-space: nowrap; }
+  .version-tag,
+  #badge-cs .text,
+  .btn-support .text,
+  #header-ambient-badge .ambient-widget-text { display: none; }
+  .quick-status { gap: 8px; }
+}
+@media (max-width: 1024px) {
+  #btn-power .icon, #btn-auto .icon { display: none; }
+  .brand-text h1 { font-size: 16px; }
+}
+
+@media (max-width: 768px) {
+  /* Nur Logo, damit die Knöpfe den Schriftzug nicht überdecken */
+  .brand-text { display: none; }
+  .brand { flex: 0 0 auto; }
+  .quick-status { flex: 1; justify-content: flex-end; }
+  #btn-power .icon, #btn-auto .icon { display: inline-flex; }
+  .palette-group { border-right: none; padding-right: 0; margin-right: 0; }
+  .palette-group:last-child { margin-left: 0; }
+}
+@media (max-width: 420px) {
+  /* Ganz schmale Handys: Unterstützer-Knopf weicht (erreichbar über Optionen) */
+  .btn-support { display: none !important; }
+  #btn-power .icon, #btn-auto .icon { display: none; }
+}

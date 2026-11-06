@@ -3,6 +3,7 @@ import { wsClient } from '../wsClient.js';
 import { iconEdit, iconLocos, iconPlus } from '../icons.js';
 import { t } from '../i18n.js';
 import { escapeHtml } from '../sanitize.js';
+import { trainTypeLabel } from '../format.js';
 import { deleteLocoImage, locoImageSrc, locoPlaceholderIcon, resizeImageFile, uploadLocoImage } from '../locoImage.js';
 
 /** Standard-Belegung, solange für eine Lok keine eigenen Funktionsnamen gespeichert sind. */
@@ -574,7 +575,7 @@ export class Throttle {
 
     const metaEl = document.createElement('span');
     metaEl.style.cssText = 'font-size:12px;color:#8b949e;';
-    metaEl.textContent = `${t('throttle.type')}: ${loco.trainType} • ${t('throttle.length')}: ${loco.lengthCm}cm`;
+    metaEl.textContent = `${trainTypeLabel(loco.trainType)} • ${loco.lengthCm} cm`;
 
     headerLeft.appendChild(nameEl);
     headerLeft.appendChild(metaEl);
@@ -838,7 +839,8 @@ export class Throttle {
       ref.nameEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;"><span style="color:#58a6ff;">${iconLocos(18)}</span> <span>${loco.name}</span></span>`;
       ref.nameEl.appendChild(ref.activeBadgeEl);
     }
-    ref.metaEl.textContent = `Typ: ${loco.trainType} • Länge: ${loco.lengthCm}cm`;
+    const meta = `${trainTypeLabel(loco.trainType)} • ${loco.lengthCm} cm`;
+    if (ref.metaEl.textContent !== meta) ref.metaEl.textContent = meta;
 
     // Lokbild nur neu setzen, wenn sich Pfad oder Zugart geändert haben
     const photoKey = `${loco.image ?? ''}|${loco.trainType}`;

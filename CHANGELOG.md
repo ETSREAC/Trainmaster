@@ -10,6 +10,34 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.13.0] - 2026-11-06
+
+Minor-Release: Menüs und Fenster robust, Design überarbeitet (Handy, Kopfleiste, Farben, Texte).
+
+### Fixed
+- Verlorene Klicks auch außerhalb des Gleisplans: Zugdepot, Rückmelder, Signale, BBT und die Kopfleiste (auch der NOT-HALT-Knopf) wurden bei jeder Server-Nachricht neu gebaut. Sie werden jetzt nur neu gezeichnet, wenn sich ihre Daten ändern, und nie während eine Maustaste gedrückt ist (`uiScheduler.ts`).
+- Das Suchfeld bei den Rückmeldern hat beim Tippen jede Sekunde den Fokus verloren. Bei den Signalen auch.
+- BBT: Eine offene Auswahlliste wurde durch Server-Nachrichten zugeklappt.
+- Handy: Kopfleisten-Knöpfe lagen über der Tab-Leiste, der NOT-HALT verdeckte die Navigation, der Gleisplan war nicht zu sehen.
+- Block-Dialog: Auswahlfelder der Rückmelder ragten über den Fensterrand.
+- Kontextmenü: lag über dem angeklickten Block, die Lok-Liste wurde ohne sichtbaren Scrollbalken abgeschnitten, auf Touch schloss es sich direkt nach dem langen Drücken wieder.
+- Rückmelder zeigten „Vor 31609m aktiv“. Jetzt z. B. „Zuletzt ausgelöst vor 22 Tagen“.
+- Rückgängig-Verlauf im Editor ging beim Wechsel in den Fahrbetrieb und zurück verloren.
+
+### Changed
+- Fenster: Ein Klick neben das Fenster schließt es nicht mehr (es wackelt kurz). Esc schließt, fragt bei ungespeicherten Änderungen aber nach. „Speichern“ per Doppelklick speichert nur einmal.
+- Kontextmenü: liegt neben dem Block. „Block freigeben“ braucht einen zweiten Klick zur Bestätigung (Knopf wird rot). Es gibt einen Schließen-Knopf, der Status ist auf Deutsch (Frei/Belegt/Reserviert/Alarm).
+- Kopfleiste: NOT-HALT ist das einzige auffällige Element, „Support“ ist dezent. Gleisstrom und Automatik haben einen Kippschalter und einen Tooltip, der sagt, was ein Klick tut. Auf Tablets bricht nichts mehr um.
+- Handy: zweizeilige Kopfleiste nur mit Logo, untere Tab-Leiste jetzt mit BBT und Log, kompakte Gleisplan-Werkzeugleiste, Zugdepot startet eingeklappt.
+- Farben mit fester Bedeutung: Rot = Gefahr/Halt, Grün = an/frei/speichern, Gelb = Warnung/reserviert, Blau = ausgewählt. „Plan prüfen“ und „Fahrstraßen-Automatik“ sind neutral.
+- Editor-Leiste: doppelte Knöpfe „Plan prüfen“/„Auto-Routen“ entfernt, Gruppen brechen als Ganzes um statt rechts aus dem Bild zu laufen.
+- Einheitliche Texte: dekorative Emojis aus Überschriften, Buttons und Auswahllisten entfernt (rund 200 Stellen). Kein Englisch mehr in der deutschen Oberfläche („Edit“ → „Bearbeiten“, „PASSENGER“ → „Personenzug“, „Click & Drive“ → „Fahrstraße stellen“).
+- Gleisplan: Beschriftungen größer (9,5 statt 8 px). Rückmelder- und Signalnamen sitzen so, dass das Block-Schild sie nicht verdeckt.
+- Handregler: lange Funktionsnamen zweizeilig statt abgeschnitten, „Fahrstufe“ statt „Fahrstufe (0 - 128)“.
+- Meldungen „Block enthält keinen Zug“ / „Zielblock belegt“ als Einblendung statt alert()-Fenster.
+
+---
+
 ## [1.12.0] - 2026-11-06
 
 Minor-Release: Gleisplan-Editor und Stellpult robust gegen Fehl- und Doppelklicks.

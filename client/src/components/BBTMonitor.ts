@@ -1,7 +1,8 @@
 import { BBTEntry, BBTRunMetric } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconAlert } from '../icons.js';
-import { t } from '../i18n.js';
+import { getLanguage, t } from '../i18n.js';
+import { registerView } from '../uiScheduler.js';
 
 export class BBTMonitor {
   private tbody: HTMLElement;
@@ -47,7 +48,20 @@ export class BBTMonitor {
   }
 
   private init(): void {
-    wsClient.subscribe(() => this.render());
+    // Nur neu bauen, wenn sich BBT-Daten, Loks oder Blöcke geändert haben.
+    // Sonst klappt jede Server-Nachricht eine offene Auswahlliste zu und Klicks gehen verloren.
+    const request = registerView('bbt', () => JSON.stringify([
+      getLanguage(), this.selectedBlockId, this.selectedLocoId, this.selectedDir, wsClient.bbt,
+      { ...wsClient.settings, ambientLighting: undefined },
+      wsClient.locos.map((l) => [l.id, l.name, l.dccAddress, l.lengthCm, l.vMin, l.vMid, l.vMax]),
+      wsClient.blocks.map((b) => [b.id, b.name, b.lengthCm, b.direction])
+    ]), () => this.render());
+    wsClient.subscribe(() => {
+      // Geöffnete Auswahlliste nicht unter dem Finger austauschen
+      const focused = document.activeElement;
+      if (focused === this.blockSelect || focused === this.locoSelect || focused === this.dirSelect) return;
+      request();
+    });
     this.render();
   }
 
