@@ -26,6 +26,22 @@ Wenn dir TrainMaster gefällt und du die aktive Weiterentwicklung, neue Hardware
 
 ---
 
+## 🎬 Video-Tutorials
+
+Kurze Video-Anleitungen auf Deutsch, Schritt für Schritt:
+
+| Teil | Thema | Video |
+|---|---|---|
+| 1 | Basics – Oberfläche & Digitalzentrale verbinden (Z21 / DCC-EX) | [▶ YouTube](https://www.youtube.com/watch?v=8u4uxCn7ALE) |
+
+<a href="https://www.youtube.com/watch?v=8u4uxCn7ALE" target="_blank">
+  <img src="https://img.youtube.com/vi/8u4uxCn7ALE/hqdefault.jpg" alt="TrainMaster Tutorial Teil 1 – Basics" width="480">
+</a>
+
+Weitere Teile folgen (Lok anlegen & fahren, Gleisplan-Editor, Blöcke & Rückmelder, …).
+
+---
+
 ## 🌟 Highlights & Features
 
 ### 🌐 Zweisprachige Oberfläche (Deutsch & Englisch)

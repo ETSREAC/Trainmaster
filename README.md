@@ -26,6 +26,22 @@ If you find TrainMaster useful and want to support ongoing development, new hard
 
 ---
 
+## 🎬 Video Tutorials
+
+Short step-by-step video guides. The videos are in **German**, but the on-screen steps are easy to follow without understanding German.
+
+| Part | Topic | Video |
+|---|---|---|
+| 1 | Basics – UI overview & connecting a command station (Z21 / DCC-EX) 🇩🇪 | [▶ YouTube](https://www.youtube.com/watch?v=8u4uxCn7ALE) |
+
+<a href="https://www.youtube.com/watch?v=8u4uxCn7ALE" target="_blank">
+  <img src="https://img.youtube.com/vi/8u4uxCn7ALE/hqdefault.jpg" alt="TrainMaster Tutorial Part 1 – Basics (German)" width="480">
+</a>
+
+More parts are coming (adding & driving locos, track plan editor, blocks & sensors, …).
+
+---
+
 ## 🌟 Highlights & Features
 
 ### 🌐 Dual-Language Support (English & German)
