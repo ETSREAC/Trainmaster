@@ -27,6 +27,12 @@ export class DccExDriver implements ICommandStation {
   /** Zuletzt gemeldete Gleisspannung; nur Änderungen werden weitergegeben */
   private lastPower: boolean | null = null;
 
+  /** Fehlversuche in Folge: steuert Wartezeit und Protokollierung des Auto-Reconnects */
+  private failedAttempts = 0;
+  private static readonly RECONNECT_MIN_MS = 3500;
+  private static readonly RECONNECT_MAX_MS = 30000;
+  private static readonly MAX_RX_BUFFER = 8192;
+
   private static readonly SERIAL_POLL_MS = 30000;
   private static readonly SERIAL_TIMEOUT_MS = 75000;
 
@@ -40,6 +46,7 @@ export class DccExDriver implements ICommandStation {
   async connect(callbacks: CommandStationCallbacks): Promise<boolean> {
     this.callbacks = callbacks;
     this.isClosing = false;
+    this.failedAttempts = 0;
 
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
@@ -55,7 +62,9 @@ export class DccExDriver implements ICommandStation {
 
   private async connectSerial(): Promise<boolean> {
     try {
-      this.callbacks?.onLog?.(`[DCC-EX] Öffne seriellen Port ${this.portOrHost} mit ${this.baudRate} Baud...`, 'info');
+      if (this.failedAttempts === 0) {
+        this.callbacks?.onLog?.(`[DCC-EX] Öffne seriellen Port ${this.portOrHost} mit ${this.baudRate} Baud...`, 'info');
+      }
       this.serialInstance = new SerialPort({
         path: this.portOrHost,
         baudRate: this.baudRate,
@@ -70,6 +79,8 @@ export class DccExDriver implements ICommandStation {
       });
 
       this.connected = true;
+      this.failedAttempts = 0;
+      this.rxBuffer = '';
       this.callbacks?.onConnectionChanged?.(true);
       this.callbacks?.onLog?.(`[DCC-EX] ✅ Erfolgreich mit serieller Zentrale an ${this.portOrHost} verbunden!`, 'info');
 
@@ -89,7 +100,7 @@ export class DccExDriver implements ICommandStation {
       this.sendRaw('<s>');
       return true;
     } catch (err: any) {
-      this.callbacks?.onLog?.(`[DCC-EX] Konnte seriellen Port ${this.portOrHost} nicht öffnen: ${err.message}`, 'error');
+      this.logConnectFailure(`Konnte seriellen Port ${this.portOrHost} nicht öffnen: ${err.message}`);
       this.handleDisconnected(err.message);
       return false;
     }
@@ -97,7 +108,9 @@ export class DccExDriver implements ICommandStation {
 
   private async connectTcp(): Promise<boolean> {
     try {
-      this.callbacks?.onLog?.(`[DCC-EX] Verbinde mit Zentrale TCP an ${this.portOrHost}:${this.tcpPort}...`, 'info');
+      if (this.failedAttempts === 0) {
+        this.callbacks?.onLog?.(`[DCC-EX] Verbinde mit Zentrale TCP an ${this.portOrHost}:${this.tcpPort}...`, 'info');
+      }
       this.socketInstance = new net.Socket();
 
       await new Promise<void>((resolve, reject) => {
@@ -118,6 +131,8 @@ export class DccExDriver implements ICommandStation {
       });
 
       this.connected = true;
+      this.failedAttempts = 0;
+      this.rxBuffer = '';
       this.socketInstance.setKeepAlive(true, 3000);
       this.callbacks?.onConnectionChanged?.(true);
       this.callbacks?.onLog?.(`[DCC-EX] ✅ Erfolgreich mit Zentrale (${this.portOrHost}:${this.tcpPort}) verbunden!`, 'info');
@@ -138,9 +153,25 @@ export class DccExDriver implements ICommandStation {
       this.sendRaw('<s>');
       return true;
     } catch (err: any) {
-      this.callbacks?.onLog?.(`[DCC-EX] Verbindungsfehler zu ${this.portOrHost}:${this.tcpPort}: ${err.message}`, 'warn');
+      this.logConnectFailure(`Verbindungsfehler zu ${this.portOrHost}:${this.tcpPort}: ${err.message}`);
       this.handleDisconnected(err.message);
       return false;
+    }
+  }
+
+  /**
+   * Fehlversuche nicht endlos protokollieren: der erste wird gemeldet, danach nur noch
+   * ein Hinweis, dass im Hintergrund weiter versucht wird (früher drei Zeilen alle 3,5 s).
+   */
+  private logConnectFailure(message: string): void {
+    this.failedAttempts++;
+    if (this.failedAttempts === 1) {
+      this.callbacks?.onLog?.(`[DCC-EX] ${message}`, 'warn');
+    } else if (this.failedAttempts === 2) {
+      this.callbacks?.onLog?.(
+        `[DCC-EX] Zentrale weiterhin nicht erreichbar. Es wird im Hintergrund weiter versucht (bis zu alle ${DccExDriver.RECONNECT_MAX_MS / 1000} s).`,
+        'warn'
+      );
     }
   }
 
@@ -170,17 +201,24 @@ export class DccExDriver implements ICommandStation {
     }
 
     if (!this.isClosing && !this.reconnectTimeout) {
+      // Wartezeit wächst mit jedem Fehlversuch: 3,5 s, 7 s, 14 s, ... höchstens 30 s
+      const delay = Math.min(
+        DccExDriver.RECONNECT_MAX_MS,
+        DccExDriver.RECONNECT_MIN_MS * Math.pow(2, Math.max(0, this.failedAttempts - 1))
+      );
       this.reconnectTimeout = setTimeout(async () => {
         this.reconnectTimeout = null;
         if (!this.isClosing && !this.connected && this.callbacks) {
-          this.callbacks.onLog?.('[DCC-EX] 🔄 Starte automatischen Reconnect zur Zentrale...', 'info');
+          if (this.failedAttempts === 0) {
+            this.callbacks.onLog?.('[DCC-EX] 🔄 Starte automatischen Reconnect zur Zentrale...', 'info');
+          }
           if (this.isSerial) {
             await this.connectSerial();
           } else {
             await this.connectTcp();
           }
         }
-      }, 3500);
+      }, delay);
     }
   }
 
@@ -261,6 +299,11 @@ export class DccExDriver implements ICommandStation {
       this.rxBuffer = this.rxBuffer.substring(endIdx + 1);
       this.parseDccExMessage(msg);
     }
+    // Datenmüll ohne '>' (falsche Baudrate, fremdes Gerät) darf den Puffer nicht endlos füllen
+    if (this.rxBuffer.length > DccExDriver.MAX_RX_BUFFER) {
+      const lastStart = this.rxBuffer.lastIndexOf('<');
+      this.rxBuffer = lastStart >= 0 && this.rxBuffer.length - lastStart <= 512 ? this.rxBuffer.substring(lastStart) : '';
+    }
   }
 
   private reportPower(on: boolean): void {
@@ -332,16 +375,20 @@ export class DccExDriver implements ICommandStation {
   async setLocoSpeed(address: number, speed: number, direction: Direction): Promise<void> {
     const dirBit = direction === 'FWD' ? 1 : 0;
     // DCC-EX erwartet Fahrstufe 0–127 (TrainMaster intern bis 128)
+    // Nur saubere Zahlen in den Befehl schreiben (nie NaN oder Text)
+    if (!Number.isInteger(address) || address < 1 || !Number.isFinite(speed)) return;
     const dccSpeed = Math.max(0, Math.min(127, Math.round(speed)));
     this.sendRaw(`<t 1 ${address} ${dccSpeed} ${dirBit}>`);
   }
 
   async setLocoFunction(address: number, functionIndex: number, active: boolean): Promise<void> {
+    if (!Number.isInteger(address) || address < 1 || !Number.isInteger(functionIndex) || functionIndex < 0) return;
     this.sendRaw(`<F ${address} ${functionIndex} ${active ? 1 : 0}>`);
   }
 
   async setTurnout(address: number, state: TurnoutState): Promise<void> {
     // In DCC-EX: <T ID THROW> wobei 0 = STRAIGHT (closed), 1 = DIVERGENT (thrown)
+    if (!Number.isInteger(address) || address < 0) return;
     const throwVal = state === 'STRAIGHT' ? 0 : 1;
     this.sendRaw(`<T ${address} ${throwVal}>`);
     // Ergänzend Zubehörbefehl für einfache DCC-Decoder ohne konfigurierte Weichenliste

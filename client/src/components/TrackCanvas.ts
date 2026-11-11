@@ -424,11 +424,14 @@ export class TrackCanvas {
 
       wsClient.send({ type: 'UPDATE_BLOCK', payload: updatedBlock });
 
+      // Belegung läuft nicht über UPDATE_BLOCK (der Server übernimmt dort nur Stammdaten),
+      // sondern über die Zuweisung: neue Lok aufsetzen oder bisherige Lok aus dem Block nehmen.
       if (newLocoId !== block.currentLocoId) {
-        wsClient.send({
-          type: 'ASSIGN_LOCO_TO_BLOCK',
-          payload: { locoId: newLocoId || '', blockId: newLocoId ? updatedBlock.id : null }
-        });
+        if (newLocoId) {
+          wsClient.send({ type: 'ASSIGN_LOCO_TO_BLOCK', payload: { locoId: newLocoId, blockId: updatedBlock.id } });
+        } else if (block.currentLocoId) {
+          wsClient.send({ type: 'ASSIGN_LOCO_TO_BLOCK', payload: { locoId: block.currentLocoId, blockId: null } });
+        }
       }
 
       const m = document.getElementById('block-modal');
@@ -2693,7 +2696,7 @@ export class TrackCanvas {
           <div class="ctx-timer-header">
             <span>${block.waitTimer.status === 'WAITING' ? 'Planmäßiger Halt (Wartezeit)' : 'Ausfahrt blockiert'}</span>
           </div>
-          <div class="ctx-timer-value" id="ctx-timer-countdown" data-block-id="${block.id}">
+          <div class="ctx-timer-value" id="ctx-timer-countdown" data-block-id="${escapeAttr(block.id)}">
             ${block.waitTimer.status === 'WAITING'
               ? `Noch <strong>${rem} s</strong> bis zur Abfahrt (von ${block.waitTimer.totalWaitSec} s)`
               : 'Wartezeit abgelaufen. Signal oder Zielblock ist noch belegt.'}

@@ -153,9 +153,18 @@ Falls noch nicht installiert, lade die aktuelle [Arduino IDE (Version 2.x)](http
 Einmal geflasht, musst du den ESP32 nie wieder an den PC anstecken!
 1. Wenn du Änderungen am Code machst, klicke in der Arduino IDE auf **Sketch** ➔ **Kompilierte Binärdatei exportieren** (`Strg + Alt + S`).
 2. Öffne im Browser das Web-Dashboard deines ESP32: `http://<esp-ip>/`.
-3. Scrolle ganz nach unten zur Sektion **„🔄 Firmware Update (OTA)“**.
-4. Wähle die exportierte `.bin`-Datei aus und klicke auf **Update starten**.
-5. Der ESP32 aktualisiert sich innerhalb von 10 Sekunden kabellos über dein WLAN!
+3. Scrolle ganz nach unten zur Sektion **„🔄 Over-The-Air Update (OTA)“**.
+4. Gib die **Admin-PIN** ein und klicke auf **Upload freischalten**. Der Upload ist danach 3 Minuten lang nur für dein Gerät offen.
+5. Wähle die exportierte `.bin`-Datei aus und klicke auf **Firmware flashen**.
+6. Der ESP32 aktualisiert sich innerhalb von 10 Sekunden kabellos über dein WLAN!
+
+### 🔐 Admin-PIN ändern (wichtig)
+* Ab Werk lautet die Admin-PIN **`1234`**. Solange sie aktiv ist, zeigt das Dashboard eine rote Warnung: jeder im WLAN könnte das Modul umstellen oder eigene Firmware aufspielen.
+* Trage unter **Konfiguration** bei **„Neue Admin-PIN“** eine eigene PIN ein (4–32 Zeichen), bestätige mit der aktuellen PIN und speichere.
+* Nach 5 falschen Eingaben ist die PIN-Eingabe 60 Sekunden gesperrt.
+* **Flashen aus der Arduino IDE über das Netzwerk (ArduinoOTA)** ist erst mit eigener PIN aktiv. Das Passwort dafür ist deine Admin-PIN.
+* Der Einrichtungs-Hotspot `TrainMaster-Setup` nutzt das Passwort `12345678`, bis deine Admin-PIN mindestens 8 Zeichen hat; ab dann gilt die PIN als Hotspot-Passwort.
+* PIN vergessen? Flash-Speicher per USB löschen (Arduino IDE: **Werkzeuge ➔ Erase All Flash Before Sketch Upload ➔ Enabled**) und neu flashen.
 
 ---
 

@@ -36,6 +36,10 @@ server/data/layout.local.json
 server/data/*.local.json
 server/data/*.backup*.json
 server/data/loco-images/
+server/data/*.bak
+server/data/*.tmp
+server/data/*.corrupt-*.json
+scripts/.tmp-*/
 *.local.h
 credentials.h
 **/credentials.h

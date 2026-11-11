@@ -1,8 +1,34 @@
 import dgram from 'dgram';
 import net from 'net';
 import os from 'os';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
 import { Signal, SignalAspect, WioNodeInfo, WioPacketInfo, DiscoveredEsp } from '../types.js';
+import { toNetLabel } from '../validate.js';
+
+/** IPv4-Netz einer lokalen Schnittstelle */
+interface LocalNet {
+  address: string;
+  mask: number;
+  network: number;
+  broadcast: string;
+}
+
+function ipToInt(ip: string): number {
+  return ip.split('.').reduce((acc, part) => ((acc << 8) | (parseInt(part, 10) & 0xff)) >>> 0, 0);
+}
+
+function intToIp(n: number): string {
+  return [24, 16, 8, 0].map((s) => (n >>> s) & 0xff).join('.');
+}
+
+/** Ganzzahl im Bereich oder undefined (für Unit/Pin aus Netzwerkpaketen). */
+function netInt(v: unknown, min: number, max: number): number | undefined {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= min && n <= max ? n : undefined;
+}
+
+const MAX_NODES = 64;
+const MAX_PAYLOAD_LOG = 200;
 
 export interface WioSensorEvent {
   id?: string;
@@ -69,6 +95,9 @@ export class WioDriver {
 
         this.udpSocket.on('error', (err) => {
           this.callbacks.onLog?.(`[WIO] UDP Socket Fehler auf Port ${this.port}: ${err.message}`, 'error');
+          // Schlägt schon das Binden fehl (Port belegt), kommt nie ein 'listening':
+          // ohne dieses resolve bliebe start() für immer hängen.
+          resolve(false);
         });
 
         this.udpSocket.on('message', (msgBuffer, rinfo) => {
@@ -99,6 +128,9 @@ export class WioDriver {
           const clientIp = remoteRaw.includes('::1') || remoteRaw === '127.0.0.1' ? '127.0.0.1' : remoteRaw.replace(/^.*:/, '');
 
           this.callbacks.onLog?.(`[WIO] 🟢 ESP32 TCP-Verbindung aufgebaut von ${clientIp}`, 'info');
+          // Neue Verbindung derselben IP ersetzt die alte (ESP32 nach Reset); alte schließen
+          const previous = this.tcpClients.get(clientIp);
+          if (previous && previous !== socket) previous.destroy();
           this.tcpClients.set(clientIp, socket);
 
           // CR-12: TCP ist ein Bytestrom -> pro Socket puffern und nur vollständige Zeilen verarbeiten
@@ -150,7 +182,8 @@ export class WioDriver {
 
           socket.on('close', () => {
             if (flushTimer) clearTimeout(flushTimer);
-            this.tcpClients.delete(clientIp);
+            // Nur den eigenen Eintrag entfernen, nicht eine inzwischen neu aufgebaute Verbindung
+            if (this.tcpClients.get(clientIp) === socket) this.tcpClients.delete(clientIp);
             this.callbacks.onLog?.(`[WIO] ESP32 TCP-Verbindung beendet (${clientIp})`, 'info');
           });
         });
@@ -381,12 +414,31 @@ export class WioDriver {
       return;
     }
 
-    const unitNum = unit !== undefined && !isNaN(unit) ? unit : 33;
+    const unitNum = netInt(unit, 0, 65535) ?? 33;
     const key = `${sourceIp}_${unitNum}`;
     let node = this.discoveredNodes.get(key);
+    if (payload && payload.length > MAX_PAYLOAD_LOG) payload = payload.slice(0, MAX_PAYLOAD_LOG) + '...';
+    // Texte aus dem Netzwerk nie ungeprüft übernehmen (landen in der Oberfläche und im Log)
+    if (meta) {
+      meta = { ...meta };
+      if (meta.name !== undefined) meta.name = toNetLabel(meta.name, 'ESP32');
+      if (meta.type !== undefined) meta.type = toNetLabel(meta.type, 'WIO', 32);
+      if (meta.clientver !== undefined) meta.clientver = toNetLabel(meta.clientver, '', 24);
+    }
 
-    const isNew = !node;
     if (!node) {
+      // Obergrenze: ältesten Eintrag verdrängen (Schutz vor Fluten mit erfundenen Units)
+      if (this.discoveredNodes.size >= MAX_NODES) {
+        let oldestKey: string | null = null;
+        let oldestSeen = Infinity;
+        for (const [k, n] of this.discoveredNodes) {
+          if (n.lastSeen < oldestSeen) {
+            oldestSeen = n.lastSeen;
+            oldestKey = k;
+          }
+        }
+        if (oldestKey) this.discoveredNodes.delete(oldestKey);
+      }
       const initialPins: Record<number, boolean> = {};
       const espAllPins = [1, 2, 3, 4, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39];
       for (const p of espAllPins) initialPins[p] = false;
@@ -419,8 +471,9 @@ export class WioDriver {
       });
       if (this.recentPackets.length > 30) this.recentPackets.pop();
     }
-    if (pin !== undefined && state !== undefined) {
-      node.pinStates[pin] = state;
+    const pinNum = netInt(pin, 0, 255);
+    if (pinNum !== undefined && state !== undefined) {
+      node.pinStates[pinNum] = !!state;
     }
 
     this.callbacks.onNodeUpdated?.(node);
@@ -444,8 +497,8 @@ export class WioDriver {
     });
     if (this.recentPackets.length > 30) this.recentPackets.pop();
 
-    // Ignoriere ausgehende Signal- und Ausgabebefehle
-    if (rawStr.startsWith('<output') || rawStr.startsWith('<aspect') || rawStr.includes('"cmd":"signal"')) {
+    // Ignoriere ausgehende Signal-/Ausgabebefehle und den eigenen Such-Broadcast
+    if (rawStr.startsWith('<output') || rawStr.startsWith('<aspect') || rawStr.startsWith('<query') || rawStr.includes('"cmd":"signal"')) {
       return;
     }
 
@@ -520,7 +573,7 @@ export class WioDriver {
     });
 
     this.callbacks.onLog?.(
-      `[WIO] 🎛️ ESP32 "${nodename}" (Unit #${unit}, Typ: ${type}, Firmware v${clientver}) angedockt. IP: ${sourceIp}`,
+      `[WIO] 🎛️ ESP32 "${toNetLabel(nodename, 'ESP32')}" (Unit #${netInt(unit, 0, 65535) ?? 33}, Typ: ${toNetLabel(type, 'WIO', 32)}, Firmware v${toNetLabel(clientver, '?', 24)}) angedockt. IP: ${sourceIp}`,
       'info'
     );
 
@@ -602,14 +655,14 @@ export class WioDriver {
       state = stateStr.toLowerCase() === 'true' || stateStr === '1' || stateStr.toLowerCase() === 'on';
     }
 
-    const unit = busStr ? parseInt(busStr, 10) : 33;
-    const pin = pinStr ? parseInt(pinStr, 10) : undefined;
+    const unit = netInt(busStr, 0, 65535) ?? 33;
+    const pin = netInt(pinStr, 0, 255);
 
     this.recordNodeActivity(sourceIp, unit, pin, state, xml);
 
     const event: WioSensorEvent = {
       id,
-      address: addrStr ? parseInt(addrStr, 10) : (unit && pin ? unit * 100 + pin : undefined),
+      address: netInt(addrStr, 0, 100000000) ?? (unit && pin ? unit * 100 + pin : undefined),
       unit,
       pin,
       state,
@@ -622,10 +675,12 @@ export class WioDriver {
 
   public parseJsonPacket(json: any, rawPayload: string, sourceIp: string): void {
     // 1. TrainMasterNode Connect/Registrierung
+    if (!json || typeof json !== 'object' || Array.isArray(json)) return;
+    if (rawPayload.length > MAX_PAYLOAD_LOG) rawPayload = rawPayload.slice(0, MAX_PAYLOAD_LOG) + '...';
     if (json.event === 'connect' || json.cmd === 'register') {
-      const unit = json.unit ? Number(json.unit) : 33;
-      const name = json.nodename || 'TrainMasterNode';
-      const version = json.version || '';
+      const unit = netInt(json.unit, 0, 65535) ?? 33;
+      const name = toNetLabel(json.nodename, 'TrainMasterNode');
+      const version = toNetLabel(json.version, '', 24);
       this.recordNodeActivity(sourceIp, unit, undefined, undefined, rawPayload, {
         name,
         type: 'TrainMasterNode',
@@ -638,7 +693,7 @@ export class WioDriver {
 
     // 2. TrainMasterNode Heartbeat
     if (json.event === 'heartbeat') {
-      const unit = json.unit ? Number(json.unit) : 33;
+      const unit = netInt(json.unit, 0, 65535) ?? 33;
       this.recordNodeActivity(sourceIp, unit, undefined, undefined, rawPayload);
       return;
     }
@@ -652,14 +707,14 @@ export class WioDriver {
       json.val === 1 ||
       json.val === true;
 
-    const unit = json.unit !== undefined ? Number(json.unit) : json.bus !== undefined ? Number(json.bus) : json.node !== undefined ? Number(json.node) : 33;
-    const pin = json.pin !== undefined ? Number(json.pin) : json.port !== undefined ? Number(json.port) : undefined;
+    const unit = netInt(json.unit ?? json.bus ?? json.node, 0, 65535) ?? 33;
+    const pin = netInt(json.pin ?? json.port, 0, 255);
 
     this.recordNodeActivity(sourceIp, unit, pin, state, rawPayload);
 
     const event: WioSensorEvent = {
-      id: json.id ? String(json.id) : undefined,
-      address: json.address !== undefined ? Number(json.address) : json.addr !== undefined ? Number(json.addr) : (unit && pin ? unit * 100 + pin : undefined),
+      id: typeof json.id === 'string' || typeof json.id === 'number' ? String(json.id).slice(0, 96) : undefined,
+      address: netInt(json.address ?? json.addr, 0, 100000000) ?? (unit && pin ? unit * 100 + pin : undefined),
       unit,
       pin,
       state,
@@ -734,31 +789,67 @@ export class WioDriver {
   /**
    * Führt einen aktiven Netzwerk-Scan nach ESP32 / WIO Geräten im lokalen Subnetz durch
    */
-  public async scanNetwork(): Promise<DiscoveredEsp[]> {
-    this.callbacks.onLog?.('[WIO] 🔍 Starte aktiven Netzwerk-Scan nach ESP32 & WIO-Geräten...', 'info');
+  private scanInFlight: Promise<DiscoveredEsp[]> | null = null;
 
-    // 1. Lokales Subnetz ermitteln
+  /** Alle lokalen IPv4-Netze (LAN, WLAN, ...) – nicht nur die zuletzt gefundene Schnittstelle. */
+  private static getLocalNets(): LocalNet[] {
+    const nets: LocalNet[] = [];
     const ifaces = os.networkInterfaces();
-    let localIp = '127.0.0.1';
     for (const name of Object.keys(ifaces)) {
       for (const netIf of ifaces[name] || []) {
-        if (netIf.family === 'IPv4' && !netIf.internal) {
-          localIp = netIf.address;
-        }
+        if (netIf.family !== 'IPv4' || netIf.internal) continue;
+        if (netIf.address.startsWith('169.254.')) continue; // Link-Local (kein DHCP)
+        const mask = ipToInt(netIf.netmask);
+        const addr = ipToInt(netIf.address);
+        const network = (addr & mask) >>> 0;
+        nets.push({ address: netIf.address, mask, network, broadcast: intToIp((network | (~mask >>> 0)) >>> 0) });
       }
     }
-    const subnetPrefix = localIp.substring(0, localIp.lastIndexOf('.'));
+    return nets;
+  }
+
+  /** ARP-Tabelle lesen, ohne den Server zu blockieren (früher execSync, bis zu 3 s Stillstand). */
+  private static readArpTable(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      execFile('arp', ['-a'], { encoding: 'utf-8', timeout: 3000, windowsHide: true }, (err, stdout) => {
+        if (err) reject(err);
+        else resolve(String(stdout));
+      });
+    });
+  }
+
+  /** Mehrere gleichzeitige Scan-Anfragen teilen sich einen Durchlauf. */
+  public scanNetwork(): Promise<DiscoveredEsp[]> {
+    if (!this.scanInFlight) {
+      this.scanInFlight = this.runScan().finally(() => {
+        this.scanInFlight = null;
+      });
+    }
+    return this.scanInFlight;
+  }
+
+  private async runScan(): Promise<DiscoveredEsp[]> {
+    this.callbacks.onLog?.('[WIO] 🔍 Starte aktiven Netzwerk-Scan nach ESP32 & WIO-Geräten...', 'info');
+
+    // 1. Lokale Netze ermitteln
+    const localNets = WioDriver.getLocalNets();
+    const localIps = new Set(localNets.map((n) => n.address));
+    const inLocalNet = (ip: string): boolean => {
+      const n = ipToInt(ip);
+      return localNets.some((ln) => ((n & ln.mask) >>> 0) === ln.network && ip !== ln.broadcast && n !== ln.network);
+    };
 
     // 2. ARP-Tabelle auslesen
     const arpMap = new Map<string, string>();
     try {
-      const arpOutput = execSync('arp -a', { encoding: 'utf-8', timeout: 3000 });
+      const arpOutput = await WioDriver.readArpTable();
       for (const line of arpOutput.split('\n')) {
-        const match = line.trim().match(/^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F-]+)\s+(\w+)/);
+        // Windows: "192.168.1.5   aa-bb-cc-dd-ee-ff   dynamisch", Linux/macOS: "? (192.168.1.5) at aa:bb:cc:dd:ee:ff ..."
+        const match = line.match(/(\d+\.\d+\.\d+\.\d+)\)?\s+(?:at\s+)?([0-9a-fA-F]{1,2}(?:[:-][0-9a-fA-F]{1,2}){5})/);
         if (match) {
           const ip = match[1];
           const mac = match[2].toLowerCase();
-          if (ip.startsWith(subnetPrefix) && ip !== localIp && !ip.endsWith('.255')) {
+          if (net.isIPv4(ip) && inLocalNet(ip) && !localIps.has(ip) && mac.replace(/[:-]/g, '') !== 'ffffffffffff') {
             arpMap.set(ip, mac);
           }
         }
@@ -767,12 +858,17 @@ export class WioDriver {
       this.callbacks.onLog?.(`[WIO] Warnung beim Auslesen der ARP-Tabelle: ${e.message}`, 'warn');
     }
 
-    // 3. WIO UDP Discovery Broadcast senden
+    // 3. WIO UDP Discovery Broadcast in jedes lokale Netz senden
     if (this.udpSocket && this.isListening) {
+      const discoveryMsg = Buffer.from('<query unit="0"/>', 'utf-8');
       try {
-        const discoveryMsg = Buffer.from('<query unit="0"/>', 'utf-8');
-        this.udpSocket.send(discoveryMsg, 0, discoveryMsg.length, this.port, `${subnetPrefix}.255`);
+        this.udpSocket.setBroadcast(true);
       } catch {}
+      for (const ln of localNets) {
+        try {
+          this.udpSocket.send(discoveryMsg, 0, discoveryMsg.length, this.port, ln.broadcast, () => {});
+        } catch {}
+      }
     }
 
     // 4. Bekannte ESP32 MAC OUI-Präfixe (Espressif Inc.)
@@ -797,10 +893,10 @@ export class WioDriver {
     };
 
     // 5. Parallel auf Port 80 abfragen (ausschließlich echte, validierte IP-Adressen)
-    const candidates = Array.from(arpMap.keys()).filter((ip) => ip !== localIp && ip !== '127.0.0.1' && Boolean(net.isIP(ip)));
+    const candidates = Array.from(arpMap.keys()).filter((ip) => !localIps.has(ip) && ip !== '127.0.0.1' && Boolean(net.isIP(ip)));
     // Stelle sicher, dass bereits verbundene echte Nodes in der Liste sind
     for (const node of this.discoveredNodes.values()) {
-      if (node.ip !== localIp && node.ip !== '127.0.0.1' && Boolean(net.isIP(node.ip)) && !candidates.includes(node.ip)) {
+      if (!localIps.has(node.ip) && node.ip !== '127.0.0.1' && Boolean(net.isIP(node.ip)) && !candidates.includes(node.ip)) {
         candidates.push(node.ip);
       }
     }
@@ -817,14 +913,15 @@ export class WioDriver {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 900);
-        const res = await fetch(`http://${ip}/`, { signal: controller.signal });
+        const res = await fetch(`http://${ip}/`, { signal: controller.signal, redirect: 'manual' });
         clearTimeout(timer);
         if (res.ok || res.status === 200 || res.status === 401) {
           isHttpOpen = true;
-          const html = await res.text().catch(() => '');
+          const html = (await res.text().catch(() => '')).slice(0, 65536);
           const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
           if (match) {
-            title = match[1].trim();
+            // Seitentitel eines fremden Geräts: nur unkritische Zeichen übernehmen
+            title = toNetLabel(match[1], '', 60);
           }
         }
       } catch {}

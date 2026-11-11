@@ -54,11 +54,54 @@ export class RouteEngine {
     return Array.from(this.routes.values());
   }
 
+  /**
+   * Ersetzt die Fahrstraßenliste. Laufende Fahrstraßen behalten ihren Zustand (gleiche ID,
+   * gleiches Objekt); entfällt eine aktive Fahrstraße, wird sie sauber aufgelöst
+   * (Abfahrt abbrechen, Weichen entriegeln, Zielreservierung aufheben, Signale auf Halt).
+   */
   setRoutes(newRoutes: Route[]): void {
-    this.routes.clear();
-    for (const r of newRoutes) {
-      this.routes.set(r.id, { ...r });
+    const old = this.routes;
+    const keep = new Set(newRoutes.map((r) => r.id));
+    for (const r of old.values()) {
+      if (keep.has(r.id)) continue;
+      this.cancelPendingStart(r.id);
+      if (r.active) {
+        r.active = false;
+        this.turnoutManager.unlockTurnouts(r.id);
+        const toBlock = this.blockManager.getBlock(r.toBlockId);
+        if (toBlock && toBlock.state === 'RESERVED') {
+          this.blockManager.freeBlock(toBlock.id);
+        }
+        for (const ss of r.signalSettings || []) {
+          this.events.onSignalSet?.(ss.signalId, 'HP0');
+        }
+        this.events.onLog(`[Fahrstraße] ${r.name} entfernt und aufgelöst.`, 'warn');
+      }
     }
+    this.routes = new Map();
+    for (const r of newRoutes) {
+      const prev = old.get(r.id);
+      if (prev) {
+        const next = { ...r, active: prev.active }; // Kopie: r kann dasselbe Objekt wie prev sein
+        for (const key of Object.keys(prev)) delete (prev as any)[key];
+        Object.assign(prev, next);
+        this.routes.set(r.id, prev);
+      } else {
+        this.routes.set(r.id, { ...r, active: false });
+      }
+    }
+  }
+
+  /** Entfernt ein gelöschtes Signal aus allen Fahrstraßen. Rückgabe: true, wenn etwas geändert wurde. */
+  removeSignalReferences(signalId: string): boolean {
+    let changed = false;
+    for (const r of this.routes.values()) {
+      if (r.signalSettings?.some((ss) => ss.signalId === signalId)) {
+        r.signalSettings = r.signalSettings.filter((ss) => ss.signalId !== signalId);
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   getRoute(id: string): Route | undefined {
@@ -306,7 +349,7 @@ export class RouteEngine {
   /**
    * Löst eine Fahrstraße auf (nachdem Zug im Zielblock IN erreicht hat)
    */
-  releaseRoute(toBlockId: string): void {
+  releaseRoute(toBlockId: string, opts: { freeFromBlock?: boolean } = {}): void {
     for (const r of this.routes.values()) {
       if (r.toBlockId === toBlockId && r.active) {
         r.active = false;
@@ -322,8 +365,11 @@ export class RouteEngine {
           this.locoArrivalDirection.set(locoId, r.direction);
         }
 
-        // Falls voriger Block noch belegt war, freigeben
-        this.blockManager.freeBlock(r.fromBlockId);
+        // Falls voriger Block noch belegt war, freigeben. Nicht bei einem manuellen Abbruch,
+        // solange der Zug sein Ziel noch nicht erreicht hat: er steht/fährt dann noch im Startblock.
+        if (opts.freeFromBlock !== false) {
+          this.blockManager.freeBlock(r.fromBlockId);
+        }
         this.clearBlockTimer(r.fromBlockId);
 
         // Signale wieder auf Halt (HP0) zurückstellen

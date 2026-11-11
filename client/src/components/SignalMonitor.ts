@@ -10,6 +10,7 @@ import {
 } from '../icons.js';
 import { registerView } from '../uiScheduler.js';
 import { escapeAttr } from '../sanitize.js';
+import { escapeAttr as escA, escapeHtml as escH } from '../sanitize.js';
 
 export class SignalMonitor {
   private container: HTMLElement | null;
@@ -217,7 +218,7 @@ export class SignalMonitor {
 
     if (signal) {
       const initialKind: SignalKind = signal.kind || (signal.wioPins?.yellow !== undefined ? 'ENTRY_EXIT' : 'BLOCK');
-      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconEdit(18)} <span>Signal bearbeiten: ${signal.name}</span></span>`;
+      if (titleEl) titleEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconEdit(18)} <span>Signal bearbeiten: ${escH(signal.name)}</span></span>`;
       if (idInput) idInput.value = signal.id;
       if (nameInput) nameInput.value = signal.name;
       if (kindSelect) kindSelect.value = initialKind;
@@ -593,7 +594,7 @@ export class SignalMonitor {
       }
 
       return `
-        <button id="btn-aspect-${sig.id}-${asp}" class="signal-aspect-btn ${activeClass}" title="${asp}">
+        <button id="btn-aspect-${escA(sig.id)}-${asp}" class="signal-aspect-btn ${activeClass}" title="${asp}">
           ${label}
         </button>
       `;
@@ -609,7 +610,7 @@ export class SignalMonitor {
           </div>
           <div class="signal-card-main">
             <div class="signal-card-top-row">
-              <span class="signal-card-name" title="${sig.name}">${sig.name}</span>
+              <span class="signal-card-name" title="${escA(sig.name)}">${escH(sig.name)}</span>
               <div style="flex-shrink:0;">${aspectBadge}</div>
             </div>
             <div class="signal-card-meta-row">
@@ -625,7 +626,7 @@ export class SignalMonitor {
         </div>
 
         <div>
-          <button id="btn-edit-sig-${sig.id}" class="signal-config-btn" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+          <button id="btn-edit-sig-${escA(sig.id)}" class="signal-config-btn" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;">
             ${iconEdit(14)} Signal konfigurieren (Bauart / Pins / Unit)
           </button>
         </div>

@@ -224,6 +224,15 @@ export class Z21Simulator {
         this.record(key, 'LAN_GET_BROADCASTFLAGS', p);
         { const r = Buffer.alloc(8); r.writeUInt16LE(8, 0); r.writeUInt16LE(0x51, 2); r.writeUInt32LE(client.flags, 4); this.sendTo(client, r); }
         return;
+      case 0x81: // LAN_RMBUS_GETDATA -> LAN_RMBUS_DATACHANGED (Gruppenindex + 10 Rueckmeldebytes)
+        if (!expectLen(5, 'LAN_RMBUS_GETDATA')) return;
+        this.record(key, 'LAN_RMBUS_GETDATA', p);
+        {
+          const r = Buffer.alloc(15);
+          r.writeUInt16LE(15, 0); r.writeUInt16LE(0x80, 2); r[4] = p[4];
+          this.sendTo(client, r);
+        }
+        return;
       case 0x40:
         this.handleX(client, key, p);
         return;

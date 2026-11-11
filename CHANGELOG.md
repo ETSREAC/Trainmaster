@@ -10,6 +10,48 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) 
 
 ---
 
+## [1.14.0] - 2026-11-11
+
+Minor-Release nach einem Code-Review: Datenverlust verhindert, Fehler im Fahrbetrieb behoben, Eingaben abgesichert.
+
+**Hinweis:** Benötigt jetzt Node.js 20.19 oder neuer (Vite 7). ESP32-Module brauchen für die Firmware-Änderungen ein Update auf v2.2.0.
+
+### Fixed
+- **Datenverlust:** Eine beschädigte `layout.local.json` wurde beim Start mit dem Demo-Layout überschrieben. Sie wird jetzt als `*.corrupt-<Zeit>.json` aufbewahrt, die letzte Sicherung (`.bak`, bei jedem Start angelegt) wird geladen. Gespeichert wird atomar über eine Temp-Datei. Dateien mit BOM (Windows-Editor) werden gelesen.
+- Die Layout-Datei wurde bei jeder Fahrstufenänderung komplett neu geschrieben (bei einer Bremsrampe alle 30–80 ms). Speichern wird jetzt gebündelt (spätestens nach 2 s) und beim Beenden nachgeholt.
+- Not-Halt: Ein Fahrbefehl während Not-Halt wurde angezeigt und gespeichert, aber nicht gesendet. Er wird jetzt abgelehnt, der Regler springt zurück.
+- Ungültige Fahrstufen (`NaN`, Text) gingen als Befehl an die Zentrale. Fahrstufe, Funktionsnummer und DCC-Adresse werden geprüft.
+- BBT: Ein erneutes ENTER im selben Block (prellender Melder, jede Achse) hat die Bremsrampe neu gestartet. Die Lok überfuhr den Haltepunkt und das Lernen verkürzte das Intervall zu Unrecht.
+- Nach einem Neustart blieben Fahrstufen, aktive Fahrstraßen, verriegelte Weichen und reservierte Blöcke der letzten Sitzung bestehen. Der Laufzeitzustand wird beim Start verworfen.
+- Block, Weiche, Signal und Rückmelder bearbeiten hat den Live-Zustand überschrieben (Belegung, Verriegelung, Signalbild, Belegtstatus). Es werden nur noch Stammdaten übernommen.
+- Weiche bearbeiten hat immer einen Stellbefehl gesendet, auch bei verriegelter Weiche. Adresse/Invertierung einer verriegelten Weiche sind jetzt gesperrt, ein reiner Namenswechsel stellt nichts.
+- Fahrstraßen neu speichern während einer Fahrt ließ Weichen verriegelt zurück. Aktive Fahrstraßen bleiben aktiv, entfallende werden sauber aufgelöst.
+- Ein gelöschtes Signal blieb in den Fahrstraßen stehen.
+- „Block freigeben“ auf einem nur reservierten Zielblock hat den Startblock des noch fahrenden Zuges mit freigegeben.
+- Einstellungen: Wechsel auf „Simulator“ oder „Z21“ hat IP, Port und COM-Port der DCC-EX-Zentrale mit Standardwerten überschrieben. Die Angaben beider Zentralentypen werden getrennt gemerkt.
+- Einstellungen: WIO-Port und „WIO aktiv“ wurden nie gespeichert.
+- Jedes Speichern der Einstellungen hat die Zentrale neu verbunden; zwei schnelle Wechsel hinterließen einen Treiber, der im Hintergrund weiter verband. Wechsel laufen nacheinander und nur bei geänderten Verbindungsdaten.
+- Z21: Der Status stand immer auf „Verbunden“, auch ohne Zentrale. Er zeigt jetzt, ob die Z21 antwortet, und wechselt automatisch, sobald sie erreichbar ist. Lebenszeichen alle 15 s (die Z21 trennt Clients nach 60 s), Abmelden beim Trennen.
+- DCC-EX: Bei ausgeschalteter Zentrale kamen alle 3,5 s drei Log-Zeilen. Es wird einmal gemeldet, die Wartezeit wächst bis 30 s. Empfangspuffer begrenzt.
+- WIO: Speichern der Einstellungen blieb hängen, wenn der UDP-Port belegt war. Eine zweite TCP-Verbindung derselben IP hat beim Schließen der ersten die neue mit entfernt. Der Netzwerk-Scan blockierte den Server bis zu 3 s und nahm bei mehreren Netzwerkadaptern das falsche Netz.
+- Raumlicht war ab Werk eingeschaltet und versuchte alle 15 s, `192.168.1.50` zu erreichen. Standard ist jetzt aus (bestehende Einstellungen bleiben).
+
+### Security
+- XSS: Namen von ESP32-Modulen (kommen ungeprüft per UDP/TCP/HTTP aus dem Netz), Seitentitel gescannter Geräte sowie Block-, Signal-, Rückmelder- und Fahrstraßennamen wurden ohne Escaping in die Oberfläche geschrieben. Alle Stellen escapen jetzt; Texte aus dem Netzwerk werden zusätzlich serverseitig bereinigt.
+- `X-Forwarded-For` wird nicht mehr ausgewertet. Damit ließ sich ein Modul unter fremder IP anmelden; Signalbefehle gingen dann an diese Adresse.
+- Alle WebSocket-Nachrichten werden geprüft (`server/src/validate.ts`): Adressen, Bereiche, IDs; Einstellungen nur noch bekannte Schlüssel. BBT-Profile mit Intervall 0 oder Millionen Schritten werden begrenzt.
+- `GET /api/wio/scan` startet keinen Scan mehr (nur noch POST/WebSocket). Anzahl bekannter Module auf 64 begrenzt.
+- ESP32-Firmware 2.2.0: Der OTA-Upload wurde geflasht, bevor die PIN geprüft war. Der Upload muss jetzt zuerst per PIN freigeschaltet werden (3 Minuten, nur für die anfragende IP). Die Admin-PIN ist änderbar, 5 Fehlversuche sperren 60 s. ArduinoOTA nutzt die Admin-PIN statt des festen Passworts und ist mit Werks-PIN abgeschaltet. Modulname und Eingaben werden geprüft und escaped.
+- Abhängigkeiten aktualisiert (Vite 7, Express 4.22.3): `npm audit` meldet 0 Lücken.
+- Supporter-Code wird beim Start erneut gegen die Signatur geprüft.
+
+### Added
+- Z21: R-Bus-Rückmelder, Gleisspannung, Kurzschluss, Not-Halt und Weichenlage der Zentrale werden ausgewertet.
+- `npm run build && npm start` liefert die Oberfläche ohne Entwicklungsserver direkt unter `http://localhost:3001` aus. `npm run client:local` bindet den Entwicklungsserver nur an den eigenen PC.
+- Tests `scripts/test_robustness.mjs` (22 Tests); die CI führt jetzt alle Tests aus.
+
+---
+
 ## [1.13.0] - 2026-11-06
 
 Minor-Release: Menüs und Fenster robust, Design überarbeitet (Handy, Kopfleiste, Farben, Texte).

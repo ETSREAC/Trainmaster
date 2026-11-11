@@ -23,7 +23,7 @@ fi
 
 if ! command -v node >/dev/null 2>&1; then
     echo "❌ [FEHLER] Node.js ist nicht installiert oder nicht im PATH!"
-    echo "Bitte installiere Node.js (Version 18 oder neuer):"
+    echo "Bitte installiere Node.js (Version 20.19 oder neuer):"
     echo "  👉 Download von https://nodejs.org"
     echo "  👉 oder via Homebrew: brew install node"
     echo ""

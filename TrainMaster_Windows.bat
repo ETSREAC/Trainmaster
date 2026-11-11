@@ -12,7 +12,7 @@ echo.
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo [FEHLER] Node.js ist nicht installiert oder nicht im PATH!
-    echo Bitte installiere Node.js (Version 18 oder neuer) von https://nodejs.org
+    echo Bitte installiere Node.js (Version 20.19 oder neuer) von https://nodejs.org
     echo.
     pause
     exit /b 1

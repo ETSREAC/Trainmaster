@@ -4,8 +4,9 @@
  * Handles Header Support Button, Supporter Modal, and Key Verification.
  */
 
-import { getSupporterState, isCleanEditionUnlocked, unlockCleanEdition, removeSupporterCode } from '../license.js';
+import { getSupporterState, isCleanEditionUnlocked, unlockCleanEdition, removeSupporterCode, revalidateStoredSupporterCode } from '../license.js';
 import { t } from '../i18n.js';
+import { escapeHtml as escH } from '../sanitize.js';
 
 export class SupporterManager {
   private headerBtn = document.getElementById('btn-header-supporter') as HTMLButtonElement | null;
@@ -62,6 +63,9 @@ export class SupporterManager {
     }
 
     this.updateSettingsCard();
+
+    // Gespeicherten Code erneut gegen die Signatur prüfen (löst bei Änderung das Event oben aus)
+    void revalidateStoredSupporterCode();
   }
 
   public updateVisibility(): void {
@@ -149,7 +153,7 @@ export class SupporterManager {
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:16px;">🌟</span>
               <strong style="color:#FFDD00;font-size:14px;">${t('supporter.unlocked_badge')}</strong>
-              <span style="font-size:12px;color:#8b949e;">(${t('supporter.licensed_to')} <strong>${state.supporter || 'Supporter'}</strong>)</span>
+              <span style="font-size:12px;color:#8b949e;">(${t('supporter.licensed_to')} <strong>${escH(state.supporter || 'Supporter')}</strong>)</span>
             </div>
             <button id="btn-remove-license" class="btn btn-sm btn-clear" style="font-size:11px;color:#8b949e;padding:3px 8px;">
               ${t('supporter.btn_remove')}

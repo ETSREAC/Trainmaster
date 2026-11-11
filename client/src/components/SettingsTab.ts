@@ -1,6 +1,7 @@
 import { AppSettings, CommandStationConfig } from '../types.js';
 import { wsClient } from '../wsClient.js';
 import { iconSearch } from '../icons.js';
+import { escapeAttr, escapeHtml } from '../sanitize.js';
 import { getLanguage, setLanguage, onLanguageChange, Language, t } from '../i18n.js';
 
 export class SettingsTab {
@@ -125,7 +126,7 @@ export class SettingsTab {
       const options: string[] = [];
       if (wsClient.serialPorts.length > 0) {
         for (const p of wsClient.serialPorts) {
-          options.push(`<option value="${p.path}">${p.path} (${p.friendlyName || p.manufacturer || 'Erkannt'})</option>`);
+          options.push(`<option value="${escapeAttr(p.path)}">${escapeHtml(p.path)} (${escapeHtml(p.friendlyName || p.manufacturer || 'Erkannt')})</option>`);
         }
       }
       const defaults = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', '/dev/ttyUSB0', '/dev/ttyACM0'];
@@ -170,10 +171,18 @@ export class SettingsTab {
     this.updateVisibility();
 
     // DCC-EX Schnittstellen Radios
+    // Angaben je Zentralentyp: gemerkte Werte bevorzugen, sonst die aktiven (wenn der Typ passt)
+    const cs = s.commandStation;
+    const dccConn = cs.dccConnectionType || (cs.connectionType === 'TCP' && cs.type !== 'Z21' ? 'TCP' : 'SERIAL');
+    const dccHost = cs.dccHost || (cs.type !== 'Z21' ? cs.host : undefined);
+    const dccPortVal = cs.dccPort || (cs.type !== 'Z21' ? cs.port : undefined);
+    const z21Host = cs.z21Host || (cs.type === 'Z21' ? cs.host : undefined);
+    const z21PortVal = cs.z21Port || (cs.type === 'Z21' ? cs.port : undefined);
+
     const isAnyRadioFocused = Array.from(this.dccConnRadios).some((r) => this.isElementFocused(r));
     if (!isAnyRadioFocused) {
       this.dccConnRadios.forEach((r) => {
-        r.checked = r.value === s.commandStation.connectionType;
+        r.checked = r.value === dccConn;
       });
       this.updateDccConnVisibility();
     }
@@ -190,21 +199,19 @@ export class SettingsTab {
     if (this.dccBaud && !this.isElementFocused(this.dccBaud) && s.commandStation.baudRate) {
       this.dccBaud.value = `${s.commandStation.baudRate}`;
     }
-    if (this.dccIp && !this.isElementFocused(this.dccIp) && s.commandStation.host) {
-      this.dccIp.value = s.commandStation.host;
+    if (this.dccIp && !this.isElementFocused(this.dccIp) && dccHost) {
+      this.dccIp.value = dccHost;
     }
-    if (this.dccPort && !this.isElementFocused(this.dccPort) && s.commandStation.port) {
-      this.dccPort.value = `${s.commandStation.port}`;
+    if (this.dccPort && !this.isElementFocused(this.dccPort) && dccPortVal) {
+      this.dccPort.value = `${dccPortVal}`;
     }
 
     // Z21
-    if (s.commandStation.type === 'Z21') {
-      if (this.z21Ip && !this.isElementFocused(this.z21Ip) && s.commandStation.host) {
-        this.z21Ip.value = s.commandStation.host;
-      }
-      if (this.z21Port && !this.isElementFocused(this.z21Port) && s.commandStation.port) {
-        this.z21Port.value = `${s.commandStation.port}`;
-      }
+    if (this.z21Ip && !this.isElementFocused(this.z21Ip) && z21Host) {
+      this.z21Ip.value = z21Host;
+    }
+    if (this.z21Port && !this.isElementFocused(this.z21Port) && z21PortVal) {
+      this.z21Port.value = `${z21PortVal}`;
     }
 
     // Sonstige Einstellungen
@@ -238,25 +245,36 @@ export class SettingsTab {
 
   private saveSettings(): void {
     const csType = (this.csTypeSelect?.value || 'VIRTUAL') as 'VIRTUAL' | 'DCC_EX' | 'Z21';
-    let connType: 'SERIAL' | 'TCP' | 'UDP' = 'SERIAL';
-    let host = '192.168.0.111';
-    let port = 21105;
-    let serialPort = 'COM3';
-    let baudRate = 115200;
+    const prev: Partial<CommandStationConfig> = wsClient.settings?.commandStation || {};
+    const portOf = (el: HTMLInputElement | null, fallback: number): number => {
+      const n = parseInt(el?.value || '', 10);
+      return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : fallback;
+    };
 
+    // Die Angaben beider Zentralentypen werden immer mitgespeichert. Früher teilten sich
+    // DCC-EX und Z21 die Felder host/port: ein Wechsel auf "Simulator" oder "Z21" hat die
+    // DCC-EX-Adresse mit Standardwerten überschrieben.
+    const dccConnectionType: 'SERIAL' | 'TCP' =
+      Array.from(this.dccConnRadios).find((r) => r.checked)?.value === 'TCP' ? 'TCP' : 'SERIAL';
+    const serialPort = this.dccSerialPort?.value.trim() || prev.serialPort || 'COM3';
+    const baudRate = parseInt(this.dccBaud?.value || '', 10) || prev.baudRate || 115200;
+    const dccHost = this.dccIp?.value.trim() || prev.dccHost || '192.168.4.1';
+    const dccPort = portOf(this.dccPort, prev.dccPort || 2560);
+    const z21Host = this.z21Ip?.value.trim() || prev.z21Host || '192.168.0.111';
+    const z21Port = portOf(this.z21Port, prev.z21Port || 21105);
+
+    // Aktive Verbindung: host/port/connectionType gelten für den gewählten Typ
+    let connType: 'SERIAL' | 'TCP' | 'UDP' = prev.connectionType || 'SERIAL';
+    let host = prev.host || dccHost;
+    let port = prev.port || dccPort;
     if (csType === 'DCC_EX') {
-      const isSerial = Array.from(this.dccConnRadios).find((r) => r.checked)?.value === 'SERIAL';
-      connType = isSerial ? 'SERIAL' : 'TCP';
-      serialPort = this.dccSerialPort?.value.trim() || 'COM3';
-      baudRate = parseInt(this.dccBaud?.value || '115200', 10) || 115200;
-      host = this.dccIp?.value.trim() || '192.168.4.1';
-      const parsedPort = parseInt(this.dccPort?.value || '2560', 10);
-      port = isNaN(parsedPort) ? 2560 : parsedPort;
+      connType = dccConnectionType;
+      host = dccHost;
+      port = dccPort;
     } else if (csType === 'Z21') {
       connType = 'UDP';
-      host = this.z21Ip?.value.trim() || '192.168.0.111';
-      const parsedPort = parseInt(this.z21Port?.value || '21105', 10);
-      port = isNaN(parsedPort) ? 21105 : parsedPort;
+      host = z21Host;
+      port = z21Port;
     }
 
     const commandStation: CommandStationConfig = {
@@ -265,7 +283,12 @@ export class SettingsTab {
       serialPort,
       baudRate,
       host,
-      port
+      port,
+      dccConnectionType,
+      dccHost,
+      dccPort,
+      z21Host,
+      z21Port
     };
 
     const wioEnabled = document.getElementById('wio-enabled') as HTMLInputElement | null;

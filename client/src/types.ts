@@ -210,6 +210,13 @@ export interface CommandStationConfig {
   baudRate?: number;
   host?: string;
   port?: number;
+  // Gemerkte Angaben je Zentralentyp. host/port oben gelten für die aktive Zentrale;
+  // diese Felder verhindern, dass ein Typwechsel die Daten der anderen Zentrale überschreibt.
+  dccConnectionType?: 'SERIAL' | 'TCP';
+  dccHost?: string;
+  dccPort?: number;
+  z21Host?: string;
+  z21Port?: number;
 }
 
 export interface WioConfig {

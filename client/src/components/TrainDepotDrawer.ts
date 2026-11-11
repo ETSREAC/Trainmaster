@@ -4,6 +4,7 @@ import { getLanguage, onLanguageChange, t } from '../i18n.js';
 import { registerView, renderViewNow } from '../uiScheduler.js';
 import { escapeHtml, escapeAttr } from '../sanitize.js';
 import { locoImageSrc, locoPlaceholderIcon } from '../locoImage.js';
+import { escapeAttr as escA, escapeHtml as escH } from '../sanitize.js';
 import {
   iconDot,
   iconLocos,
@@ -378,7 +379,7 @@ export class TrainDepotDrawer {
 
     return `
       <div class="depot-loco-card ${isAssigned ? 'assigned' : 'in-depot'} ${isSelected ? 'selected-for-placement' : ''}" 
-           id="depot-card-${loco.id}" 
+           id="depot-card-${escA(loco.id)}" 
            draggable="true" 
            title="Antippen zum Aufgleisen oder auf einen Block ziehen">
         <div class="loco-photo loco-photo-depot ${photoSrc ? 'has-image' : ''}">
@@ -410,9 +411,9 @@ export class TrainDepotDrawer {
             ? `
               <div class="loco-status-location" title="Aktuell auf dem Gleisplan">
                 <span class="status-dot green"></span>
-                <span class="location-name" style="display:inline-flex;align-items:center;gap:4px;"><span style="color:#38bdf8;">${iconPin(13)}</span> ${currentBlock.name}</span>
+                <span class="location-name" style="display:inline-flex;align-items:center;gap:4px;"><span style="color:#38bdf8;">${iconPin(13)}</span> ${escH(currentBlock.name)}</span>
               </div>
-              <button id="btn-free-loco-${loco.id}" class="btn-card-free" title="Aus Block entfernen">✕</button>
+              <button id="btn-free-loco-${escA(loco.id)}" class="btn-card-free" title="Aus Block entfernen">✕</button>
             `
             : `
               <div class="loco-status-ready">

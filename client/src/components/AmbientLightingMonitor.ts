@@ -1,5 +1,6 @@
 import { AmbientLightingConfig, LightingMode, WeatherType } from '../types.js';
 import { wsClient } from '../wsClient.js';
+import { escapeAttr as escA } from '../sanitize.js';
 
 export class AmbientLightingMonitor {
   private container: HTMLElement | null = null;
@@ -256,12 +257,12 @@ export class AmbientLightingMonitor {
 
           <div class="form-group">
             <label for="ambient-ip">Controller IP-Adresse:</label>
-            <input type="text" id="ambient-ip" class="form-control" value="${cfg.ip || '192.168.1.50'}">
+            <input type="text" id="ambient-ip" class="form-control" value="${escA(cfg.ip || '192.168.1.50')}">
           </div>
 
           <div class="form-group">
             <label for="ambient-port">Port:</label>
-            <input type="number" id="ambient-port" class="form-control" value="${cfg.port || 5577}">
+            <input type="number" id="ambient-port" class="form-control" value="${Number(cfg.port) || 5577}">
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 import { wsClient } from '../wsClient.js';
 import { LayoutInspectionResult } from '../types.js';
 import { iconAlert, iconDot } from '../icons.js';
+import { escapeAttr as escA, escapeHtml as escH } from '../sanitize.js';
 
 export class LayoutInspectorModal {
   private modalEl: HTMLElement | null = null;
@@ -158,7 +159,7 @@ export class LayoutInspectorModal {
           <div style="max-height:120px;overflow-y:auto;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px;font-size:12px;font-family:monospace;">
             ${res.issues
               .map((iss) => {
-                return `<div style="padding:3px 0;border-bottom:1px solid #21262d;"><strong>[${iss.type}]</strong> ${iss.message}</div>`;
+                return `<div style="padding:3px 0;border-bottom:1px solid #21262d;"><strong>[${escH(iss.type)}]</strong> ${escH(iss.message)}</div>`;
               })
               .join('')}
           </div>
@@ -175,17 +176,17 @@ export class LayoutInspectorModal {
         tbody.innerHTML = res.assignments
           .map((a) => {
             const sensorsCount = a.detectedSensorIds.length;
-            const plusStr = `<span class="badge badge-enter">ENTER: ${a.sensorsPlus.enter || '-'}</span> ➔ <span class="badge badge-in">IN: ${a.sensorsPlus.in || '-'}</span>`;
-            const minusStr = `<span class="badge badge-enter">ENTER: ${a.sensorsMinus.enter || '-'}</span> ➔ <span class="badge badge-in">IN: ${a.sensorsMinus.in || '-'}</span>`;
+            const plusStr = `<span class="badge badge-enter">ENTER: ${escH(a.sensorsPlus.enter || '-')}</span> ➔ <span class="badge badge-in">IN: ${escH(a.sensorsPlus.in || '-')}</span>`;
+            const minusStr = `<span class="badge badge-enter">ENTER: ${escH(a.sensorsMinus.enter || '-')}</span> ➔ <span class="badge badge-in">IN: ${escH(a.sensorsMinus.in || '-')}</span>`;
 
             let sigBadges = '';
-            if (a.exitSignalPlus) sigBadges += `<span class="badge badge-sig">+ ${a.exitSignalPlus}</span> `;
-            if (a.exitSignalMinus) sigBadges += `<span class="badge badge-sig">- ${a.exitSignalMinus}</span>`;
+            if (a.exitSignalPlus) sigBadges += `<span class="badge badge-sig">+ ${escH(a.exitSignalPlus)}</span> `;
+            if (a.exitSignalMinus) sigBadges += `<span class="badge badge-sig">- ${escH(a.exitSignalMinus)}</span>`;
             if (!sigBadges) sigBadges = `<span style="color:#6e7681;">-</span>`;
 
             return `
               <tr>
-                <td><strong>${a.blockName}</strong><br><small style="color:#8b949e;">${a.blockId}</small></td>
+                <td><strong>${escH(a.blockName)}</strong><br><small style="color:#8b949e;">${escH(a.blockId)}</small></td>
                 <td>${plusStr}</td>
                 <td>${minusStr}</td>
                 <td>${sigBadges}</td>
@@ -228,7 +229,7 @@ export class LayoutInspectorModal {
                   const name = toObj ? toObj.name : ts.turnoutId;
                   const isStr = ts.state === 'STRAIGHT';
                   return `<span class="turnout-pill ${isStr ? 'straight' : 'divergent'}">
-                    ${isStr ? '➔' : '⤵'} ${name}: ${isStr ? 'Gerade' : 'Abzweig'}
+                    ${isStr ? '➔' : '⤵'} ${escH(name)}: ${isStr ? 'Gerade' : 'Abzweig'}
                   </span>`;
                 })
                 .join(' ')
@@ -239,7 +240,7 @@ export class LayoutInspectorModal {
                 .map((ss) => {
                   const isHp1 = ss.aspect === 'HP1';
                   return `<span class="signal-pill ${isHp1 ? 'hp1' : 'hp2'}">
-                    ${isHp1 ? '🟢' : '🟡'} ${ss.signalId}: ${ss.aspect}
+                    ${isHp1 ? '🟢' : '🟡'} ${escH(ss.signalId)}: ${escH(ss.aspect)}
                   </span>`;
                 })
                 .join(' ')
@@ -248,17 +249,17 @@ export class LayoutInspectorModal {
           return `
             <tr>
               <td style="text-align:center;">
-                <input type="checkbox" class="route-select-cb" data-route-id="${r.id}" ${isChecked ? 'checked' : ''} />
+                <input type="checkbox" class="route-select-cb" data-route-id="${escA(r.id)}" ${isChecked ? 'checked' : ''} />
               </td>
-              <td><span class="badge badge-dir">${r.direction}</span></td>
+              <td><span class="badge badge-dir">${escH(r.direction)}</span></td>
               <td>
-                <strong>${fromBlock ? fromBlock.name : r.fromBlockId}</strong>
+                <strong>${escH(fromBlock ? fromBlock.name : r.fromBlockId)}</strong>
                 <span style="color:#58a6ff;margin:0 4px;">➔</span>
-                <strong>${toBlock ? toBlock.name : r.toBlockId}</strong>
+                <strong>${escH(toBlock ? toBlock.name : r.toBlockId)}</strong>
               </td>
               <td>${turnoutPills}</td>
               <td>${signalPills}</td>
-              <td><small style="color:#8b949e;">${r.id}</small></td>
+              <td><small style="color:#8b949e;">${escH(r.id)}</small></td>
             </tr>
           `;
         })

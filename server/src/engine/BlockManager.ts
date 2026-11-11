@@ -65,10 +65,33 @@ export class BlockManager {
     return Array.from(this.blocks.values());
   }
 
-  updateBlock(updatedBlock: Block): void {
-    this.blocks.set(updatedBlock.id, { ...updatedBlock });
+  /**
+   * Block anlegen oder Stammdaten ändern. Ein vorhandener Block wird an Ort und Stelle
+   * aktualisiert (Timer und Fahrstraßen halten Referenzen auf das Objekt).
+   * preserveRuntime: Belegung, Reservierung und Wartezeit bleiben erhalten – ein
+   * Bearbeiten-Dialog darf den Live-Zustand nicht überschreiben.
+   */
+  updateBlock(updatedBlock: Block, preserveRuntime = false): Block {
+    const next = { ...updatedBlock };
+    const existing = this.blocks.get(next.id);
+    let target: Block;
+    if (existing) {
+      const runtime = {
+        state: existing.state,
+        currentLocoId: existing.currentLocoId,
+        reservedForLocoId: existing.reservedForLocoId,
+        waitTimer: existing.waitTimer
+      };
+      for (const key of Object.keys(existing)) delete (existing as any)[key];
+      Object.assign(existing, next, preserveRuntime ? runtime : {});
+      target = existing;
+    } else {
+      target = next;
+      this.blocks.set(next.id, target);
+    }
     this.rebuildSensorMapping();
-    this.events.onBlockUpdated(updatedBlock);
+    this.events.onBlockUpdated(target);
+    return target;
   }
 
   /** CR-17: Block dauerhaft entfernen (inkl. Sensorzuordnung). */

@@ -3,6 +3,7 @@ import { wsClient } from '../wsClient.js';
 import { iconAlert } from '../icons.js';
 import { getLanguage, t } from '../i18n.js';
 import { registerView } from '../uiScheduler.js';
+import { escapeHtml as escH } from '../sanitize.js';
 
 export class BBTMonitor {
   private tbody: HTMLElement;
@@ -173,7 +174,7 @@ export class BBTMonitor {
       this.detailContainer.innerHTML = `
         <div class="bbt-header-bar">
           <div class="bbt-profile-title">
-            <span>🚩 Profil: <strong>${blockName}</strong> · <strong>${locoName}</strong> [${dirLabel}]</span>
+            <span>🚩 Profil: <strong>${escH(blockName)}</strong> · <strong>${escH(locoName)}</strong> [${dirLabel}]</span>
             <span class="badge" style="background: rgba(139, 148, 158, 0.2); color: var(--text-muted);">${t('bbt.no_profile_title')}</span>
           </div>
         </div>
@@ -251,7 +252,7 @@ export class BBTMonitor {
     this.detailContainer.innerHTML = `
       <div class="bbt-header-bar">
         <div class="bbt-profile-title">
-          <span>🚩 Profil: <strong>${blockName}</strong> · <strong>${locoName}</strong> [${dirLabel}]</span>
+          <span>🚩 Profil: <strong>${escH(blockName)}</strong> · <strong>${escH(locoName)}</strong> [${dirLabel}]</span>
           ${lockBadge}
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -514,8 +515,8 @@ export class BBTMonitor {
         : `<span class="bbt-badge-status bbt-badge-optimal" style="margin-left:6px;">🟢 Lernt</span>`;
 
       tr.innerHTML = `
-        <td><strong>${loco?.name || entry.locoId}</strong></td>
-        <td>${block?.name || entry.blockId}</td>
+        <td><strong>${escH(loco?.name || entry.locoId)}</strong></td>
+        <td>${escH(block?.name || entry.blockId)}</td>
         <td><code>${entry.direction === '+' ? 'Vorwärts (+)' : 'Rückwärts (-)'}</code></td>
         <td>${entry.steps}</td>
         <td><strong style="color:#38bdf8;">${entry.intervalMs} ms</strong></td>

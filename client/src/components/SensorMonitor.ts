@@ -17,6 +17,7 @@ import {
 import { getLanguage, t } from '../i18n.js';
 import { registerView } from '../uiScheduler.js';
 import { agoBucket, formatAgo } from '../format.js';
+import { escapeAttr as escA, escapeHtml as escH } from '../sanitize.js';
 
 export class SensorMonitor {
   private container: HTMLElement;
@@ -72,7 +73,7 @@ export class SensorMonitor {
     if (enabled) {
       if (activeNodes.length > 0) {
         const n = activeNodes[0];
-        chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32: ${n.name || 'WIO'} (Unit #${n.unit}) online @ ${n.ip} (${n.connectionType || 'TCP'})</span>`;
+        chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32: ${escH(n.name || 'WIO')} (Unit #${Number(n.unit)}) online @ ${escH(n.ip)} (${escH(n.connectionType || 'TCP')})</span>`;
         chip.style.backgroundColor = '#238636';
       } else {
         chip.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;">${iconRadio(14)} ESP32 WIO-Server: Port ${port} aktiv (Warte auf ESP)</span>`;
@@ -291,20 +292,20 @@ export class SensorMonitor {
               <span style="color:#58a6ff;">${iconCommandStation(22)}</span>
               <div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <strong style="color:#f0f6fc;font-size:14px;">${esp.name}</strong>
-                  <span style="font-size:12px;color:#8b949e;">(${esp.title})</span>
+                  <strong style="color:#f0f6fc;font-size:14px;">${escH(esp.name)}</strong>
+                  <span style="font-size:12px;color:#8b949e;">(${escH(esp.title)})</span>
                   ${statusBadge}
                 </div>
                 <div style="font-size:12px;color:#8b949e;margin-top:2px;">
-                  IP: <code style="color:#58a6ff;">${esp.ip}</code>
-                  ${esp.mac ? `• MAC: <span style="font-family:monospace;color:#c9d1d9;">${esp.mac}</span>` : ''}
-                  ${esp.unit ? `• Baugruppe/Unit: <strong>${esp.unit}</strong>` : ''}
+                  IP: <code style="color:#58a6ff;">${escH(esp.ip)}</code>
+                  ${esp.mac ? `• MAC: <span style="font-family:monospace;color:#c9d1d9;">${escH(esp.mac)}</span>` : ''}
+                  ${esp.unit ? `• Baugruppe/Unit: <strong>${Number(esp.unit)}</strong>` : ''}
                 </div>
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <a href="${esp.webUrl}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfiguration im Webbrowser">
-                ${iconGlobe(14)} Web-UI (${esp.ip}) ↗
+              <a href="${escA(/^https?:\/\//i.test(esp.webUrl) ? esp.webUrl : '#')}" rel="noopener noreferrer" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfiguration im Webbrowser">
+                ${iconGlobe(14)} Web-UI (${escH(esp.ip)}) ↗
               </a>
               ${esp.unit ? `
                 <button id="btn-scan-create-${esp.unit}" class="btn btn-sm btn-save" style="display:inline-flex;align-items:center;gap:5px;" title="Erstellt automatisch 16 Belegtmelder für dieses Modul">
@@ -358,7 +359,7 @@ export class SensorMonitor {
           return `
             <div class="wio-sniffer-row">
               <span class="time">[${time}]</span>
-              <span class="ip">${pkt.ip}</span>
+              <span class="ip">${escH(pkt.ip)}</span>
               <span class="data">➔ ${this.escapeHtml(pkt.payload)}</span>
             </div>
           `;
@@ -481,10 +482,10 @@ export class SensorMonitor {
     const isOnline = secAgo < 30;
     const statusText = isOnline ? `Online (Vor ${secAgo}s)` : `Zuletzt gesehen vor ${secAgo}s`;
     const connBadge = node.connectionType
-      ? `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">${node.connectionType} 8051</span>`
+      ? `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">${escH(node.connectionType)} 8051</span>`
       : '';
-    const nameStr = node.name ? `"${node.name}" ` : '';
-    const verStr = node.clientver ? `• FW v${node.clientver}` : '';
+    const nameStr = node.name ? `"${escH(node.name)}" ` : '';
+    const verStr = node.clientver ? `• FW v${escH(node.clientver)}` : '';
 
     // Generate Pins for this node
     const pins = this.getNodePins(node);
@@ -497,12 +498,12 @@ export class SensorMonitor {
         : `Pin ${pin}: ${isHigh ? 'BELEGT' : 'FREI'} (Noch nicht als Sensor angelegt) - Klicken zum Anlegen`;
 
       pinsHtml += `
-        <div id="pin-${node.unit}-${pin}" class="wio-pin-item ${isHigh ? 'active' : ''}" title="${title}" style="cursor:pointer;">
+        <div id="pin-${node.unit}-${pin}" class="wio-pin-item ${isHigh ? 'active' : ''}" title="${escA(title)}" style="cursor:pointer;">
           <div class="pin-num">P${pin}</div>
           <div class="pin-label" style="display:flex;align-items:center;justify-content:center;gap:4px;">
             ${isHigh ? `${iconDot('#f85149', 6)} BELEGT` : `${iconDot('#8b949e', 6)} FREI`}
           </div>
-          ${sensor ? `<div style="font-size:9px;color:#58a6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;" title="${sensor.name}">${sensor.name}</div>` : ''}
+          ${sensor ? `<div style="font-size:9px;color:#58a6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px;" title="${escA(sensor.name)}">${escH(sensor.name)}</div>` : ''}
         </div>
       `;
     }
@@ -523,8 +524,8 @@ export class SensorMonitor {
             </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <a href="http://${node.ip}" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfigurations-Webseite">
-              ${iconGlobe(14)} Web-UI (${node.ip}) ↗
+            <a href="http://${escA(node.ip)}" rel="noopener noreferrer" target="_blank" class="btn btn-sm" style="background:#21262d;border:1px solid #30363d;color:#58a6ff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;" title="Öffnet die ESP32 Konfigurations-Webseite">
+              ${iconGlobe(14)} Web-UI (${escH(node.ip)}) ↗
             </a>
             <button id="btn-autocreate-wio-${node.unit}" class="btn btn-sm btn-save" style="display:inline-flex;align-items:center;gap:5px;" title="Legt für alle 16 Pins dieses ESP32 automatisch Rückmelder in TrainMaster an">
               ${iconPlus(14)} Alle 16 Pins anlegen
@@ -686,7 +687,7 @@ export class SensorMonitor {
       header.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="color:#58a6ff;display:inline-flex;align-items:center;">${sensorTypeIcon}</span>
-          <div class="sensor-name" style="font-weight:600;color:#f0f6fc;">${sensor.name}</div>
+          <div class="sensor-name" style="font-weight:600;color:#f0f6fc;">${escH(sensor.name)}</div>
         </div>
         <div class="sensor-badge ${sensor.active ? 'active' : 'free'}" style="display:inline-flex;align-items:center;gap:5px;">
           ${sensor.active ? `${iconDot('#f85149', 6)} ${t('sensors.status_occupied')}` : `${iconDot('#8b949e', 6)} ${t('sensors.status_free')}`}
@@ -710,7 +711,7 @@ export class SensorMonitor {
         addressText = `Adresse: <strong>#${sensor.address}</strong>`;
       }
 
-      let badgesHtml = `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">Typ: ${sensor.type}</span>`;
+      let badgesHtml = `<span style="background:#21262d;border:1px solid #30363d;padding:2px 6px;border-radius:4px;font-size:11px;color:#58a6ff;">Typ: ${escH(sensor.type)}</span>`;
       if (sensor.inverted) {
         badgesHtml += ` <span style="background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.4);padding:2px 6px;border-radius:4px;font-size:11px;color:#e3b341;display:inline-flex;align-items:center;gap:3px;">${iconAlert(12, '#e3b341')} Invertiert</span>`;
       }

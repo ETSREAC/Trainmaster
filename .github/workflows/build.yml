@@ -26,3 +26,6 @@ jobs:
 
       - name: Build Server & Client
         run: npm run build
+
+      - name: Run Tests
+        run: npm test

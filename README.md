@@ -6,8 +6,8 @@
 [🇬🇧 **English Version**](README.md) • [🇩🇪 **Deutsche Version**](README_de.md)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF.svg)](https://vitejs.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-20.19%2B-green.svg)](https://nodejs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF.svg)](https://vitejs.dev/)
 [![ESP32](https://img.shields.io/badge/ESP32-PlatformIO-red.svg)](https://platformio.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Donate-orange?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/ibiterik)
@@ -107,7 +107,7 @@ TrainMaster/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (Version 18 or newer)
+- [Node.js](https://nodejs.org/) (Version 20.19 or newer, current LTS recommended)
 - npm (bundled with Node.js)
 
 ### 1. Clone the repository
@@ -135,6 +135,14 @@ npm run dev
 
 The browser will open automatically at:
 👉 **`http://localhost:5173`** *(or on your tablet: `http://<PC-IP>:5173`)*
+
+**Without the development server (single port):**
+```bash
+npm run build   # builds server and web UI once
+npm start       # serves everything at http://localhost:3001
+```
+
+> 🔒 **Network note:** TrainMaster has no login. Anyone in the same network can control the layout. Run it only in a trusted home network and never expose ports 3001, 5173 or 8051 to the internet.
 
 ---
 

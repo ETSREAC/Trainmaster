@@ -1,7 +1,10 @@
 {
   "name": "trainmaster",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "description": "Moderne, modulare Modellbahn-Steuerung mit Gleisplan, BBT und Automatikbetrieb",
   "workspaces": [
     "server",
@@ -11,10 +14,12 @@
     "dev": "node scripts/start.mjs",
     "server": "npm run dev --workspace=server",
     "client": "npm run dev --workspace=client",
+    "client:local": "npm run dev:local --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "start": "npm run start --workspace=server",
-    "test": "npm run build && node scripts/test_security_fixes.mjs && node --test scripts/test_split_block.mjs scripts/test_dccex_driver.mjs scripts/test_loco_images.mjs scripts/test_auto_functions.mjs scripts/test_z21_driver.mjs scripts/test_crowpanel_z21.mjs scripts/test_editor_core.mjs",
+    "test": "npm run build && node scripts/test_security_fixes.mjs && node --test scripts/test_split_block.mjs scripts/test_dccex_driver.mjs scripts/test_loco_images.mjs scripts/test_auto_functions.mjs scripts/test_z21_driver.mjs scripts/test_crowpanel_z21.mjs scripts/test_editor_core.mjs scripts/test_robustness.mjs",
     "test:security": "node scripts/test_security_fixes.mjs",
+    "test:robustness": "node --test scripts/test_robustness.mjs",
     "test:split": "node --test scripts/test_split_block.mjs",
     "test:dccex": "node --test scripts/test_dccex_driver.mjs",
     "test:images": "node --test scripts/test_loco_images.mjs",

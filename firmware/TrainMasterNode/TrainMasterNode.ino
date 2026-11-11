@@ -26,7 +26,7 @@
 #include <ArduinoOTA.h>
 
 // --- Standard-Konfiguration (kann im Web-Interface geändert werden) ---
-#define FIRMWARE_VERSION "2.1.1"
+#define FIRMWARE_VERSION "2.2.0"
 
 #if __has_include("credentials.h")
   #include "credentials.h"
@@ -44,6 +44,10 @@
 #define DEFAULT_PORT     8051
 #define DEFAULT_UNIT     33
 #define DEFAULT_NODE_NAME "TrainMasterESP1"
+#define DEFAULT_ADMIN_PIN "1234"          // Werkseinstellung, in der Web-Oberfläche ändern!
+#define OTA_UNLOCK_WINDOW_MS 180000UL     // Firmware-Upload nach PIN-Eingabe 3 Minuten möglich
+#define PIN_MAX_FAILURES 5                // danach Sperre gegen Durchprobieren
+#define PIN_LOCKOUT_MS 60000UL
 
 // --- Pin-Rollen & Pin-Definitionen ---
 enum PinModeType {
@@ -115,6 +119,17 @@ unsigned long lastServerConnectAttempt = 0;
 unsigned long lastHeartbeat = 0;
 bool isConnectedToServer = false;
 
+// --- Zugriffsschutz (Admin-PIN) ---
+String adminPin = DEFAULT_ADMIN_PIN;
+uint8_t pinFailures = 0;
+unsigned long pinLockedAt = 0;
+bool pinLocked = false;
+// Firmware-Upload: wird erst nach PIN-Eingabe für die anfragende IP freigeschaltet
+bool otaUnlocked = false;
+unsigned long otaUnlockedAt = 0;
+IPAddress otaUnlockedIp;
+bool otaUploadAccepted = false;
+
 // --- Prototypen ---
 void setupPins();
 void handleInputs();
@@ -124,6 +139,77 @@ void sendSensorEvent(uint8_t pin, bool state);
 void sendHeartbeat();
 void processIncomingData(String data);
 void setupWebServer();
+
+// --- Hilfsfunktionen Sicherheit ---
+
+// Text für die Ausgabe in HTML entschärfen (Modulname, SSID, Server-Adresse)
+String htmlEscape(const String& in) {
+  String out;
+  out.reserve(in.length() + 8);
+  for (size_t i = 0; i < in.length(); i++) {
+    char ch = in[i];
+    switch (ch) {
+      case '&': out += "&amp;"; break;
+      case '<': out += "&lt;"; break;
+      case '>': out += "&gt;"; break;
+      case '"': out += "&quot;"; break;
+      case '\'': out += "&#39;"; break;
+      default: out += ch;
+    }
+  }
+  return out;
+}
+
+// Modulname: nur Buchstaben, Ziffern, Leerzeichen, - _ . (max. 32 Zeichen).
+// Der Name wird in HTML, JSON und XML eingesetzt und darf dort nichts aufbrechen.
+String sanitizeNodeName(const String& in) {
+  String out;
+  for (size_t i = 0; i < in.length() && out.length() < 32; i++) {
+    char ch = in[i];
+    if (isalnum((unsigned char)ch) || ch == ' ' || ch == '-' || ch == '_' || ch == '.') out += ch;
+  }
+  out.trim();
+  return out.length() > 0 ? out : String(DEFAULT_NODE_NAME);
+}
+
+// Server-Adresse: IP oder Hostname (Buchstaben, Ziffern, Punkt, Bindestrich)
+bool isValidHost(const String& in) {
+  if (in.length() == 0 || in.length() > 64) return false;
+  for (size_t i = 0; i < in.length(); i++) {
+    char ch = in[i];
+    if (!(isalnum((unsigned char)ch) || ch == '.' || ch == '-')) return false;
+  }
+  return true;
+}
+
+// Admin-PIN prüfen, mit Sperre nach mehreren Fehlversuchen
+bool checkAdminPin(const String& candidate) {
+  if (pinLocked) {
+    if (millis() - pinLockedAt < PIN_LOCKOUT_MS) return false;
+    pinLocked = false;
+    pinFailures = 0;
+  }
+  if (candidate.length() > 0 && candidate == adminPin) {
+    pinFailures = 0;
+    return true;
+  }
+  if (++pinFailures >= PIN_MAX_FAILURES) {
+    pinLocked = true;
+    pinLockedAt = millis();
+    Serial.println("⛔ Zu viele falsche PIN-Eingaben: 60 s gesperrt.");
+  }
+  return false;
+}
+
+// Ist der Firmware-Upload für die anfragende Gegenstelle freigeschaltet?
+bool otaAllowedForClient() {
+  if (!otaUnlocked) return false;
+  if (millis() - otaUnlockedAt >= OTA_UNLOCK_WINDOW_MS) {
+    otaUnlocked = false;
+    return false;
+  }
+  return webServer.client().remoteIP() == otaUnlockedIp;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -139,7 +225,9 @@ void setup() {
   serverIp = prefs.getString("server", DEFAULT_SERVER);
   serverPort = prefs.getInt("port", DEFAULT_PORT);
   unitId = prefs.getInt("unit", DEFAULT_UNIT);
-  nodeName = prefs.getString("name", DEFAULT_NODE_NAME);
+  nodeName = sanitizeNodeName(prefs.getString("name", DEFAULT_NODE_NAME));
+  adminPin = prefs.getString("admin_pin", DEFAULT_ADMIN_PIN);
+  if (adminPin.length() < 4) adminPin = DEFAULT_ADMIN_PIN;
   triggerDelayMs = prefs.getULong("trigger", 5);
   holdDelayMs = prefs.getULong("hold", 400);
 
@@ -147,22 +235,28 @@ void setup() {
   connectToWiFi();
   setupWebServer();
 
-  // ArduinoOTA für bequemes Flashen über Arduino IDE / Netzwerk mit Passwortschutz (TM-05)
+  // ArduinoOTA für bequemes Flashen über Arduino IDE / Netzwerk (TM-05).
+  // Passwort = Admin-PIN dieses Moduls (kein festes, im Quelltext stehendes Passwort mehr).
+  // Solange die Werks-PIN aktiv ist, bleibt ArduinoOTA abgeschaltet: erst PIN ändern.
   ArduinoOTA.setHostname(nodeName.c_str());
-  ArduinoOTA.setPassword("trainmaster");
+  ArduinoOTA.setPassword(adminPin.c_str());
   ArduinoOTA.onStart([]() {
     Serial.println("🔄 ArduinoOTA Flashvorgang gestartet...");
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\n🎉 ArduinoOTA erfolgreich abgeschlossen! Neustart...");
   });
-  ArduinoOTA.begin();
+  if (adminPin != DEFAULT_ADMIN_PIN) {
+    ArduinoOTA.begin();
+  } else {
+    Serial.println("⚠️ Werks-PIN aktiv: ArduinoOTA ist abgeschaltet. Bitte in der Web-Oberfläche eine eigene Admin-PIN setzen.");
+  }
 
   Serial.println("✅ System bereit. Starte Hauptschleife...");
 }
 
 void loop() {
-  ArduinoOTA.handle();
+  if (adminPin != DEFAULT_ADMIN_PIN) ArduinoOTA.handle();
   webServer.handleClient();
   maintainServerConnection();
   handleInputs();
@@ -419,7 +513,10 @@ void connectToWiFi() {
   } else {
     Serial.println("\n⚠️ WLAN-Verbindung fehlgeschlagen! Starte Access-Point 'TrainMaster-Setup'...");
     WiFi.mode(WIFI_AP);
-    WiFi.softAP("TrainMaster-Setup", "12345678");
+    // Passwort des Einrichtungs-Hotspots: die eigene Admin-PIN, sobald sie mindestens
+    // 8 Zeichen hat (WPA2-Minimum), sonst das Werkspasswort 12345678.
+    String apPass = adminPin.length() >= 8 ? adminPin : String("12345678");
+    WiFi.softAP("TrainMaster-Setup", apPass.c_str());
     Serial.print("📍 Konfigurations-IP: ");
     Serial.println(WiFi.softAPIP());
   }
@@ -466,7 +563,7 @@ void setupWebServer() {
   webServer.on("/", HTTP_GET, []() {
     String html = "<!DOCTYPE html><html lang='de'><head><meta charset='UTF-8'>"
                   "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-                  "<title>TrainMaster Node (" + nodeName + ")</title>"
+                  "<title>TrainMaster Node (" + htmlEscape(nodeName) + ")</title>"
                   "<style>"
                   "body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#0d1117;color:#c9d1d9;margin:0;padding:20px;}"
                   ".card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:18px;max-width:680px;margin:0 auto 16px;box-shadow:0 4px 12px rgba(0,0,0,0.3);}"
@@ -490,7 +587,12 @@ void setupWebServer() {
     html += "</div>";
     html += "<p style='color:#8b949e;font-size:14px;'>Modellbahn ESP32-Controller für Signale & Belegtmeldung (v" FIRMWARE_VERSION ")</p>";
     html += "<div>Unit/Baugruppe: <strong>#" + String(unitId) + "</strong> | IP: <strong>" + WiFi.localIP().toString() + "</strong> | RSSI: <strong>" + String(WiFi.RSSI()) + " dBm</strong></div>";
-    html += "<div>TrainMaster Server: <strong>" + serverIp + ":" + String(serverPort) + "</strong></div>";
+    html += "<div>TrainMaster Server: <strong>" + htmlEscape(serverIp) + ":" + String(serverPort) + "</strong></div>";
+    if (adminPin == DEFAULT_ADMIN_PIN) {
+      html += "<div style='margin-top:12px;padding:10px;border:1px solid #da3633;border-radius:6px;background:rgba(218,54,51,0.15);color:#ffa198;'>"
+              "⚠️ <strong>Werks-PIN 1234 aktiv.</strong> Jeder im WLAN kann dieses Modul umstellen und neue Firmware aufspielen. "
+              "Bitte unten eine eigene Admin-PIN setzen.</div>";
+    }
     html += "</div>";
 
     // Pin-Monitor
@@ -514,15 +616,16 @@ void setupWebServer() {
     html += "<div class='card'>";
     html += "<h2>⚙️ Konfiguration</h2>";
     html += "<form method='POST' action='/save'>";
-    html += "<label>Modul-Name:</label><input type='text' name='name' value='" + nodeName + "'>";
+    html += "<label>Modul-Name (Buchstaben, Ziffern, - _ . Leerzeichen):</label><input type='text' name='name' maxlength='32' value='" + htmlEscape(nodeName) + "'>";
     html += "<label>Baugruppe / Unit-Nummer:</label><input type='number' name='unit' value='" + String(unitId) + "'>";
-    html += "<label>TrainMaster Server IP:</label><input type='text' name='server' value='" + serverIp + "'>";
+    html += "<label>TrainMaster Server IP:</label><input type='text' name='server' value='" + htmlEscape(serverIp) + "'>";
     html += "<label>Server Port:</label><input type='number' name='port' value='" + String(serverPort) + "'>";
     html += "<label>Belegtmelder Haltezeit (ms, Abfallverzögerung / Pulse-Stretching):</label><input type='number' name='hold' value='" + String(holdDelayMs) + "'>";
     html += "<label>Belegtmelder Triggerzeit (ms, Einschaltverzögerung):</label><input type='number' name='trigger' value='" + String(triggerDelayMs) + "'>";
-    html += "<label>WLAN SSID:</label><input type='text' name='ssid' value='" + wifiSsid + "'>";
+    html += "<label>WLAN SSID:</label><input type='text' name='ssid' value='" + htmlEscape(wifiSsid) + "'>";
     html += "<label>WLAN Passwort (leer lassen zum Beibehalten):</label><input type='password' name='pass' placeholder='••••••••' value=''>";
-    html += "<label>Admin-PIN zur Bestätigung (Standard: 1234):</label><input type='password' name='pin' placeholder='Admin-PIN' required>";
+    html += "<label>Neue Admin-PIN (4–32 Zeichen, leer lassen zum Beibehalten):</label><input type='password' name='newpin' maxlength='32' autocomplete='new-password' value=''>";
+    html += "<label>Aktuelle Admin-PIN zur Bestätigung (Werkseinstellung: 1234):</label><input type='password' name='pin' placeholder='Admin-PIN' required>";
     html += "<button type='submit' class='btn'>💾 Speichern & Neustart</button>";
     html += "</form>";
     html += "</div>";
@@ -531,11 +634,21 @@ void setupWebServer() {
     html += "<div class='card'>";
     html += "<h2>🔄 Over-The-Air Update (OTA)</h2>";
     html += "<p style='color:#8b949e;font-size:13px;'>Aktualisiere die Firmware direkt über das Netzwerk mit einer compilierten .bin Datei:</p>";
-    html += "<form method='POST' action='/update' enctype='multipart/form-data'>";
-    html += "<label>Admin-PIN:</label><input type='password' name='pin' placeholder='Admin-PIN' required style='margin-bottom:10px;'><br>";
-    html += "<input type='file' name='update' style='margin-bottom:10px;'><br>";
-    html += "<button type='submit' class='btn' style='background:#1f6feb;'>🚀 Firmware flashen</button>";
-    html += "</form>";
+    if (otaAllowedForClient()) {
+      // Upload ist für dieses Gerät freigeschaltet (PIN wurde bereits geprüft)
+      html += "<p style='color:#3fb950;font-size:13px;'>🔓 Upload für dieses Gerät 3 Minuten lang freigeschaltet.</p>";
+      html += "<form method='POST' action='/update' enctype='multipart/form-data'>";
+      html += "<input type='file' name='update' accept='.bin' required style='margin-bottom:10px;'><br>";
+      html += "<button type='submit' class='btn' style='background:#1f6feb;'>🚀 Firmware flashen</button>";
+      html += "</form>";
+    } else {
+      // Erst die PIN prüfen, dann den Upload annehmen. Früher wurde die Datei schon
+      // geflasht, bevor die PIN überhaupt geprüft war.
+      html += "<form method='POST' action='/ota-unlock'>";
+      html += "<label>Admin-PIN:</label><input type='password' name='pin' placeholder='Admin-PIN' required style='margin-bottom:10px;'><br>";
+      html += "<button type='submit' class='btn' style='background:#1f6feb;'>🔓 Upload freischalten</button>";
+      html += "</form>";
+    }
     html += "</div>";
 
     html += "</body></html>";
@@ -544,53 +657,102 @@ void setupWebServer() {
 
   // Einstellungen speichern (geschützt mit Admin-PIN)
   webServer.on("/save", HTTP_POST, []() {
-    String adminPin = prefs.getString("admin_pin", "1234");
-    if (!webServer.hasArg("pin") || webServer.arg("pin") != adminPin) {
-      webServer.send(401, "text/html", "<h2>⛔ Zugriff verweigert: Ungültige Admin-PIN!</h2><script>setTimeout(()=>window.location='/', 3000);</script>");
+    if (!webServer.hasArg("pin") || !checkAdminPin(webServer.arg("pin"))) {
+      webServer.send(401, "text/html; charset=utf-8", "<h2>⛔ Zugriff verweigert: Ungültige Admin-PIN (oder nach 5 Fehlversuchen 60 s gesperrt)!</h2><script>setTimeout(()=>window.location='/', 3000);</script>");
       return;
     }
 
-    if (webServer.hasArg("ssid")) prefs.putString("ssid", webServer.arg("ssid"));
-    if (webServer.hasArg("pass") && webServer.arg("pass").length() > 0) prefs.putString("pass", webServer.arg("pass"));
-    if (webServer.hasArg("server")) prefs.putString("server", webServer.arg("server"));
-    if (webServer.hasArg("port")) prefs.putInt("port", webServer.arg("port").toInt());
-    if (webServer.hasArg("unit")) prefs.putInt("unit", webServer.arg("unit").toInt());
-    if (webServer.hasArg("name")) prefs.putString("name", webServer.arg("name"));
-    if (webServer.hasArg("hold")) prefs.putULong("hold", webServer.arg("hold").toInt());
-    if (webServer.hasArg("trigger")) prefs.putULong("trigger", webServer.arg("trigger").toInt());
+    // Eingaben prüfen, bevor sie gespeichert werden
+    if (webServer.hasArg("newpin") && webServer.arg("newpin").length() > 0) {
+      String newPin = webServer.arg("newpin");
+      if (newPin.length() < 4 || newPin.length() > 32) {
+        webServer.send(400, "text/html; charset=utf-8", "<h2>⚠️ Die neue Admin-PIN muss 4 bis 32 Zeichen lang sein. Nichts gespeichert.</h2><script>setTimeout(()=>window.location='/', 4000);</script>");
+        return;
+      }
+      prefs.putString("admin_pin", newPin);
+    }
+    if (webServer.hasArg("ssid") && webServer.arg("ssid").length() > 0 && webServer.arg("ssid").length() <= 32) prefs.putString("ssid", webServer.arg("ssid"));
+    if (webServer.hasArg("pass") && webServer.arg("pass").length() > 0 && webServer.arg("pass").length() <= 64) prefs.putString("pass", webServer.arg("pass"));
+    if (webServer.hasArg("server") && isValidHost(webServer.arg("server"))) prefs.putString("server", webServer.arg("server"));
+    if (webServer.hasArg("port")) {
+      long p = webServer.arg("port").toInt();
+      if (p >= 1 && p <= 65535) prefs.putInt("port", (int)p);
+    }
+    if (webServer.hasArg("unit")) {
+      long u = webServer.arg("unit").toInt();
+      if (u >= 0 && u <= 65535) prefs.putInt("unit", (int)u);
+    }
+    if (webServer.hasArg("name")) prefs.putString("name", sanitizeNodeName(webServer.arg("name")));
+    if (webServer.hasArg("hold")) {
+      long h = webServer.arg("hold").toInt();
+      if (h >= 0 && h <= 60000) prefs.putULong("hold", (unsigned long)h);
+    }
+    if (webServer.hasArg("trigger")) {
+      long t = webServer.arg("trigger").toInt();
+      if (t >= 0 && t <= 60000) prefs.putULong("trigger", (unsigned long)t);
+    }
 
     webServer.send(200, "text/html", "<h2>✅ Einstellungen gespeichert! ESP32 startet neu...</h2><script>setTimeout(()=>window.location='/', 5000);</script>");
     delay(1000);
     ESP.restart();
   });
 
-  // OTA Firmware Upload Handler (geschützt mit Admin-PIN)
-  webServer.on("/update", HTTP_POST, []() {
-    String adminPin = prefs.getString("admin_pin", "1234");
-    if (!webServer.hasArg("pin") || webServer.arg("pin") != adminPin) {
-      webServer.send(401, "text/plain", "ACCESS DENIED: INVALID PIN");
+  // Firmware-Upload freischalten: PIN prüfen, danach darf nur diese IP 3 Minuten lang hochladen
+  webServer.on("/ota-unlock", HTTP_POST, []() {
+    if (!webServer.hasArg("pin") || !checkAdminPin(webServer.arg("pin"))) {
+      webServer.send(401, "text/html; charset=utf-8", "<h2>⛔ Zugriff verweigert: Ungültige Admin-PIN (oder nach 5 Fehlversuchen 60 s gesperrt)!</h2><script>setTimeout(()=>window.location='/', 3000);</script>");
       return;
     }
+    otaUnlocked = true;
+    otaUnlockedAt = millis();
+    otaUnlockedIp = webServer.client().remoteIP();
+    webServer.sendHeader("Location", "/");
+    webServer.send(303, "text/plain", "OK");
+  });
+
+  // OTA Firmware Upload Handler. Die Freischaltung wird geprüft, BEVOR das erste Byte
+  // in den Flash geschrieben wird (im Upload-Callback), nicht erst nach dem Flashen.
+  webServer.on("/update", HTTP_POST, []() {
+    if (!otaUploadAccepted) {
+      webServer.send(401, "text/plain", "ACCESS DENIED: UPLOAD NOT UNLOCKED");
+      return;
+    }
+    otaUploadAccepted = false;
+    otaUnlocked = false; // Freischaltung gilt für genau einen Upload
+    bool ok = !Update.hasError();
     webServer.sendHeader("Connection", "close");
-    webServer.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-    ESP.restart();
+    webServer.send(ok ? 200 : 500, "text/plain", ok ? "OK" : "FAIL");
+    if (ok) {
+      delay(500);
+      ESP.restart();
+    }
   }, []() {
     HTTPUpload& upload = webServer.upload();
     if (upload.status == UPLOAD_FILE_START) {
+      otaUploadAccepted = otaAllowedForClient();
+      if (!otaUploadAccepted) {
+        Serial.println("⛔ OTA Upload abgelehnt: nicht freigeschaltet.");
+        return;
+      }
       Serial.printf("🔄 OTA Update Start: %s\n", upload.filename.c_str());
       if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
         Update.printError(Serial);
       }
     } else if (upload.status == UPLOAD_FILE_WRITE) {
+      if (!otaUploadAccepted) return; // nichts schreiben
       if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
         Update.printError(Serial);
       }
     } else if (upload.status == UPLOAD_FILE_END) {
+      if (!otaUploadAccepted) return;
       if (Update.end(true)) {
         Serial.printf("🎉 OTA Update erfolgreich: %u Bytes\n", upload.totalSize);
       } else {
         Update.printError(Serial);
       }
+    } else if (upload.status == UPLOAD_FILE_ABORTED) {
+      if (otaUploadAccepted) Update.abort();
+      otaUploadAccepted = false;
     }
   });
 

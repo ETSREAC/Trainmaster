@@ -29,6 +29,31 @@ export class TurnoutManager {
     this.events.onTurnoutUpdated(updatedTo);
   }
 
+  /**
+   * Stammdaten (Name, Adresse, Invertierung) einer vorhandenen Weiche ändern.
+   * Lage und Verriegelung bleiben unverändert; eine durch eine Fahrstraße verriegelte
+   * Weiche wird nicht angefasst. Ein Stellbefehl geht nur raus, wenn sich Adresse oder
+   * Invertierung geändert haben (damit Anzeige und Antrieb wieder übereinstimmen).
+   */
+  updateTurnoutConfig(cfg: Pick<Turnout, 'id' | 'name' | 'address' | 'inverted'>, onConfigOnly: (to: Turnout) => void): 'OK' | 'LOCKED' | 'UNKNOWN' {
+    const to = this.turnouts.get(cfg.id);
+    if (!to) return 'UNKNOWN';
+    const hardwareChanged = to.address !== cfg.address || !!to.inverted !== !!cfg.inverted;
+    if (to.locked && hardwareChanged) {
+      this.events.onLog(`Weiche ${to.name} ist durch eine Fahrstraße verriegelt: Adresse/Invertierung jetzt nicht änderbar.`, 'warn');
+      return 'LOCKED';
+    }
+    to.name = cfg.name;
+    to.address = cfg.address;
+    to.inverted = !!cfg.inverted;
+    if (hardwareChanged) {
+      this.events.onTurnoutUpdated(to); // sendet den Stellbefehl
+    } else {
+      onConfigOnly(to); // nur anzeigen/speichern, kein Stellbefehl
+    }
+    return 'OK';
+  }
+
   /** CR-17: Weiche dauerhaft entfernen. */
   deleteTurnout(id: string): boolean {
     return this.turnouts.delete(id);

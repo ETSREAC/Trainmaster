@@ -73,7 +73,20 @@ export class BBTEngine {
    * Startet die BBT-Bremsrampe beim ENTER-Ereignis
    */
   startBraking(loco: Locomotive, blockId: string, direction: '+' | '-'): void {
-    // Falls bereits eine Bremsung für diese Lok läuft, abbrechen
+    // Wiederholtes ENTER im selben Block (Melder prellt, jede Achse löst aus): die laufende
+    // Rampe NICHT neu starten. Sonst bremst die Lok jedes Mal von vorn, überfährt den
+    // Haltepunkt und das Lernen verkürzt das Intervall zu Unrecht.
+    const running = this.activeBraking.get(loco.id);
+    if (
+      running &&
+      running.blockId === blockId &&
+      running.direction === direction &&
+      (!running.creepStartTime || loco.speed <= running.vMin)
+    ) {
+      return;
+    }
+
+    // Bremsung für einen anderen Block / nach manuellem Eingriff: alte Rampe abbrechen
     this.cancelBraking(loco.id);
 
     // Stehende Lok nicht "abbremsen": sonst würde die Rampe ab entry.vStart die Lok wieder anfahren
@@ -99,8 +112,10 @@ export class BBTEngine {
     }
 
     const vStart = loco.speed > 0 ? loco.speed : entry.vStart;
-    const vMin = entry.vMin;
-    const totalSteps = Math.max(1, entry.steps);
+    const vMin = Number.isFinite(entry.vMin) ? entry.vMin : loco.vMin;
+    // Schutz vor kaputten Profilen: nie Intervall 0 oder absurde Schrittzahlen fahren
+    const totalSteps = Math.min(500, Math.max(1, Math.round(Number(entry.steps) || 1)));
+    const intervalMs = Math.min(5000, Math.max(20, Math.round(Number(entry.intervalMs) || 80)));
     const speedDelta = vStart - vMin;
 
     if (speedDelta <= 0) {
@@ -111,7 +126,7 @@ export class BBTEngine {
     let currentStep = 0;
     const enterTime = Date.now();
 
-    this.events.onLog(`[BBT] Bremsphase gestartet: Lok ${loco.name}, ${vStart} -> ${vMin} in ${totalSteps} Schritten (${entry.intervalMs}ms/Schritt)`, 'info');
+    this.events.onLog(`[BBT] Bremsphase gestartet: Lok ${loco.name}, ${vStart} -> ${vMin} in ${totalSteps} Schritten (${intervalMs}ms/Schritt)`, 'info');
 
     const runStep = () => {
       // CR-02: Veraltete Rampe (abgebrochen / Not-Halt) darf keine Fahrstufe mehr setzen
@@ -133,7 +148,7 @@ export class BBTEngine {
       this.events.onSpeedStep(loco.id, newSpeed);
 
       // Nächsten Schritt timen
-      const timerId = setTimeout(runStep, entry!.intervalMs);
+      const timerId = setTimeout(runStep, intervalMs);
       const active = this.activeBraking.get(loco.id);
       if (active) {
         active.timerId = timerId;
@@ -141,7 +156,7 @@ export class BBTEngine {
       }
     };
 
-    const timerId = setTimeout(runStep, entry.intervalMs);
+    const timerId = setTimeout(runStep, intervalMs);
     this.activeBraking.set(loco.id, {
       locoId: loco.id,
       blockId,
@@ -151,7 +166,7 @@ export class BBTEngine {
       totalSteps,
       vStart,
       vMin,
-      intervalMs: entry.intervalMs,
+      intervalMs,
       enterTime
     });
   }

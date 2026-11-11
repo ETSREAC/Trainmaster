@@ -109,6 +109,44 @@ export function getSupporterState(): SupporterState {
 }
 
 /**
+ * Prüft den gespeicherten Code beim Start erneut gegen die Signatur. Ein von Hand in den
+ * Browser-Speicher geschriebener Eintrag ohne gültigen Code wird entfernt.
+ * Kann nicht geprüft werden (Web Crypto fehlt, z. B. Aufruf per http://<LAN-IP>), bleibt
+ * der Eintrag unverändert.
+ */
+export async function revalidateStoredSupporterCode(): Promise<void> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return;
+  }
+  if (!raw) return;
+  if (!window.crypto || !window.crypto.subtle) return;
+  let code: unknown;
+  try {
+    code = JSON.parse(raw)?.code;
+  } catch {
+    code = undefined;
+  }
+  const result = typeof code === 'string' ? await verifySupporterCode(code) : { valid: false as const, payload: undefined };
+  if (!result.valid || !result.payload) {
+    removeSupporterCode();
+    return;
+  }
+  // Angezeigten Namen immer aus dem signierten Inhalt nehmen, nicht aus dem Speicher
+  try {
+    const data = JSON.parse(raw);
+    if (data.supporter !== result.payload.supporter || data.tier !== result.payload.tier) {
+      data.supporter = result.payload.supporter;
+      data.tier = result.payload.tier;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      window.dispatchEvent(new CustomEvent('trainmaster:supporter-changed', { detail: data }));
+    }
+  } catch {}
+}
+
+/**
  * Checks if the clean edition is currently unlocked.
  */
 export function isCleanEditionUnlocked(): boolean {

@@ -37,14 +37,59 @@ export class StorageManager {
     }
   }
 
+  /** Zuletzt beim Laden aufgetretenes Problem (für das System-Log), sonst null. */
+  public loadWarning: string | null = null;
+
+  private get backupPath(): string {
+    return `${this.dataFilePath}.bak`;
+  }
+
+  private static parseFile(file: string): StorageData {
+    let raw = fs.readFileSync(file, 'utf-8');
+    // BOM (z. B. vom Windows-Editor) entfernen, sonst scheitert JSON.parse
+    if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Layout-Datei enthält kein JSON-Objekt');
+    }
+    return parsed as StorageData;
+  }
+
+  /**
+   * Lädt die Layout-Daten. Eine beschädigte Datei wird NIE überschrieben:
+   * sie wird als *.corrupt-<Zeit>.json beiseitegelegt, danach wird die letzte
+   * Sicherung (*.bak) versucht und erst zuletzt das Demo-Layout angelegt.
+   */
   loadData(): StorageData {
-    try {
-      if (fs.existsSync(this.dataFilePath)) {
-        const raw = fs.readFileSync(this.dataFilePath, 'utf-8');
-        return JSON.parse(raw);
+    this.loadWarning = null;
+    if (fs.existsSync(this.dataFilePath)) {
+      try {
+        const data = StorageManager.parseFile(this.dataFilePath);
+        // Sicherung des zuletzt erfolgreich geladenen Stands (einmal pro Start)
+        try {
+          fs.copyFileSync(this.dataFilePath, this.backupPath);
+        } catch {}
+        return data;
+      } catch (err: any) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const corruptPath = this.dataFilePath.replace(/\.json$/i, '') + `.corrupt-${stamp}.json`;
+        try {
+          fs.renameSync(this.dataFilePath, corruptPath);
+        } catch {}
+        this.loadWarning = `Layout-Datei war beschädigt (${err?.message || err}) und wurde gesichert als ${path.basename(corruptPath)}.`;
+        console.error(`[Storage] ${this.loadWarning}`);
+        if (fs.existsSync(this.backupPath)) {
+          try {
+            const data = StorageManager.parseFile(this.backupPath);
+            this.loadWarning += ' Die letzte Sicherung (.bak) wurde wiederhergestellt.';
+            this.saveData(data);
+            return data;
+          } catch (bakErr) {
+            console.error('[Storage] Auch die Sicherung (.bak) ist nicht lesbar:', bakErr);
+          }
+        }
+        this.loadWarning += ' Keine lesbare Sicherung vorhanden, das Demo-Layout wurde angelegt.';
       }
-    } catch (err) {
-      console.warn('Konnte bestehende Daten nicht laden, erstelle Standard-Demo-Layout:', err);
     }
     const initial = this.getDefaultData();
     this.saveData(initial);
@@ -64,10 +109,12 @@ export class StorageManager {
         mergedCS.type = 'VIRTUAL';
       }
 
-      const mergedWio = defaultSettings.wio ? {
-        ...defaultSettings.wio,
+      // WIO-Einstellungen behalten (früher wurden sie hier bei jedem Laden verworfen)
+      const mergedWio = {
+        enabled: true,
+        udpPort: 8051,
         ...(data.settings.wio && typeof data.settings.wio === 'object' ? data.settings.wio : {})
-      } : undefined;
+      };
 
       const mergedLighting = defaultSettings.ambientLighting ? {
         ...defaultSettings.ambientLighting,
@@ -82,8 +129,10 @@ export class StorageManager {
         ambientLighting: mergedLighting
       };
     }
-    if (!data.bbt) {
-      data.bbt = [];
+    // Listen müssen existieren (unvollständige oder von Hand bearbeitete Dateien)
+    for (const key of ['locos', 'turnouts', 'signals', 'sensors', 'blocks', 'layout', 'routes', 'bbt'] as const) {
+      const list = (data as any)[key];
+      (data as any)[key] = Array.isArray(list) ? list.filter((x: unknown) => x && typeof x === 'object') : [];
     }
     for (const b of data.bbt) {
       if (!b.history) {
@@ -102,7 +151,19 @@ export class StorageManager {
       if (!fs.existsSync(this.dataDir)) {
         fs.mkdirSync(this.dataDir, { recursive: true });
       }
-      fs.writeFileSync(this.dataFilePath, JSON.stringify(data, null, 2), 'utf-8');
+      // Atomar schreiben: erst in eine Temp-Datei, dann umbenennen. Ein Absturz oder
+      // Stromausfall mitten im Schreiben hinterlässt so nie eine halbe Layout-Datei.
+      const tmpPath = `${this.dataFilePath}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+      try {
+        fs.renameSync(tmpPath, this.dataFilePath);
+      } catch {
+        // Windows: Zieldatei kurzzeitig gesperrt (Virenscanner, Editor) -> direkt kopieren
+        fs.copyFileSync(tmpPath, this.dataFilePath);
+        try {
+          fs.unlinkSync(tmpPath);
+        } catch {}
+      }
     } catch (err) {
       console.error('Fehler beim Speichern der Layout-Daten:', err);
     }
@@ -323,7 +384,7 @@ export class StorageManager {
       ghostDetectionActive: true,
       manualSensorTriggerInRunMode: true,
       ambientLighting: {
-        enabled: true,
+        enabled: false, // erst einschalten, wenn ein Magic-Home-Controller eingerichtet ist
         ip: '192.168.1.50',
         port: 5577,
         mode: 'CIRCADIAN',

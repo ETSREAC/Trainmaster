@@ -19,7 +19,23 @@ import { AmbientLightingEngine } from './engine/AmbientLightingEngine.js';
 import { SplitBlockEngine } from './engine/SplitBlockEngine.js';
 import { LocoImageStore, LocoImageError } from './storage/LocoImageStore.js';
 import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { WioDriver, WioSensorEvent } from './hal/WioDriver.js';
+import {
+  isAspect,
+  sanitizeBBTEntry,
+  sanitizeBlock,
+  sanitizeLayout,
+  sanitizeLightingPatch,
+  sanitizeRoutes,
+  sanitizeSensor,
+  sanitizeSettingsPatch,
+  sanitizeSignal,
+  sanitizeTurnout,
+  toId,
+  toInt
+} from './validate.js';
 import {
   AppSettings,
   CommandStationConfig,
@@ -85,9 +101,35 @@ for (const l of data.locos) {
   if (l.image !== undefined && !LocoImageStore.isValidUrl(l.image)) delete l.image;
 }
 
+// Laufzeitzustand der letzten Sitzung verwerfen: nach einem Neustart steht alles, keine
+// Fahrstraße ist mehr gesichert. Sonst blieben Weichen verriegelt, Blöcke reserviert und
+// Loks mit alter Fahrstufe würden von der Automatik nie wieder abgefertigt.
+for (const l of data.locos) {
+  l.speed = 0;
+  l.targetSpeed = 0;
+  if (l.direction !== 'REV') l.direction = 'FWD';
+  if (!l.functions || typeof l.functions !== 'object') l.functions = {};
+}
+for (const r of data.routes) r.active = false;
+for (const s of data.sensors) s.active = false; // echte Zustände melden die Melder nach dem Verbinden neu
+for (const t of data.turnouts) {
+  t.locked = false;
+  t.lockedByRouteId = null;
+}
+for (const b of data.blocks) {
+  b.waitTimer = null;
+  b.reservedForLocoId = null;
+  if (b.state === 'RESERVED' || b.state === 'GHOST') {
+    b.state = b.currentLocoId ? 'OCCUPIED' : 'FREE';
+  }
+  if (!b.sensorsPlus || typeof b.sensorsPlus !== 'object') b.sensorsPlus = { enter: '', in: '' };
+  if (!b.sensorsMinus || typeof b.sensorsMinus !== 'object') b.sensorsMinus = { enter: '', in: '' };
+  if (typeof b.name !== 'string') b.name = b.id;
+}
+
 // System-Status
 const status: SystemStatus = {
-  connected: true,
+  connected: false, // wird erst nach erfolgreichem Verbindungsaufbau zur Zentrale gesetzt
   commandStationType: data.settings.commandStation.type,
   trackPower: true,
   emergencyStop: false,
@@ -95,6 +137,48 @@ const status: SystemStatus = {
   log: [],
   settings: data.settings
 };
+
+// Speichern gebündelt statt bei jedem einzelnen Ereignis: eine Bremsrampe ändert die
+// Fahrstufe alle 30–80 ms und hätte sonst jedes Mal die komplette Layout-Datei neu geschrieben.
+const SAVE_DEBOUNCE_MS = 400;
+const SAVE_MAX_WAIT_MS = 2000;
+let saveTimer: NodeJS.Timeout | null = null;
+let saveRequestedAt = 0;
+
+function saveAllData(): void {
+  const now = Date.now();
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+  } else {
+    saveRequestedAt = now;
+  }
+  const wait = Math.max(0, Math.min(SAVE_DEBOUNCE_MS, saveRequestedAt + SAVE_MAX_WAIT_MS - now));
+  saveTimer = setTimeout(flushSave, wait);
+}
+
+/** Schreibt ausstehende Änderungen sofort (auch beim Beenden des Servers). */
+function flushSave(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  try {
+    if (!locoManager || !turnoutManager || !blockManager || !routeEngine || !bbtEngine) return;
+  } catch {
+    return; // Module noch nicht initialisiert
+  }
+  storage.saveData({
+    locos: locoManager.getAllLocos(),
+    turnouts: turnoutManager.getAllTurnouts(),
+    signals: data.signals,
+    sensors: data.sensors,
+    blocks: blockManager.getAllBlocks(),
+    layout: data.layout,
+    routes: routeEngine.getAllRoutes(),
+    bbt: bbtEngine.getAllEntries(),
+    settings: data.settings
+  });
+}
 
 function broadcast(msg: WSServerMessage): void {
   const payload = JSON.stringify(msg);
@@ -113,6 +197,9 @@ function addLog(message: string, level: 'info' | 'warn' | 'error' = 'info'): voi
   if (status.log.length > 200) status.log.shift();
   broadcast({ type: 'LOG_MESSAGE', payload: { message, timestamp, level } });
 }
+
+// Problem beim Laden der Layout-Datei sichtbar machen (steht dann auch im System-Log der Oberfläche)
+if (storage.loadWarning) addLog(storage.loadWarning, 'error');
 
 // Hardware Driver Variable
 let hal: ICommandStation = new VirtualSimulator();
@@ -157,29 +244,51 @@ const halCallbacks: CommandStationCallbacks = {
   onLog: addLog
 };
 
-async function applyCommandStation(cfg: CommandStationConfig): Promise<void> {
-  addLog(`Wechsle Zentrale zu: ${cfg.type} (${cfg.connectionType})...`, 'info');
-  if (hal) {
-    await hal.disconnect();
-  }
+// Wechsel der Zentrale strikt nacheinander ausführen. Zwei überlappende Wechsel (Start +
+// Einstellungen speichern, Doppelklick) hinterließen sonst einen verwaisten Treiber, der
+// im Hintergrund weiter versucht, sich zu verbinden.
+let commandStationQueue: Promise<void> = Promise.resolve();
+let appliedCommandStationKey = '';
 
-  if (cfg.type === 'VIRTUAL') {
-    hal = new VirtualSimulator();
-  } else if (cfg.type === 'DCC_EX') {
-    const isSerial = cfg.connectionType === 'SERIAL';
-    const portOrHost = isSerial ? (cfg.serialPort || 'COM3') : (cfg.host || '192.168.4.1');
-    hal = new DccExDriver(isSerial, portOrHost, cfg.baudRate || 115200, cfg.port || 2560);
-  } else if (cfg.type === 'Z21') {
-    hal = new Z21Driver(cfg.host || '192.168.0.111', cfg.port || 21105);
-  }
+function applyCommandStation(cfg: CommandStationConfig, opts: { onlyIfChanged?: boolean } = {}): Promise<void> {
+  const run = async () => {
+    const key = JSON.stringify([cfg.type, cfg.connectionType, cfg.serialPort, cfg.baudRate, cfg.host, cfg.port]);
+    // Unveränderte, verbundene Zentrale nicht bei jedem Speichern der Einstellungen neu verbinden
+    if (opts.onlyIfChanged && key === appliedCommandStationKey && hal.isConnected()) return;
 
-  const ok = await hal.connect(halCallbacks);
-  status.connected = ok;
-  status.commandStationType = cfg.type;
-  broadcast({ type: 'STATUS_UPDATE', payload: { connected: ok, commandStationType: cfg.type } });
-  if (ok && status.trackPower) {
-    syncAllLocoFunctionsToHardware();
-  }
+    addLog(`Wechsle Zentrale zu: ${cfg.type} (${cfg.connectionType})...`, 'info');
+    try {
+      await hal.disconnect();
+    } catch (err: any) {
+      addLog(`Fehler beim Trennen der bisherigen Zentrale: ${err?.message || err}`, 'warn');
+    }
+
+    if (cfg.type === 'DCC_EX') {
+      const isSerial = cfg.connectionType === 'SERIAL';
+      const portOrHost = isSerial ? (cfg.serialPort || 'COM3') : (cfg.host || '192.168.4.1');
+      hal = new DccExDriver(isSerial, portOrHost, cfg.baudRate || 115200, cfg.port || 2560);
+    } else if (cfg.type === 'Z21') {
+      hal = new Z21Driver(cfg.host || '192.168.0.111', cfg.port || 21105);
+    } else {
+      hal = new VirtualSimulator();
+    }
+    appliedCommandStationKey = key;
+
+    let ok = false;
+    try {
+      ok = await hal.connect(halCallbacks);
+    } catch (err: any) {
+      addLog(`Verbindung zur Zentrale fehlgeschlagen: ${err?.message || err}`, 'error');
+    }
+    status.connected = ok;
+    status.commandStationType = cfg.type;
+    broadcast({ type: 'STATUS_UPDATE', payload: { connected: ok, commandStationType: cfg.type } });
+    if (ok && status.trackPower) {
+      syncAllLocoFunctionsToHardware();
+    }
+  };
+  commandStationQueue = commandStationQueue.then(run, run);
+  return commandStationQueue;
 }
 
 // Core Engines
@@ -499,22 +608,28 @@ function handleWioEvent(event: WioSensorEvent): void {
 }
 
 // WIO Driver initialisieren & starten
-let wioDriver = new WioDriver(data.settings.wio?.udpPort || 8051, {
-  onSensorTriggered: handleWioEvent,
-  onNodeUpdated: (_node) => {
-    broadcast({
-      type: 'WIO_NODES_UPDATED',
-      payload: {
-        nodes: wioDriver.getDiscoveredNodes(),
-        recentPackets: wioDriver.getRecentPackets()
-      }
-    });
-  },
-  onLog: addLog
-});
+function createWioDriver(port: number): WioDriver {
+  return new WioDriver(port, {
+    onSensorTriggered: handleWioEvent,
+    onNodeUpdated: (_node) => {
+      broadcast({
+        type: 'WIO_NODES_UPDATED',
+        payload: {
+          nodes: wioDriver.getDiscoveredNodes(),
+          recentPackets: wioDriver.getRecentPackets()
+        }
+      });
+    },
+    onLog: addLog
+  });
+}
+
+let wioDriver = createWioDriver(data.settings.wio?.udpPort || 8051);
 
 if (data.settings.wio?.enabled !== false) {
-  wioDriver.start();
+  wioDriver.start().then((started) => {
+    if (!started) addLog('[WIO] Dienste konnten nicht gestartet werden (Port belegt?). ESP32-Rückmelder sind nicht erreichbar.', 'error');
+  });
 }
 
 function triggerEmergencyStop(): void {
@@ -628,8 +743,17 @@ wss.on('connection', (ws, req) => {
   ws.on('message', async (raw) => {
     try {
       const action: WSClientAction = JSON.parse(raw.toString());
+      if (!action || typeof action !== 'object' || typeof action.type !== 'string') return;
+      // Alle Aktionen außer den drei ohne Nutzdaten brauchen ein Payload-Objekt
+      const payloadFree = ['EMERGENCY_STOP', 'RESUME_STOP', 'SCAN_SERIAL_PORTS', 'SCAN_WIO_NETWORK', 'INSPECT_LAYOUT', 'TRIGGER_LIGHTNING'];
+      const anyPayload = (action as any).payload;
+      if (!payloadFree.includes(action.type) && (!anyPayload || typeof anyPayload !== 'object')) {
+        console.warn(`[WSS] Nachricht ${action.type} ohne gültiges Payload verworfen.`);
+        return;
+      }
       switch (action.type) {
         case 'SET_POWER':
+          if (typeof action.payload.active !== 'boolean') break;
           status.trackPower = action.payload.active;
           hal.setPower(action.payload.active);
           broadcast({ type: 'STATUS_UPDATE', payload: { trackPower: status.trackPower } });
@@ -646,9 +770,22 @@ wss.on('connection', (ws, req) => {
           resumeStop();
           break;
 
-        case 'SET_LOCO_SPEED':
-          locoManager.setSpeed(action.payload.locoId, action.payload.speed, action.payload.direction);
+        case 'SET_LOCO_SPEED': {
+          const { locoId, speed, direction } = action.payload;
+          const loco = locoManager.getLoco(locoId);
+          if (!loco) break;
+          // Während Not-Halt keine Fahrstufe > 0 annehmen. Früher wurde sie gespeichert und
+          // angezeigt, aber nicht gesendet: die Anzeige lief der stehenden Lok davon.
+          if (status.emergencyStop && typeof speed === 'number' && speed > 0) {
+            addLog(`[Not-Halt] Fahrbefehl für ${loco.name} abgelehnt: Not-Halt ist aktiv.`, 'warn');
+            ws.send(JSON.stringify({ type: 'LOCO_UPDATED', payload: loco })); // Regler des Absenders zurücksetzen
+            break;
+          }
+          if (!locoManager.setSpeed(locoId, speed, direction)) {
+            console.warn(`[WSS] SET_LOCO_SPEED mit ungültiger Fahrstufe verworfen: ${JSON.stringify(speed)}`);
+          }
           break;
+        }
 
         case 'SET_LOCO_FUNCTION':
           locoManager.setFunction(action.payload.locoId, action.payload.functionIndex, action.payload.active);
@@ -664,15 +801,18 @@ wss.on('connection', (ws, req) => {
         case 'SET_SIGNAL':
         case 'SET_SIGNAL_ASPECT': {
           const sig = data.signals.find((s) => s.id === action.payload.signalId);
-          if (sig) {
+          if (sig && isAspect(action.payload.aspect)) {
             setSignalState(sig, action.payload.aspect);
           }
           break;
         }
 
         case 'CREATE_SIGNAL': {
-          const s = action.payload;
-          if (!s.id) s.id = `sig-${Date.now()}`;
+          const s = sanitizeSignal(action.payload);
+          if (!s || data.signals.some((x) => x.id === s.id)) {
+            addLog('Signal nicht angelegt: ungültige Daten oder ID bereits vergeben.', 'warn');
+            break;
+          }
           data.signals.push(s);
           saveAllData();
           broadcast({ type: 'SIGNAL_UPDATED', payload: s });
@@ -681,13 +821,16 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'UPDATE_SIGNAL': {
-          const s = action.payload;
-          const idx = data.signals.findIndex((x) => x.id === s.id);
-          if (idx >= 0) {
-            data.signals[idx] = s;
+          const s = sanitizeSignal(action.payload);
+          const existing = s ? data.signals.find((x) => x.id === s.id) : undefined;
+          if (s && existing) {
+            // Objekt an Ort und Stelle ändern, das aktuelle Signalbild bleibt erhalten
+            const aspect = existing.aspect;
+            for (const key of Object.keys(existing)) delete (existing as any)[key];
+            Object.assign(existing, s, { aspect });
             saveAllData();
-            broadcast({ type: 'SIGNAL_UPDATED', payload: s });
-            addLog(`Signal "${s.name}" aktualisiert.`, 'info');
+            broadcast({ type: 'SIGNAL_UPDATED', payload: existing });
+            addLog(`Signal "${existing.name}" aktualisiert.`, 'info');
           }
           break;
         }
@@ -695,6 +838,11 @@ wss.on('connection', (ws, req) => {
         case 'DELETE_SIGNAL': {
           const { signalId } = action.payload;
           data.signals = data.signals.filter((s) => s.id !== signalId);
+          // Verweise in Fahrstraßen entfernen, sonst zeigen sie auf ein nicht mehr vorhandenes Signal
+          if (routeEngine.removeSignalReferences(signalId)) {
+            data.routes = routeEngine.getAllRoutes();
+            broadcast({ type: 'ROUTES_UPDATED', payload: data.routes });
+          }
           saveAllData();
           broadcast({ type: 'SIGNAL_DELETED', payload: { signalId } });
           addLog(`Signal #${signalId} gelöscht.`, 'warn');
@@ -714,8 +862,11 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'CREATE_SENSOR': {
-          const s = action.payload;
-          if (!s.id) s.id = `sens-${Date.now()}`;
+          const s = sanitizeSensor(action.payload);
+          if (!s || data.sensors.some((x) => x.id === s.id)) {
+            addLog('Sensor nicht angelegt: ungültige Daten oder ID bereits vergeben.', 'warn');
+            break;
+          }
           data.sensors.push(s);
           saveAllData();
           broadcast({ type: 'SENSOR_UPDATED', payload: s });
@@ -724,13 +875,16 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'UPDATE_SENSOR': {
-          const s = action.payload;
-          const idx = data.sensors.findIndex((x) => x.id === s.id);
-          if (idx >= 0) {
-            data.sensors[idx] = s;
+          const s = sanitizeSensor(action.payload);
+          const existing = s ? data.sensors.find((x) => x.id === s.id) : undefined;
+          if (s && existing) {
+            // Belegtzustand und letzter Auslösezeitpunkt sind Live-Werte und bleiben erhalten
+            const live = { active: existing.active, lastTriggered: existing.lastTriggered };
+            for (const key of Object.keys(existing)) delete (existing as any)[key];
+            Object.assign(existing, s, live);
             saveAllData();
-            broadcast({ type: 'SENSOR_UPDATED', payload: s });
-            addLog(`Sensor "${s.name}" aktualisiert.`, 'info');
+            broadcast({ type: 'SENSOR_UPDATED', payload: existing });
+            addLog(`Sensor "${existing.name}" aktualisiert.`, 'info');
           }
           break;
         }
@@ -745,8 +899,7 @@ wss.on('connection', (ws, req) => {
             if (b.sensorsMinus.enter === sensorId) { b.sensorsMinus.enter = ''; modified = true; }
             if (b.sensorsMinus.in === sensorId) { b.sensorsMinus.in = ''; modified = true; }
             if (modified) {
-              blockManager.updateBlock(b);
-              broadcast({ type: 'BLOCK_UPDATED', payload: b });
+              blockManager.updateBlock(b, true);
             }
           }
           saveAllData();
@@ -756,24 +909,29 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'CREATE_BLOCK': {
-          const b = action.payload;
-          if (!b.id) b.id = `block-${Date.now()}`;
-          data.blocks.push(b);
-          blockManager.updateBlock(b);
-          saveAllData();
-          broadcast({ type: 'BLOCK_UPDATED', payload: b });
+          const b = sanitizeBlock(action.payload);
+          if (!b || blockManager.getBlock(b.id)) {
+            addLog('Block nicht angelegt: ungültige Daten oder ID bereits vergeben.', 'warn');
+            break;
+          }
+          // Ein neuer Block ist immer frei; Züge werden über "Lok zuweisen" aufgegleist
+          b.state = 'FREE';
+          b.currentLocoId = null;
+          b.reservedForLocoId = null;
+          blockManager.updateBlock(b); // meldet den Block über onBlockUpdated an alle Clients
+          data.blocks = blockManager.getAllBlocks();
           addLog(`Block "${b.name}" angelegt.`, 'info');
           break;
         }
 
         case 'UPDATE_BLOCK': {
-          const b = action.payload;
-          blockManager.updateBlock(b);
-          const idx = data.blocks.findIndex((x) => x.id === b.id);
-          if (idx >= 0) data.blocks[idx] = b;
-          saveAllData();
-          broadcast({ type: 'BLOCK_UPDATED', payload: b });
-          addLog(`Block "${b.name}" aktualisiert (Sensoren: ${b.sensorsPlus.enter || '-'}/${b.sensorsPlus.in || '-'}).`, 'info');
+          const b = sanitizeBlock(action.payload);
+          if (!b || !blockManager.getBlock(b.id)) break;
+          // Nur Stammdaten übernehmen: Belegung, Reservierung und Wartezeit gehören dem Server.
+          // (Zug zuweisen/entfernen läuft über ASSIGN_LOCO_TO_BLOCK bzw. FREE_BLOCK.)
+          const updated = blockManager.updateBlock(b, true);
+          data.blocks = blockManager.getAllBlocks();
+          addLog(`Block "${updated.name}" aktualisiert (Sensoren: ${updated.sensorsPlus.enter || '-'}/${updated.sensorsPlus.in || '-'}).`, 'info');
           break;
         }
 
@@ -802,23 +960,27 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'CREATE_TURNOUT': {
-          const t = action.payload;
-          if (!t.id) t.id = `to-${Date.now()}`;
-          data.turnouts.push(t);
-          turnoutManager.updateTurnout(t);
+          const t = sanitizeTurnout(action.payload);
+          if (!t || turnoutManager.getTurnout(t.id)) {
+            addLog('Weiche nicht angelegt: ungültige Daten oder ID bereits vergeben.', 'warn');
+            break;
+          }
+          turnoutManager.updateTurnout(t); // meldet die Weiche an alle Clients und stellt die Grundstellung
+          data.turnouts = turnoutManager.getAllTurnouts();
           saveAllData();
-          broadcast({ type: 'TURNOUT_UPDATED', payload: t });
           addLog(`Weiche "${t.name}" (Adr: #${t.address}) angelegt.`, 'info');
           break;
         }
 
         case 'UPDATE_TURNOUT': {
-          const t = action.payload;
-          turnoutManager.updateTurnout(t);
-          const idx = data.turnouts.findIndex((x) => x.id === t.id);
-          if (idx >= 0) data.turnouts[idx] = t;
+          const t = sanitizeTurnout(action.payload);
+          if (!t) break;
+          // Lage und Verriegelung bleiben beim Server. Eine verriegelte Weiche wird nicht
+          // umgestellt, nur weil jemand im Dialog "invertiert" ändert.
+          const result = turnoutManager.updateTurnoutConfig(t, (to) => broadcast({ type: 'TURNOUT_UPDATED', payload: to }));
+          if (result !== 'OK') break;
+          data.turnouts = turnoutManager.getAllTurnouts();
           saveAllData();
-          broadcast({ type: 'TURNOUT_UPDATED', payload: t });
           addLog(`Weiche "${t.name}" aktualisiert (DCC #${t.address}, Invertiert: ${t.inverted ? 'Ja' : 'Nein'}).`, 'info');
           break;
         }
@@ -847,6 +1009,9 @@ wss.on('connection', (ws, req) => {
 
         case 'ASSIGN_LOCO_TO_BLOCK': {
           const { locoId, blockId } = action.payload;
+          // Nur vorhandene Loks und Blöcke annehmen (sonst entstehen Geisterbelegungen)
+          if (!locoManager.getLoco(locoId)) break;
+          if (blockId !== null && !blockManager.getBlock(blockId)) break;
           blockManager.assignLocoToBlock(locoId, blockId);
           for (const l of locoManager.getAllLocos()) {
             if (l.id === locoId) {
@@ -870,17 +1035,25 @@ wss.on('connection', (ws, req) => {
           if (currentLocoId) splitEngine.cancel(currentLocoId);
           if (reservedLocoId) splitEngine.cancel(reservedLocoId);
 
-          // Eventuelle Fahrstraßen auflösen, die von/zu diesem Block führen
-          routeEngine.releaseRoute(blockId);
+          // Eventuelle Fahrstraßen auflösen, die von/zu diesem Block führen.
+          // Hat der Zug den Block noch nicht erreicht (nur reserviert), bleibt sein Startblock
+          // belegt: er steht oder fährt dort noch.
+          const trainArrived = targetBlock?.state !== 'RESERVED';
+          if (!trainArrived && reservedLocoId) bbtEngine.cancelBraking(reservedLocoId);
+          routeEngine.releaseRoute(blockId, { freeFromBlock: trainArrived });
           for (const r of routeEngine.getAllRoutes()) {
             if (r.fromBlockId === blockId && r.active) {
+              const dest = blockManager.getBlock(r.toBlockId);
               routeEngine.releaseRoute(r.toBlockId);
+              // Noch nicht erreichte Zielreservierung dieser Fahrt mit aufheben
+              if (dest && dest.state === 'RESERVED') blockManager.freeBlock(dest.id);
             }
           }
 
-          // Alle Loks freigeben, die im Block standen, dafür reserviert waren oder noch darauf verweisen
+          // Loks freigeben, die im Block standen oder noch darauf verweisen. Eine Lok, für die
+          // der Block nur reserviert war, behält ihren Startblock.
           for (const l of locoManager.getAllLocos()) {
-            if (l.id === currentLocoId || l.id === reservedLocoId || l.currentBlockId === blockId) {
+            if (l.id === currentLocoId || l.currentBlockId === blockId) {
               locoManager.setLocoBlock(l.id, null);
             }
           }
@@ -892,6 +1065,7 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'REQUEST_ROUTE':
+          if (typeof action.payload.fromBlockId !== 'string' || typeof action.payload.toBlockId !== 'string') break;
           routeEngine.requestRoute(action.payload.fromBlockId, action.payload.toBlockId);
           break;
 
@@ -912,59 +1086,53 @@ wss.on('connection', (ws, req) => {
           broadcast({ type: 'STATUS_UPDATE', payload: { automaticMode: status.automaticMode } });
           break;
 
-        case 'UPDATE_LAYOUT':
-          data.layout = action.payload.elements;
+        case 'UPDATE_LAYOUT': {
+          const elements = sanitizeLayout(action.payload.elements);
+          if (!elements) {
+            addLog('Gleisplan nicht gespeichert: Daten sind ungültig.', 'error');
+            break;
+          }
+          data.layout = elements;
           saveAllData();
           broadcast({ type: 'LAYOUT_UPDATED', payload: data.layout });
           addLog('Gleisplan erfolgreich gespeichert.', 'info');
           break;
+        }
 
-        case 'SAVE_BBT_ENTRY':
-          bbtEngine.saveEntry(action.payload.entry);
+        case 'SAVE_BBT_ENTRY': {
+          const entry = sanitizeBBTEntry(action.payload.entry);
+          if (!entry) {
+            addLog('BBT-Profil nicht gespeichert: Daten sind ungültig.', 'warn');
+            break;
+          }
+          bbtEngine.saveEntry(entry);
           break;
+        }
 
         case 'UPDATE_SETTINGS': {
           const payload = action.payload;
-          if (!payload || typeof payload !== 'object') {
-            console.warn('[Security] UPDATE_SETTINGS ignoriert: Payload ist kein gültiges Objekt.');
-            break;
-          }
           const prevWioPort = data.settings.wio?.udpPort;
-          const prevWioEnabled = data.settings.wio?.enabled;
-          // TM-04: Sichere Zusammenführung mit Schema-Garantien gegen korrupte Payloads
-          data.settings = storage.ensureSettings({
+          const prevWioEnabled = data.settings.wio?.enabled !== false;
+          // TM-04: Nur bekannte, geprüfte Einstellungen übernehmen (keine beliebigen Schlüssel)
+          const merged = storage.ensureSettings({
             ...data,
-            settings: {
-              ...data.settings,
-              ...payload,
-              commandStation: {
-                ...data.settings.commandStation,
-                ...(payload.commandStation && typeof payload.commandStation === 'object' ? payload.commandStation : {})
-              }
-            }
+            settings: sanitizeSettingsPatch(payload, data.settings)
           }).settings;
+          // Dasselbe Objekt weiterverwenden: status.settings zeigt darauf
+          Object.assign(data.settings, merged);
 
           bbtEngine.targetCreepDurationMs = data.settings.targetCreepMs || 1000;
           saveAllData();
-          await applyCommandStation(data.settings.commandStation);
+          await applyCommandStation(data.settings.commandStation, { onlyIfChanged: true });
 
-          if (data.settings.wio && (data.settings.wio.udpPort !== prevWioPort || data.settings.wio.enabled !== prevWioEnabled)) {
+          const wioEnabled = data.settings.wio?.enabled !== false;
+          const wioPort = data.settings.wio?.udpPort || 8051;
+          if (data.settings.wio && (wioPort !== (prevWioPort || 8051) || wioEnabled !== prevWioEnabled)) {
             await wioDriver.stop();
-            if (data.settings.wio.enabled) {
-              wioDriver = new WioDriver(data.settings.wio.udpPort || 8051, {
-                onSensorTriggered: handleWioEvent,
-                onNodeUpdated: (_node) => {
-                  broadcast({
-                    type: 'WIO_NODES_UPDATED',
-                    payload: {
-                      nodes: wioDriver.getDiscoveredNodes(),
-                      recentPackets: wioDriver.getRecentPackets()
-                    }
-                  });
-                },
-                onLog: addLog
-              });
-              await wioDriver.start();
+            wioDriver = createWioDriver(wioPort);
+            if (wioEnabled) {
+              const started = await wioDriver.start();
+              if (!started) addLog(`[WIO] Dienste konnten auf Port ${wioPort} nicht gestartet werden (Port belegt?).`, 'error');
             }
           }
 
@@ -978,7 +1146,7 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'UPDATE_LIGHTING_CONFIG':
-          lightingEngine.updateConfig(action.payload);
+          lightingEngine.updateConfig(sanitizeLightingPatch(action.payload));
           break;
 
         case 'TRIGGER_LIGHTNING':
@@ -1050,7 +1218,9 @@ wss.on('connection', (ws, req) => {
         }
 
         case 'AUTO_CREATE_WIO_SENSORS': {
-          const { unit, count } = action.payload;
+          const unit = toInt(action.payload.unit, 0, 9999);
+          const count = toInt(action.payload.count, 1, 64);
+          if (unit === null || count === null) break;
           const pinsToCreate = count > 16
             ? [4, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39]
             : Array.from({ length: count }, (_, i) => i + 1);
@@ -1088,24 +1258,29 @@ wss.on('connection', (ws, req) => {
 
         case 'APPLY_BLOCK_ASSIGNMENTS': {
           const { assignments } = action.payload;
+          if (!Array.isArray(assignments)) break;
+          const ref = (v: unknown) => toId(v) || '';
           for (const a of assignments) {
-            const block = blockManager.getBlock(a.blockId);
+            const block = a && typeof a === 'object' ? blockManager.getBlock(a.blockId) : undefined;
             if (block) {
-              block.sensorsPlus = a.sensorsPlus;
-              block.sensorsMinus = a.sensorsMinus;
-              blockManager.updateBlock(block);
-              const idx = data.blocks.findIndex((b) => b.id === block.id);
-              if (idx >= 0) data.blocks[idx] = block;
-              broadcast({ type: 'BLOCK_UPDATED', payload: block });
+              block.sensorsPlus = { enter: ref(a.sensorsPlus?.enter), in: ref(a.sensorsPlus?.in) };
+              block.sensorsMinus = { enter: ref(a.sensorsMinus?.enter), in: ref(a.sensorsMinus?.in) };
+              blockManager.updateBlock(block, true); // meldet den Block an alle Clients
             }
           }
+          data.blocks = blockManager.getAllBlocks();
           saveAllData();
           addLog(`Sensoren & Signale für ${assignments.length} Blöcke automatisch zugewiesen und gespeichert.`, 'info');
           break;
         }
 
         case 'SAVE_GENERATED_ROUTES': {
-          const { routes, mode } = action.payload;
+          const { mode } = action.payload;
+          const routes = sanitizeRoutes(action.payload.routes);
+          if (!routes) {
+            addLog('Fahrstraßen nicht gespeichert: Daten sind ungültig.', 'error');
+            break;
+          }
           let finalRoutes: Route[] = [];
           if (mode === 'MERGE') {
             const existing = routeEngine.getAllRoutes();
@@ -1114,7 +1289,9 @@ wss.on('connection', (ws, req) => {
           } else {
             finalRoutes = routes;
           }
+          // Laufende Fahrstraßen bleiben aktiv; entfallende werden sauber aufgelöst
           routeEngine.setRoutes(finalRoutes);
+          finalRoutes = routeEngine.getAllRoutes();
           data.routes = finalRoutes;
           saveAllData();
           broadcast({ type: 'ROUTES_UPDATED', payload: finalRoutes });
@@ -1128,19 +1305,20 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-function saveAllData(): void {
-  storage.saveData({
-    locos: locoManager.getAllLocos(),
-    turnouts: turnoutManager.getAllTurnouts(),
-    signals: data.signals,
-    sensors: data.sensors,
-    blocks: blockManager.getAllBlocks(),
-    layout: data.layout,
-    routes: routeEngine.getAllRoutes(),
-    bbt: bbtEngine.getAllEntries(),
-    settings: data.settings
-  });
+// Ausstehende Änderungen beim Beenden sichern
+let shuttingDown = false;
+function shutdown(): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  flushSave();
+  process.exit(0);
 }
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+process.on('SIGBREAK', shutdown);
+process.on('exit', () => {
+  if (saveTimer) flushSave();
+});
 
 // REST API
 app.get('/api/status', (_req, res) => {
@@ -1212,15 +1390,10 @@ app.use((err: any, _req: express.Request, res: express.Response, next: express.N
   next(err);
 });
 
-// TM-09: Sichere IP-Bereinigung & Validierung gegen SSRF / Header-Spoofing
+// TM-09: Absender-IP ausschließlich von der TCP-Verbindung nehmen. Der Header
+// X-Forwarded-For wird bewusst ignoriert: jeder Absender kann ihn frei setzen und könnte
+// so ein ESP32-Modul unter fremder IP anmelden (Signalbefehle gingen dann dorthin).
 function getCleanClientIp(req: express.Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    const candidate = forwarded.split(',')[0].trim();
-    if (net.isIP(candidate)) {
-      return candidate;
-    }
-  }
   const remote = req.socket.remoteAddress || '127.0.0.1';
   const clean = remote.includes('::ffff:') ? remote.replace('::ffff:', '') : remote;
   if (clean === '::1' || clean === 'localhost') return '127.0.0.1';
@@ -1258,8 +1431,10 @@ app.get('/api/wio/nodes', (_req, res) => {
   });
 });
 
-app.get('/api/wio/scan', async (_req, res) => {
-  const devices = await wioDriver.scanNetwork();
+// GET liefert nur das Ergebnis des letzten Scans. Ein neuer Scan (sendet Broadcasts und
+// fragt Geräte im LAN ab) ist eine Aktion und daher nur per POST / WebSocket möglich.
+app.get('/api/wio/scan', (_req, res) => {
+  const devices = wioDriver.getLastScanResults();
   res.json({ success: true, count: devices.length, devices });
 });
 
@@ -1269,7 +1444,23 @@ app.post('/api/wio/scan', async (_req, res) => {
   res.json({ success: true, count: devices.length, devices });
 });
 
+// Gebaute Web-Oberfläche direkt mit ausliefern (nur im Produktivstart `npm start` aus dist/).
+// Damit läuft TrainMaster ohne den Vite-Entwicklungsserver auf einem einzigen Port.
+const serverFile = fileURLToPath(import.meta.url);
+const clientDist = path.resolve(path.dirname(serverFile), '../../client/dist');
+const servesClient = path.basename(path.dirname(serverFile)) === 'dist' && fs.existsSync(path.join(clientDist, 'index.html'));
+if (servesClient) {
+  app.use(
+    express.static(clientDist, {
+      setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      }
+    })
+  );
+}
+
 server.listen(PORT, () => {
   console.log(`🚂 TrainMaster Server läuft auf http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket Server bereit (v1.9.0).`);
+  if (servesClient) console.log(`🖥️  Web-Oberfläche (gebaute Version): http://localhost:${PORT}`);
+  console.log('🔌 WebSocket Server bereit.');
 });

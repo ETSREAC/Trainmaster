@@ -22,7 +22,7 @@ export class AmbientLightingEngine {
   constructor(initialConfig: AmbientLightingConfig | undefined, events: AmbientLightingEvents) {
     this.events = events;
     this.config = initialConfig || {
-      enabled: true,
+      enabled: false,
       ip: '192.168.1.50',
       port: 5577,
       mode: 'CIRCADIAN',
