@@ -1,6 +1,6 @@
 // Tests: Gleisplan-Editor gegen Fehlklicks absichern (Auswahl statt Ersetzen, Undo/Redo,
 // Doppelklick-Schutz, kein Neuzeichnen während gedrückter Maustaste).
-// Ausfuehren: node --test scripts/test_editor_core.mjs  (Node >= 22.18 laedt .ts direkt)
+// Ausfuehren: npm run test:editor  (laedt .ts ueber tsx, auch unter Node 20)
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
